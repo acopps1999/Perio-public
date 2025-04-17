@@ -1,0 +1,435 @@
+[
+  {
+    "name": "Gingival Recession Surgery",
+    "category": "Surgical",
+    "phases": ["Prep", "Acute", "Maintenance"],
+    "dds": ["Periodontist", "Oral Surgeon"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": ["AO ProVantage Gel"],
+      "Acute": ["Synvaza", "AO ProVantage Gel"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Enhances tissue strength before surgery and supports optimal healing.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day",
+        "rationale": "Antioxidant prep enhances tissue strength before surgery.",
+        "competitive": "Precisely formulated; better tolerated vs homeopathic rinses.",
+        "objection": "Clinical evidence supports use in wound healing applications.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Up to 3x/day",
+        "rationale": "Forms protective barrier over wound bed to support healing.",
+        "competitive": "FDA-cleared wound support with taste patients prefer.",
+        "objection": "510k cleared; competitors lack FDA wound claim.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Scaling and Root Planing (SRP)",
+    "category": "Surgical",
+    "phases": ["Acute", "Maintenance"],
+    "dds": ["Periodontist", "General Dentist", "Hygienist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": ["Synvaza", "AO ProVantage Gel"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Reduces inflammation and accelerates tissue healing post-procedure.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "1-2x/day depending on patient type",
+        "rationale": "Supports healing and reduces inflammation in treated areas.",
+        "competitive": "Non-irritating formula safe for freshly scaled tissue.",
+        "objection": "Clinical case documentation supports efficacy post-SRP.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Up to 3x/day",
+        "rationale": "Creates protective layer over treated sites.",
+        "competitive": "Only rinse with specific wound healing technology for SRP.",
+        "objection": "Faster healing demonstrated vs. standard care.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Oral Lichen Planus",
+    "category": "Intra-Oral",
+    "phases": ["Slight", "Moderate", "Severe"],
+    "dds": ["Oral Medicine Specialist", "General Dentist", "Oral Pathologist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": ["Synvaza"],
+      "Moderate": ["Synvaza"],
+      "Severe": ["Synvaza", "AO ProVantage Gel"]
+    },
+    "pitchPoints": "Evidence-based management for a challenging condition with limited treatment options.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day to affected areas",
+        "rationale": "Helps reduce inflammation and supports epithelial repair.",
+        "competitive": "No other antioxidant oral gel is this well tolerated.",
+        "objection": "Antioxidant modulation effective for autoimmune mucosal conditions.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "3x/day",
+        "rationale": "Soothes inflamed tissue and forms protective barrier.",
+        "competitive": "More soothing than steroid options for long-term management.",
+        "objection": "Patient-reported reduction in discomfort within days of use.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Dry Mouth (Radiation/Chemo/Extreme Sensitivity)",
+    "category": "Intra-Oral",
+    "phases": ["Acute", "Maintenance"],
+    "dds": ["Oncologist", "General Dentist", "Oral Medicine Specialist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": ["Synvaza", "AO ProVantage Gel"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Comprehensive management to reduce oral complications of cancer therapy.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day or as needed for relief",
+        "rationale": "Soothes and protects sensitive tissues affected by cancer treatment.",
+        "competitive": "Gentle formulation suitable for radiation-damaged tissues.",
+        "objection": "Clinical studies support use during cancer therapy.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "3x/day during acute phase",
+        "rationale": "Forms protective layer over sensitive oral mucosa.",
+        "competitive": "Contains healing agents specific to treatment-induced mucositis.",
+        "objection": "Developed with input from oncology specialists.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Laser Gingivectomy",
+    "category": "Surgical",
+    "phases": ["Acute", "Maintenance"],
+    "dds": ["Periodontist", "General Dentist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": ["Synvaza"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Minimizes post-laser tissue sensitivity and accelerates epithelialization.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day during maintenance phase",
+        "rationale": "Supports ongoing tissue healing and health.",
+        "competitive": "Antioxidant formula promotes healthy tissue regeneration.",
+        "objection": "Safe for direct application to healing tissue.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "3x/day immediately after procedure",
+        "rationale": "Creates protective biofilm over laser-treated sites.",
+        "competitive": "Only product clinically shown to support laser wound healing.",
+        "objection": "Helps prevent bacterial contamination of treated sites.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Gingivitis",
+    "category": "Intra-Oral",
+    "phases": ["Slight", "Moderate", "Severe"],
+    "dds": ["General Dentist", "Periodontist", "Hygienist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": ["AO ProVantage Gel"],
+      "Moderate": ["AO ProVantage Gel"],
+      "Severe": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Stops progression to periodontitis and reduces inflammation.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day after brushing",
+        "rationale": "Controls bacterial biofilm and reduces inflammation at gumline.",
+        "competitive": "Antioxidant formulation more effective than conventional options.",
+        "objection": "Visible reduction in redness within days of use.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Denture Stomatitis",
+    "category": "Intra-Oral",
+    "phases": ["Slight", "Moderate", "Severe"],
+    "dds": ["Prosthodontist", "General Dentist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": ["AO ProVantage Gel"],
+      "Moderate": ["AO ProVantage Gel"],
+      "Severe": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Comprehensive approach addressing both tissue inflammation and denture biofilm.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2-3x/day to affected palatal tissue after removing denture",
+        "rationale": "Creates antifungal environment and reduces inflammation.",
+        "competitive": "More effective than traditional antifungal medications alone.",
+        "objection": "Can be used alongside regular denture cleaning protocols.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Nicotine Stomatitis",
+    "category": "Intra-Oral",
+    "phases": ["Slight", "Moderate", "Severe"],
+    "dds": ["General Dentist", "Oral Pathologist", "Oral Medicine Specialist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": ["AO ProVantage Gel"],
+      "Moderate": ["AO ProVantage Gel"],
+      "Severe": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Early management of a potentially precancerous condition.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day to affected palatal tissue",
+        "rationale": "Antioxidants neutralize free radicals from tobacco exposure.",
+        "competitive": "Higher antioxidant concentration than competing products.",
+        "objection": "Beneficial even with continued tobacco use, though cessation is advised.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Implant Placement",
+    "category": "Surgical",
+    "phases": ["Prep", "Acute", "Maintenance"],
+    "dds": ["Oral Surgeon", "Periodontist", "General Dentist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": ["AO ProVantage Gel"],
+      "Acute": ["Synvaza", "AO ProVantage Gel"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Optimizes healing, especially for high-risk patients. Reduces complications.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "2x/day during prep; 1-2x/day during maintenance depending on patient type",
+        "rationale": "Antioxidants help tissue recovery and reduce free radical damage.",
+        "competitive": "Consistent formulation with higher antioxidant content than competitors.",
+        "objection": "Clinical evidence supports improved healing outcomes.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Up to 3x/day during acute phase",
+        "rationale": "Forms protective layer over surgical site and stimulates healing.",
+        "competitive": "FDA-cleared wound healing rinse with proven efficacy.",
+        "objection": "Clinical studies show faster integration of implants.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Soft Tissue Grafting",
+    "category": "Surgical",
+    "phases": ["Prep", "Acute", "Maintenance"],
+    "dds": ["Periodontist", "Oral Surgeon"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": ["AO ProVantage Gel"],
+      "Acute": ["Synvaza"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Promotes faster integration and reduces discomfort. Essential for donor site healing.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "Apply to donor and recipient sites 2x/day",
+        "rationale": "Promotes microcirculation and delivers antioxidants to healing tissues.",
+        "competitive": "Non-irritating formula safe for freshly grafted sites.",
+        "objection": "Clinical documentation supports use in graft procedures.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Rinse 3x/day for 7-10 days post-procedure",
+        "rationale": "Helps stabilize blood clot and forms protective layer over wound.",
+        "competitive": "Only rinse with patented wound-healing technology proven for grafts.",
+        "objection": "Superior healing outcomes documented in case studies.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Extractions",
+    "category": "Surgical",
+    "phases": ["Acute", "Maintenance"],
+    "dds": ["General Dentist", "Oral Surgeon"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": ["Synvaza"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Reduces dry socket risk and accelerates healing in socket area.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "Apply small amount near extraction site 1-2x/day",
+        "rationale": "Supports tissue regeneration in socket area.",
+        "competitive": "Doesn't interfere with clot formation like other topicals.",
+        "objection": "Safe for application after 24 hours post-extraction.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Rinse gently 3x/day for 3-5 days post-extraction",
+        "rationale": "Forms protective layer over extraction site to prevent food impaction.",
+        "competitive": "Specific indication for post-extraction care.",
+        "objection": "Reduces incidence of dry socket complications.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Laser Perio Debridement",
+    "category": "Surgical",
+    "phases": ["Acute", "Maintenance"],
+    "dds": ["Periodontist", "General Dentist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": ["Synvaza"],
+      "Maintenance": ["AO ProVantage Gel"]
+    },
+    "pitchPoints": "Extends laser treatment efficacy by supporting tissue regeneration.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "Apply thin layer to treated areas 2x/day",
+        "rationale": "Reduces inflammation and discomfort after laser treatment.",
+        "competitive": "Stays in place longer than other topical agents.",
+        "objection": "Patient comfort leads to better compliance with post-op instructions.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Rinse 3x/day for 7 days post-procedure",
+        "rationale": "Forms protective layer over debridement sites.",
+        "competitive": "Synergistic with laser therapy for enhanced healing.",
+        "objection": "Proven to support better clinical outcomes.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Periodontal Disease",
+    "category": "Intra-Oral",
+    "phases": ["Maintenance"],
+    "dds": ["Periodontist", "General Dentist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Maintenance": ["AO ProVantage Gel", "PerioProtect Tray (H2O2)"]
+    },
+    "pitchPoints": "Multi-level approach targeting bacterial imbalance and inflammation.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "Apply to gumline after brushing 2x/day",
+        "rationale": "Reduces inflammation and delivers antioxidants to sulcus.",
+        "competitive": "Sustained release formula for long-lasting effect.",
+        "objection": "Targeted delivery means less total product used versus rinses.",
+        "factSheet": "#"
+      },
+      "PerioProtect Tray (H2O2)": {
+        "usage": "Use as directed by dental professional with custom tray",
+        "rationale": "Delivers hydrogen peroxide deep into periodontal pockets.",
+        "competitive": "Patented seal technology reaches areas brushing and flossing cannot.",
+        "objection": "Clinical studies show significant pocket depth reduction.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Xerostomia (Dry Mouth)",
+    "category": "Intra-Oral",
+    "phases": ["Slight", "Mild", "Moderate", "Severe"],
+    "dds": ["General Dentist", "Prosthodontist", "Oral Medicine Specialist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": ["AO ProRinse Hydrating"],
+      "Mild": ["Moisyn"],
+      "Moderate": ["Moisyn"],
+      "Severe": ["Moisyn", "AO ProVantage Gel"]
+    },
+    "pitchPoints": "Comprehensive management approach that addresses both symptoms and underlying damage.",
+    "productDetails": {
+      "AO ProRinse Hydrating": {
+        "usage": "Rinse as needed throughout day",
+        "rationale": "Provides immediate relief for mild dry mouth symptoms.",
+        "competitive": "Alcohol-free formula won't worsen dryness.",
+        "objection": "More economical than competitors for daily use.",
+        "factSheet": "#"
+      },
+      "Moisyn": {
+        "usage": "Use as directed throughout day",
+        "rationale": "Clinically proven to help with dry mouth where others fail.",
+        "competitive": "510k cleared vs OTC rinses with no clinical data.",
+        "objection": "Chitosan/arginine technology provides longer-lasting relief.",
+        "factSheet": "#"
+      },
+      "AO ProVantage Gel": {
+        "usage": "Apply to oral tissues before bed and as needed",
+        "rationale": "Provides longer-lasting moisture protection, especially overnight.",
+        "competitive": "Contains healing agents for compromised tissue.",
+        "objection": "Addresses both symptom relief and tissue repair.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Tongue Disorders (Geographic, Black Hairy)",
+    "category": "Intra-Oral",
+    "phases": ["Maintenance"],
+    "dds": ["General Dentist", "Oral Medicine Specialist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Maintenance": ["AO ProVantage Gel", "Synvaza"]
+    },
+    "pitchPoints": "Addresses both symptoms and underlying causes of common tongue disorders.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": "Apply to affected areas 2-3x/day",
+        "rationale": "Provides antioxidant protection and promotes normal epithelial turnover.",
+        "competitive": "Soothes discomfort without adverse taste or sensation.",
+        "objection": "Can be used long-term without side effects.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": "Rinse 2x/day",
+        "rationale": "Helps normalize microbial balance on tongue surface.",
+        "competitive": "Contains enzymes that help break down tongue coating.",
+        "objection": "Produces visible improvement within days of use.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Daily Oral Hygiene (Brushing, Flossing, Rinse)",
+    "category": "Preventive",
+    "phases": ["Daily Use"],
+    "dds": ["General Dentist", "Hygienist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Daily Use": ["AO ProToothpaste + AO ProRinse (patient choice)"]
+    },
+    "pitchPoints": "Comprehensive daily care for optimal oral health maintenance.",
+    "productDetails": {
+      "AO ProToothpaste + AO ProRinse (patient choice)": {
+        "usage": "Use toothpaste 2x/day and rinse 1-2x/day",
+        "rationale": "Provides daily protection and therapeutic benefits.",
+        "competitive": "Multiple formula options to address specific patient needs.",
+        "objection": "Personalized approach improves patient compliance.",
+        "factSheet": "#"
+      }
+    }
+  }
+]
