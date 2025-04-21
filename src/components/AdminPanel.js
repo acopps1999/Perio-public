@@ -1367,8 +1367,8 @@ const handleDelete = () => {
                               value={phase}
                               className={clsx(
                                 "flex-1 px-4 py-2 text-sm font-medium",
-                                "ui-selected:text-blue-600 ui-selected:bg-white ui-selected:border-b-0",
-                                "ui-not-selected:text-gray-500 ui-not-selected:hover:text-gray-700"
+                                "data-[state=active]:text-blue-600 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+                                "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700"
                               )}
                             >
                               {phase} Phase
