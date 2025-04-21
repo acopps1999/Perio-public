@@ -45,6 +45,17 @@ function ClinicalChartMockup() {
     clinicalEvidence: false,
     productUsage: false
   });
+  
+  useEffect(() => {
+    // Clear localStorage on first load in production
+    // (This is a one-time reset that can help if there's corrupted data)
+    if (process.env.NODE_ENV === 'production' && !localStorage.getItem('render_initialized')) {
+      localStorage.removeItem('conditions_data');
+      localStorage.setItem('render_initialized', 'true');
+      window.location.reload();
+    }
+  }, []);
+
   // Load conditions on component mount
   useEffect(() => {
     // Check if saved data exists in localStorage
@@ -207,13 +218,20 @@ function ClinicalChartMockup() {
 
   // Filter products based on selected phase and patient type
   useEffect(() => {
-    if (selectedCondition && activeTab && patientSpecificProducts[activeTab]) {
-      // If a specific patient type is selected, show that type's products
+    if (selectedCondition && activeTab) {
+      // Ensure patientSpecificProducts[activeTab] exists
+      const phaseProducts = patientSpecificProducts[activeTab] || {
+        'All': [],
+        '1': [],
+        '2': [],
+        '3': [],
+        '4': []
+      };
+      
       if (activePatientType !== 'All') {
-        setFilteredProducts(patientSpecificProducts[activeTab][activePatientType] || []);
+        setFilteredProducts(phaseProducts[activePatientType] || []);
       } else {
-        // If 'All' is selected, show all products for this phase
-        setFilteredProducts(patientSpecificProducts[activeTab]['All'] || []);
+        setFilteredProducts(phaseProducts['All'] || []);
       }
     } else {
       setFilteredProducts([]);
