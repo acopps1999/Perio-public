@@ -169,56 +169,73 @@ function ClinicalChartMockup() {
   }, [conditions, categoryFilter, ddsTypeFilter, patientTypeFilter, searchQuery, selectedCondition]);
 
   // Generate patient-specific product recommendations when selectedCondition changes
-  useEffect(() => {
-    if (!selectedCondition) return;
-    
-    // Create a map of phase -> patientType -> products
-    let patientProducts = {};
-    
-    // Check if condition has patientSpecificConfig from admin panel
-    if (selectedCondition.patientSpecificConfig) {
-      // Use the configuration directly
-      patientProducts = JSON.parse(JSON.stringify(selectedCondition.patientSpecificConfig));
-    } else {
-      // Fall back to the old method of inferring patient-specific products
-      // Process each phase
-      selectedCondition.phases.forEach(phase => {
-        patientProducts[phase] = {
-          'All': [...(selectedCondition.products[phase] || [])], // Default 'All' includes all products
-          '1': [],
-          '2': [],
-          '3': [],
-          '4': []
-        };
-        
-        // Extract patient-specific products from the condition's products
-        const phaseProducts = selectedCondition.products[phase] || [];
-        
-        // Process each product in this phase
-        phaseProducts.forEach(product => {
-          // Handle Type 3/4 Only products
-          if (product.includes('(Type 3/4 Only)')) {
-            const baseProduct = product.replace(' (Type 3/4 Only)', '');
-            patientProducts[phase]['3'].push(baseProduct);
-            patientProducts[phase]['4'].push(baseProduct);
-          } 
+  // Modify the useEffect that sets up patientSpecificProducts
+useEffect(() => {
+  if (!selectedCondition) return;
+  
+  console.log("Setting up patient-specific products for:", selectedCondition.name);
+  
+  // Create a map of phase -> patientType -> products
+  let patientProducts = {};
+  
+  // Check if condition has patientSpecificConfig from admin panel
+  if (selectedCondition.patientSpecificConfig) {
+    console.log("Using admin-configured products");
+    // Use the configuration directly
+    patientProducts = JSON.parse(JSON.stringify(selectedCondition.patientSpecificConfig));
+  } else {
+    console.log("Inferring patient-specific products");
+    // Process each phase
+    selectedCondition.phases.forEach(phase => {
+      patientProducts[phase] = {
+        'All': [],
+        '1': [],
+        '2': [],
+        '3': [],
+        '4': []
+      };
+      
+      // First pass: add all products to 'All' category
+      const phaseProducts = selectedCondition.products[phase] || [];
+      patientProducts[phase]['All'] = [...phaseProducts];
+      
+      // Second pass: distribute products to specific patient types
+      phaseProducts.forEach(product => {
+        if (product.includes('(Type 3/4 Only)')) {
+          const baseProduct = product.replace(' (Type 3/4 Only)', '');
+          patientProducts[phase]['3'].push(baseProduct);
+          patientProducts[phase]['4'].push(baseProduct);
+        } else {
           // Regular products apply to all patient types
-          else {
-            patientProducts[phase]['1'].push(product);
-            patientProducts[phase]['2'].push(product);
-            patientProducts[phase]['3'].push(product);
-            patientProducts[phase]['4'].push(product);
-          }
-        });
+          patientProducts[phase]['1'].push(product);
+          patientProducts[phase]['2'].push(product);
+          patientProducts[phase]['3'].push(product);
+          patientProducts[phase]['4'].push(product);
+        }
       });
+    });
+  }
+  
+  console.log("Final patient-specific products:", patientProducts);
+  setPatientSpecificProducts(patientProducts);
+  
+  // Set initial filtered products based on current activeTab and activePatientType
+  if (activeTab) {
+    const phaseProducts = patientProducts[activeTab] || { 'All': [] };
+    if (activePatientType !== 'All') {
+      setFilteredProducts(phaseProducts[activePatientType] || []);
+    } else {
+      setFilteredProducts(phaseProducts['All'] || []);
     }
-    
-    setPatientSpecificProducts(patientProducts);
-  }, [selectedCondition]);
+  }
+}, [selectedCondition]);
 
   // Filter products based on selected phase and patient type
   useEffect(() => {
     if (selectedCondition && activeTab) {
+      console.log("Filtering products based on patient type:", activePatientType);
+      console.log("Available products for phase:", patientSpecificProducts[activeTab]);
+      
       // Ensure patientSpecificProducts[activeTab] exists
       const phaseProducts = patientSpecificProducts[activeTab] || {
         'All': [],
@@ -228,16 +245,20 @@ function ClinicalChartMockup() {
         '4': []
       };
       
+      // Force a re-render by creating a new array
       if (activePatientType !== 'All') {
-        setFilteredProducts(phaseProducts[activePatientType] || []);
+        const productsForType = [...(phaseProducts[activePatientType] || [])];
+        console.log("Setting filtered products for type:", activePatientType, productsForType);
+        setFilteredProducts(productsForType);
       } else {
-        setFilteredProducts(phaseProducts['All'] || []);
+        const allProducts = [...(phaseProducts['All'] || [])];
+        console.log("Setting filtered products for all:", allProducts);
+        setFilteredProducts(allProducts);
       }
     } else {
       setFilteredProducts([]);
     }
   }, [selectedCondition, activeTab, activePatientType, patientSpecificProducts]);
-
 
   // Get patient types from PATIENT_TYPES constant
   const patientTypes = ['All', '1', '2', '3', '4'];
@@ -250,8 +271,29 @@ function ClinicalChartMockup() {
   };
 
   // Handle patient type selection for product filtering
+  // Ensure the patient type selection handler is robust
   const handlePatientTypeSelect = (type) => {
+    console.log("Patient type selected:", type);
     setActivePatientType(type);
+    
+    // Force immediate update of filtered products
+    if (selectedCondition && activeTab) {
+      const phaseProducts = patientSpecificProducts[activeTab] || {
+        'All': [],
+        '1': [],
+        '2': [],
+        '3': [],
+        '4': []
+      };
+      
+      if (type !== 'All') {
+        console.log("Immediately updating products for type:", type, phaseProducts[type]);
+        setFilteredProducts([...(phaseProducts[type] || [])]);
+      } else {
+        console.log("Immediately updating products for all types:", phaseProducts['All']);
+        setFilteredProducts([...(phaseProducts['All'] || [])]);
+      }
+    }
   };
 
   // Handle product selection for modal
