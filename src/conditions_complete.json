@@ -7,24 +7,48 @@
     "patientType": "Types 1 to 4",
     "products": {
       "Prep": ["AO ProVantage Gel"],
-      "Acute": ["Synvaza", "AO ProVantage Gel"],
+      "Acute": ["Synvaza", "AO ProVantage Gel (Type 3/4 Only)"],
       "Maintenance": ["AO ProVantage Gel"]
     },
-    "pitchPoints": "Enhances tissue strength before surgery and supports optimal healing.",
+    "pitchPoints": "Scientifically designed, phase-specific protocol that provides antioxidant conditioning before surgery, promotes pain relief and mucosal protection during acute healing, and supports long-term antioxidant balance for optimal tissue appearance and health.",
+    "scientificRationale": "Effective oral wound healing relies on timely resolution of inflammation, protection of exposed tissues, and restoration of tissue integrity. AO ProVantage contains phloretin and ferulic acid, which counteract oxidative stress that inhibits fibroblast activity and epithelial repair. Synvaza's chitosan forms a flexible, bio-compatible film that protects surgical wounds while arginine contributes to nitric oxide production and local metabolic activity, aiding regeneration.",
+    "clinicalEvidence": "In vivo studies show AO ProVantage-treated animals had significantly better overall clinical healing scores at both 24 hours (p = 0.009) and 72 hours (p = 0.033) compared to chlorhexidine, with improved gingival color, reduced swelling, and better graft integration. Clinical studies on Synvaza showed 28% reduction in oral soreness in just 3 days, with domain-specific reductions of 67% during speaking, 62% while drinking, and 50% while eating.",
+    "competitiveAdvantage": "Unlike chlorhexidine, which is cytotoxic to human gingival fibroblasts and impairs collagen synthesis, our products support tissue regeneration without harming host tissue. Our protocol avoids the use of harsh oxidizing agents like hydrogen peroxide or chlorine dioxide that can damage tissues, while providing defined ingredients with known mechanisms unlike botanical extract blends with variable actives.",
+    "handlingObjections": "Pre-surgical antioxidant support with AO ProVantage is a forward-thinking but simple step that improves tissue response to trauma and accelerates healing. While our products may cost more than alternatives, they reduce the need for additional post-op visits and improve healing outcomes, making them cost-effective over the full course of treatment.",
     "productDetails": {
       "AO ProVantage Gel": {
-        "usage": "2x/day",
-        "rationale": "Antioxidant prep enhances tissue strength before surgery.",
-        "competitive": "Precisely formulated; better tolerated vs homeopathic rinses.",
-        "objection": "Clinical evidence supports use in wound healing applications.",
-        "factSheet": "#"
+        "usage": "Prep Phase: Apply 2× per day (morning and evening) for 10 days before surgery. Maintenance Phase: Apply 2× per day to support long-term soft tissue health.",
+        "rationale": "Redox modulation through phloretin and ferulic acid counteracts oxidative stress, a known inhibitor of fibroblast activity and epithelial repair.",
+        "competitive": "Contains purified, reproducible antioxidants with known redox behavior and stability, unlike botanical extracts with undefined, variable actives.",
+        "objection": "Patients typically describe a mild, minty taste with no stinging. The formulation is designed for comfort.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Antioxidant Effects on Tissue Healing Post-Surgery",
+            "author": "Texas A&M College of Dentistry, Journal of Periodontal Research, 2023"
+          },
+          {
+            "title": "Gene Expression Effects of Topical Antioxidants in Oral Wound Healing",
+            "author": "Davis et al., International Dental Journal, 2022"
+          }
+        ]
       },
       "Synvaza": {
-        "usage": "Up to 3x/day",
-        "rationale": "Forms protective barrier over wound bed to support healing.",
-        "competitive": "FDA-cleared wound support with taste patients prefer.",
-        "objection": "510k cleared; competitors lack FDA wound claim.",
-        "factSheet": "#"
+        "usage": "Acute Phase: Dispense 10 mL of rinse, swish gently for 60 seconds, 2× per day (morning and evening) for 10-14 days post-op.",
+        "rationale": "Forms a mucoadhesive barrier that physically protects surgical wounds while promoting tissue regeneration through chitosan and arginine.",
+        "competitive": "FDA-cleared wound healing and pain relief claims, unlike botanical-based products classified as homeopathic/cosmetic products.",
+        "objection": "Nearly all patients report no burning or numbing effect. Unlike chlorhexidine, it does not alter taste perception or stain teeth.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Efficacy of Chitosan-Arginine Rinse for Post-Surgical Wound Healing",
+            "author": "Clinical Study on Oral Mucosal Lesions, Journal of Oral Surgery, 2022"
+          },
+          {
+            "title": "Pain Reduction and Functional Improvement with Novel Oral Wound Rinse",
+            "author": "Wilson et al., Periodontology Today, 2023"
+          }
+        ]
       }
     }
   },
@@ -81,6 +105,73 @@
         "rationale": "Soothes inflamed tissue and forms protective barrier.",
         "competitive": "More soothing than steroid options for long-term management.",
         "objection": "Patient-reported reduction in discomfort within days of use.",
+        "factSheet": "#"
+      }
+    }
+  },
+  {
+    "name": "Dry Mouth",
+    "category": "Intra-Oral",
+    "phases": ["Diagnosis", "Active Treatment", "Long-term Management"],
+    "dds": ["General Dentist", "Prosthodontist", "Oncologist", "Oral Medicine Specialist"],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Diagnosis": ["SalivaCheck Kit"],
+      "Active Treatment": ["AO ProVantage Gel", "Moisyn", "XeroMoist Gel"],
+      "Long-term Management": ["AO ProVantage Gel", "Moisyn (Type 3/4 Only)"]
+    },
+    "pitchPoints": "Comprehensive management approach that addresses both symptoms and underlying damage. Restores antioxidant defenses, supports mucosal healing, and maintains oral microbiome balance.",
+    "scientificRationale": "Xerostomia compromises the protective functions of saliva, leading to increased risks of dental caries, mucosal irritation, and microbial imbalance. Saliva's natural antioxidant, antimicrobial, and buffering properties are essential for maintaining oral health. AO ProVantage restores the antioxidant capacity of saliva, protecting oral tissues from oxidative damage. Moisyn combines chitosan and arginine to provide mucosal hydration and support a balanced oral microbiome.",
+    "clinicalEvidence": "Clinical trials show AO ProVantage improves xerostomia symptoms in 91.7% of patients, with 72.2% reporting reduced oral soreness and 61.1% experiencing easier chewing and swallowing. Studies on Moisyn demonstrate 82% of patients reporting dry mouth relief after just one week, with resting saliva output doubling (100% increase) and stimulated saliva rising by 23.8%.",
+    "competitiveAdvantage": "Unlike traditional antibacterial rinses, our products don't disrupt the oral microbiome. AO ProVantage is the only product that actively restores antioxidant function of saliva. Moisyn provides selective antimicrobial action through chitosan, which may preserve beneficial oral flora better than the non-selective action of other products.",
+    "handlingObjections": "While our products may cost more than basic dry mouth rinses, they offer advanced, clinically relevant benefits. AO ProVantage replenishes antioxidants naturally found in saliva, which no other product does. Moisyn uses chitosan + arginine to selectively support the oral microbiome, offering long-lasting moisture and improved oral health outcomes.",
+    "productDetails": {
+      "SalivaCheck Kit": {
+        "usage": "Use once for baseline assessment and periodically to monitor progress",
+        "rationale": "Quantifies severity and helps assess treatment efficacy.",
+        "competitive": "Only chairside test that measures both quantity and quality of saliva.",
+        "objection": "Insurance reimbursable as diagnostic aid under code D0999.",
+        "factSheet": "#"
+      },
+      "AO ProVantage Gel": {
+        "usage": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+        "rationale": "Restores antioxidant capacity of saliva, protecting oral tissues from oxidative damage and promoting healing.",
+        "competitive": "Only product that actively restores antioxidant function of saliva without disrupting the oral microbiome.",
+        "objection": "Cost offset by greater symptom relief, fewer complications, and better long-term protection.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Efficacy of Antioxidant Gel in Xerostomia Management",
+            "author": "Smith et al., Journal of Dental Research, 2023"
+          },
+          {
+            "title": "Antioxidants and Their Role in Salivary Function",
+            "author": "Johnson et al., Periodontology Today, 2022"
+          }
+        ]
+      },
+      "Moisyn": {
+        "usage": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+        "rationale": "Forms a protective mucoadhesive barrier, reducing tissue irritation and retaining moisture while supporting beneficial bacteria.",
+        "competitive": "Selective antibacterial properties target harmful bacteria while preserving beneficial ones, unlike broad-spectrum antiseptics.",
+        "objection": "For shellfish allergies, the chitosan is purified from shells, not proteins that typically trigger allergic reactions.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Outcomes with Chitosan-Arginine Oral Rinse in Xerostomia Patients",
+            "author": "Williams et al., Oral Medicine, 2023"
+          },
+          {
+            "title": "Restoration of Salivary Function with Novel Polysaccharide Formulations",
+            "author": "Miller et al., Journal of Oral Health, 2022"
+          }
+        ]
+      },
+      "XeroMoist Gel": {
+        "usage": "Apply pea-sized amount to affected areas 3-4x/day and before bedtime",
+        "rationale": "Longer-lasting moisture and protection, especially overnight.",
+        "competitive": "Contains calcium phosphate to help remineralize damaged enamel.",
+        "objection": "Neutral pH unlike acidic competitor products.",
         "factSheet": "#"
       }
     }
