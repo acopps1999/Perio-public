@@ -17,26 +17,23 @@ const PATIENT_TYPES = {
 
 // Mock function for saving data - in a real app, this would connect to backend
 const saveToBackend = async (data, categoriesList, ddsTypesList, productsList) => {
-  try {
-    const response = await fetch('/api/conditions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conditions: data,
-        categories: categoriesList,
-        ddsTypes: ddsTypesList,
-        products: productsList
-      }),
-    });
-    
-    if (!response.ok) throw new Error('Failed to save data');
-    return await response.json();
-  } catch (error) {
-    console.error('Error saving data:', error);
-    return null;
-  }
+  // Simulate API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log('Data saved:', data);
+      console.log('Categories saved:', categoriesList);
+      console.log('DDS Types saved:', ddsTypesList);
+      console.log('Products saved:', productsList);
+      
+      // Save everything to localStorage
+      localStorage.setItem('conditions_data', JSON.stringify(data));
+      localStorage.setItem('categories_data', JSON.stringify(categoriesList));
+      localStorage.setItem('dds_types_data', JSON.stringify(ddsTypesList));
+      localStorage.setItem('products_data', JSON.stringify(productsList));
+      
+      resolve({ success: true });
+    }, 1500);
+  });
 };
 
 function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
@@ -310,7 +307,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       // Save all data: conditions, categories, and DDS types, and products
       const result = await saveToBackend(updatedConditions, categories, ddsTypes, products);
       
-      if (result) {
+      if (result.success) {
         // Pass the updated data back to parent component
         onConditionsUpdate(updatedConditions, categories, ddsTypes, products);
         setShowSuccess(true);
