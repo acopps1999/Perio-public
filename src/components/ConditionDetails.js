@@ -77,15 +77,8 @@ function ConditionDetails({
         
         {/* Recommended Products Section */}
         <div className="mt-6 mb-4">
-          <div className="flex justify-between items-center mb-3">
+          <div className="mb-3">
             <h3 className="text-lg font-semibold text-gray-800">Recommended Products</h3>
-            <button
-              onClick={() => handleOpenResearch()} // Pass no product to open general research
-              className="py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center text-sm"
-            >
-              <BookOpen size={16} className="mr-2" />
-              View Published Research
-            </button>
           </div>
           
           {/* Patient Type Filter for Products */}

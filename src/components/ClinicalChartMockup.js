@@ -325,15 +325,7 @@ useEffect(() => {
     
     const cleanProductName = productName.replace(' (Type 3/4 Only)', '');
     
-    // Check if condition has condition-specific research for this product
-    if (
-      selectedCondition.conditionSpecificResearch && 
-      selectedCondition.conditionSpecificResearch[cleanProductName]
-    ) {
-      return selectedCondition.conditionSpecificResearch[cleanProductName];
-    }
-    
-    // If not, check if product has general research
+    // Check if product has research articles
     if (
       selectedCondition.productDetails && 
       selectedCondition.productDetails[cleanProductName] && 

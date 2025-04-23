@@ -256,15 +256,7 @@ function ClinicalChartMockup() {
     
     const cleanProductName = productName.replace(' (Type 3/4 Only)', '');
     
-    // Check if condition has condition-specific research for this product
-    if (
-      selectedCondition.conditionSpecificResearch && 
-      selectedCondition.conditionSpecificResearch[cleanProductName]
-    ) {
-      return selectedCondition.conditionSpecificResearch[cleanProductName];
-    }
-    
-    // If not, check if product has general research
+    // Check if product has research articles
     if (
       selectedCondition.productDetails && 
       selectedCondition.productDetails[cleanProductName] && 
@@ -284,11 +276,6 @@ function ClinicalChartMockup() {
         title: `Efficacy of ${cleanProductName} in dental practice`, 
         author: "Johnson et al., Periodontology Today, 2022",
         abstract: "Maecenas vel ante vel leo dictum eleifend. Suspendisse potenti."
-      },
-      { 
-        title: `Comparative study of ${cleanProductName} vs standard treatments`, 
-        author: "Williams et al., Oral Surgery Journal, 2023",
-        abstract: "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae."
       }
     ];
   };

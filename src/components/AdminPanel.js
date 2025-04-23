@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
-import { Save, Plus, Edit, Trash2, X, ChevronDown, Info, AlertTriangle, Lock, Check, User, Filter } from 'lucide-react';
+import { Save, Plus, Edit, Trash2, X, ChevronDown, Info, AlertTriangle, Lock, Check, User, Filter, AlertCircle, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import DataImportExport from './DataImportExport';
 
@@ -17,48 +17,54 @@ const PATIENT_TYPES = {
 
 // Mock function for saving data - in a real app, this would connect to backend
 const saveToBackend = async (data, categoriesList, ddsTypesList, productsList) => {
-  // Simulate API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log('Data saved:', data);
-      console.log('Categories saved:', categoriesList);
-      console.log('DDS Types saved:', ddsTypesList);
-      console.log('Products saved:', productsList);
-      
-      // Save everything to localStorage
-      localStorage.setItem('conditions_data', JSON.stringify(data));
-      localStorage.setItem('categories_data', JSON.stringify(categoriesList));
-      localStorage.setItem('dds_types_data', JSON.stringify(ddsTypesList));
-      localStorage.setItem('products_data', JSON.stringify(productsList));
-      
-      resolve({ success: true });
-    }, 1500);
-  });
+  try {
+    const response = await fetch('/api/conditions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conditions: data,
+        categories: categoriesList,
+        ddsTypes: ddsTypesList,
+        products: productsList
+      }),
+    });
+    
+    if (!response.ok) throw new Error('Failed to save data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving data:', error);
+    return null;
+  }
 };
 
 function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
-  const [activeTab, setActiveTab] = useState('conditions');
+  // State management
   const [editedConditions, setEditedConditions] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState(null);
-  const [editingProductId, setEditingProductId] = useState(null);
-  const [selectedResearchProduct, setSelectedResearchProduct] = useState(null);
+  const [activeEditTab, setActiveEditTab] = useState('conditions');
+  const [confirmSaveChanges, setConfirmSaveChanges] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState({ type: '', item: '' });
+  const [activePatientType, setActivePatientType] = useState('all');
+  const [newItemType, setNewItemType] = useState(null);
+  const [newItemData, setNewItemData] = useState({});
   const [categories, setCategories] = useState([]);
   const [ddsTypes, setDdsTypes] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   
   // Patient-specific products configuration
-  const [activePatientType, setActivePatientType] = useState('all');
   const [patientSpecificProducts, setPatientSpecificProducts] = useState({});
   
   // Modal states
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalType, setModalType] = useState('');
-  const [newItemData, setNewItemData] = useState({});
   
   // Initialize data
   useEffect(() => {
@@ -146,7 +152,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       // Set the merged lists
       setCategories(mergedCategories);
       setDdsTypes(mergedDdsTypes);
-      setAllProducts(mergedProducts);
+      setProducts(mergedProducts);
       
       // Select first condition by default
       if (conditions.length > 0 && !selectedCondition) {
@@ -272,27 +278,25 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Edit existing product
   const handleEditProduct = (product) => {
     setModalType('product');
-    setEditingProductId(product);
-    
-    // Get existing product details from first condition that uses it
-    const conditionWithProduct = editedConditions.find(
-      c => c.productDetails && c.productDetails[product]
-    );
-    
-    const productDetails = conditionWithProduct?.productDetails?.[product] || {};
-    
     setNewItemData({
       name: product,
-      usage: productDetails.usage || '',
-      rationale: productDetails.rationale || '',
-      clinicalEvidence: productDetails.clinicalEvidence || '',
-      competitive: productDetails.competitive || '',
-      objection: productDetails.objection || '',
-      factSheet: productDetails.factSheet || '#',
-      researchArticles: productDetails.researchArticles || [],
-      pitchPoints: productDetails.pitchPoints || ''
+      usage: patientSpecificProducts[selectedCondition.phases[0]][activePatientType]?.includes(product) ? 
+        patientSpecificProducts[selectedCondition.phases[0]][activePatientType][product] : 
+        patientSpecificProducts[selectedCondition.phases[0]]['all'].includes(product) ? 
+        patientSpecificProducts[selectedCondition.phases[0]]['all'][product] : 
+        patientSpecificProducts[selectedCondition.phases[0]]['4'].includes(product) ? 
+        patientSpecificProducts[selectedCondition.phases[0]]['4'][product] : 
+        patientSpecificProducts[selectedCondition.phases[0]]['3'].includes(product) ? 
+        patientSpecificProducts[selectedCondition.phases[0]]['3'][product] : '',
+      rationale: selectedCondition.productDetails[product]?.rationale || '',
+      clinicalEvidence: selectedCondition.productDetails[product]?.clinicalEvidence || '',
+      competitive: selectedCondition.productDetails[product]?.competitive || '',
+      objection: selectedCondition.productDetails[product]?.objection || '',
+      factSheet: selectedCondition.productDetails[product]?.factSheet || '#',
+      researchArticles: selectedCondition.productDetails[product]?.researchArticles || [],
+      pitchPoints: selectedCondition.productDetails[product]?.pitchPoints || ''
     });
-    
+    setNewItemType('product');
     setShowAddModal(true);
   };
 
@@ -304,11 +308,11 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       const updatedConditions = applyPatientSpecificProducts();
       
       // Save all data: conditions, categories, and DDS types, and products
-      const result = await saveToBackend(updatedConditions, categories, ddsTypes, allProducts);
+      const result = await saveToBackend(updatedConditions, categories, ddsTypes, products);
       
-      if (result.success) {
+      if (result) {
         // Pass the updated data back to parent component
-        onConditionsUpdate(updatedConditions, categories, ddsTypes, allProducts);
+        onConditionsUpdate(updatedConditions, categories, ddsTypes, products);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       }
@@ -619,23 +623,27 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   };
   // Add new condition
   const handleAddCondition = () => {
-    setModalType('condition');
-    setNewItemData({
-      name: '',
-      category: categories[0] || '',
-      phases: ['Prep', 'Acute', 'Maintenance'],
-      dds: [],
-      patientType: 'Types 1 to 4',
+    const newCondition = {
+      name: 'New Condition',
+      category: 'Uncategorized',
+      dds: ['All'],
+      phases: ['Initial', 'Maintenance'],
+      patientType: 'All Patient Types',
+      pitchPoints: '',
+      scientificRationale: '',
+      clinicalEvidence: '',
+      competitiveAdvantage: '',
+      handlingObjections: '',
       products: {
-        Prep: [],
-        Acute: [],
-        Maintenance: []
+        'Initial': [],
+        'Maintenance': []
       },
-      // Remove these fields as they are now stored at the product level
       productDetails: {},
-      conditionSpecificResearch: {}
-    });
-    setShowAddModal(true);
+    };
+    
+    setEditedConditions(prev => [...prev, newCondition]);
+    setSelectedCondition(newCondition);
+    setHasChanges(true);
   };
   
   // Add new category
@@ -676,7 +684,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     if (modalType === 'product') {
       const productName = newItemData.name;
       
-      if (editingProductId && editingProductId !== productName) {
+      if (newItemType && newItemType !== 'product') {
         // Product name was changed - need to update all references
         setEditedConditions(prev => 
           prev.map(condition => {
@@ -684,14 +692,14 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
             const updatedProducts = { ...condition.products };
             Object.keys(updatedProducts).forEach(phase => {
               updatedProducts[phase] = updatedProducts[phase].map(p => 
-                p === editingProductId ? productName : 
-                p === `${editingProductId} (Type 3/4 Only)` ? `${productName} (Type 3/4 Only)` : p
+                p === newItemType ? productName : 
+                p === `${newItemType} (Type 3/4 Only)` ? `${productName} (Type 3/4 Only)` : p
               );
             });
             
             // Update product details
             const updatedProductDetails = { ...condition.productDetails };
-            if (updatedProductDetails[editingProductId]) {
+            if (updatedProductDetails[newItemType]) {
               updatedProductDetails[productName] = {
                 usage: newItemData.usage || {}, // Handle usage as an object
                 rationale: newItemData.rationale,
@@ -702,7 +710,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                 researchArticles: newItemData.researchArticles || [], // Preserve research articles
                 pitchPoints: newItemData.pitchPoints || '' // Add pitch points field
               };
-              delete updatedProductDetails[editingProductId];
+              delete updatedProductDetails[newItemType];
             }
             
             return { 
@@ -714,8 +722,8 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
         );
         
         // Update allProducts list
-        setAllProducts(prev => {
-          const index = prev.indexOf(editingProductId);
+        setProducts(prev => {
+          const index = prev.indexOf(newItemType);
           if (index !== -1) {
             const updated = [...prev];
             updated[index] = productName;
@@ -731,14 +739,14 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
             Object.keys(updated).forEach(phase => {
               Object.keys(updated[phase]).forEach(type => {
                 updated[phase][type] = updated[phase][type].map(p => 
-                  p === editingProductId ? productName : p
+                  p === newItemType ? productName : p
                 );
               });
             });
             return updated;
           });
         }
-      } else if (editingProductId) {
+      } else if (newItemType) {
         // Only details changed, not the name
         setEditedConditions(prev => 
           prev.map(condition => {
@@ -761,8 +769,8 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
         );
       } else {
         // This is a new product
-        if (!allProducts.includes(productName)) {
-          setAllProducts(prev => [...prev, productName]);
+        if (!products.includes(productName)) {
+          setProducts(prev => [...prev, productName]);
           
           // Add product details to all conditions that use it
           setEditedConditions(prev => 
@@ -796,8 +804,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
           Acute: [],
           Maintenance: []
         },
-        productDetails: {},
-        conditionSpecificResearch: {}
+        productDetails: {}
       };
       
       setEditedConditions(prev => [...prev, newCondition]);
@@ -828,13 +835,13 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   
   setShowAddModal(false);
   setNewItemData({});
-  setEditingProductId(null);
+  setNewItemType(null);
 };
   
   // Delete confirmation
   const confirmDelete = (type, item) => {
     setItemToDelete({ type, item });
-    setShowDeleteModal(true);
+    setConfirmDeleteOpen(true);
   };
   
   // Handle delete
@@ -874,7 +881,7 @@ const handleDelete = () => {
     );
     
     // Update allProducts list
-    setAllProducts(prev => prev.filter(p => p !== item));
+    setProducts(prev => prev.filter(p => p !== item));
     
     // Update patient-specific products
     setPatientSpecificProducts(prev => {
@@ -889,8 +896,8 @@ const handleDelete = () => {
   } else if (type === 'category') {
     // Don't allow deleting the 'All' category
     if (item === 'All') {
-      setShowDeleteModal(false);
-      setItemToDelete(null);
+      setConfirmDeleteOpen(false);
+      setItemToDelete({ type: '', item: '' });
       return;
     }
     
@@ -910,8 +917,8 @@ const handleDelete = () => {
   } else if (type === 'ddsType') {
     // Don't allow deleting the 'All' DDS type
     if (item === 'All') {
-      setShowDeleteModal(false);
-      setItemToDelete(null);
+      setConfirmDeleteOpen(false);
+      setItemToDelete({ type: '', item: '' });
       return;
     }
     
@@ -932,8 +939,8 @@ const handleDelete = () => {
     );
   }
   
-  setShowDeleteModal(false);
-  setItemToDelete(null);
+  setConfirmDeleteOpen(false);
+  setItemToDelete({ type: '', item: '' });
 };
   
   // Render patient type filter and product configuration UI
@@ -991,7 +998,7 @@ const handleDelete = () => {
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           >
             <option value="">Add product...</option>
-            {allProducts
+            {products
               .filter(product => {
                 // Only show products that aren't already added for this patient type
                 if (!patientSpecificProducts[phase]) return true;
@@ -1089,13 +1096,13 @@ const handleDelete = () => {
         )}
         
         {/* Tabs */}
-        <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+        <Tabs.Root value={activeEditTab} onValueChange={setActiveEditTab}>
           <Tabs.List className="flex border-b">
             <Tabs.Trigger
               value="importExport"
               className={clsx(
                 "px-6 py-3 text-sm font-medium",
-                activeTab === "importExport" 
+                activeEditTab === "importExport" 
                   ? "text-blue-600 border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-gray-700"
               )}
@@ -1106,7 +1113,7 @@ const handleDelete = () => {
               value="conditions"
               className={clsx(
                 "px-6 py-3 text-sm font-medium",
-                activeTab === "conditions" 
+                activeEditTab === "conditions" 
                   ? "text-blue-600 border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-gray-700"
               )}
@@ -1117,7 +1124,7 @@ const handleDelete = () => {
               value="products"
               className={clsx(
                 "px-6 py-3 text-sm font-medium",
-                activeTab === "products" 
+                activeEditTab === "products" 
                   ? "text-blue-600 border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-gray-700"
               )}
@@ -1128,7 +1135,7 @@ const handleDelete = () => {
               value="categories"
               className={clsx(
                 "px-6 py-3 text-sm font-medium",
-                activeTab === "categories" 
+                activeEditTab === "categories" 
                   ? "text-blue-600 border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-gray-700"
               )}
@@ -1382,181 +1389,6 @@ const handleDelete = () => {
                     </div>
                     
                     {/* Product Details */}
-                    {/* Condition-Specific Research */}
-                    <div>
-                      <h3 className="font-medium text-lg mb-3">Condition-Specific Research</h3>
-                      
-                      {selectedCondition && selectedCondition.productDetails && (
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Select Product to Manage Research:
-                          </label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                // Store the selected product name in state
-                                setSelectedResearchProduct(e.target.value);
-                              }
-                            }}
-                            value={selectedResearchProduct || ''}
-                          >
-                            <option value="">Select a product...</option>
-                            {Object.keys(selectedCondition.productDetails).map(prod => (
-                              <option key={prod} value={prod}>{prod}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      
-                      {selectedResearchProduct && (
-                        <div>
-                          <h4 className="font-medium text-md mb-2">
-                            Research Articles for {selectedResearchProduct}
-                          </h4>
-                          
-                          {/* Initialize condition-specific research if it doesn't exist */}
-                          {!selectedCondition.conditionSpecificResearch && updateConditionField(
-                            selectedCondition.name, 
-                            'conditionSpecificResearch', 
-                            {}
-                          )}
-                          
-                          {/* Check if we have condition-specific research for this product */}
-                          {selectedCondition.conditionSpecificResearch && 
-                          selectedCondition.conditionSpecificResearch[selectedResearchProduct] && 
-                          selectedCondition.conditionSpecificResearch[selectedResearchProduct].map((article, index) => (
-                            <div key={index} className="flex space-x-2 mb-4 border-b pb-4">
-                              <div className="flex-grow space-y-2">
-                                <input
-                                  type="text"
-                                  placeholder="Article title"
-                                  value={article.title || ''}
-                                  onChange={(e) => {
-                                    const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                                    const updatedArticles = [...(updatedResearch[selectedResearchProduct] || [])];
-                                    updatedArticles[index].title = e.target.value;
-                                    
-                                    updatedResearch[selectedResearchProduct] = updatedArticles;
-                                    
-                                    updateConditionField(
-                                      selectedCondition.name, 
-                                      'conditionSpecificResearch', 
-                                      updatedResearch
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <input
-                                  type="text"
-                                  placeholder="Author/Source"
-                                  value={article.author || ''}
-                                  onChange={(e) => {
-                                    const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                                    const updatedArticles = [...(updatedResearch[selectedResearchProduct] || [])];
-                                    updatedArticles[index].author = e.target.value;
-                                    
-                                    updatedResearch[selectedResearchProduct] = updatedArticles;
-                                    
-                                    updateConditionField(
-                                      selectedCondition.name, 
-                                      'conditionSpecificResearch', 
-                                      updatedResearch
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <textarea
-                                  placeholder="Abstract (optional)"
-                                  value={article.abstract || ''}
-                                  onChange={(e) => {
-                                    const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                                    const updatedArticles = [...(updatedResearch[selectedResearchProduct] || [])];
-                                    updatedArticles[index].abstract = e.target.value;
-                                    
-                                    updatedResearch[selectedResearchProduct] = updatedArticles;
-                                    
-                                    updateConditionField(
-                                      selectedCondition.name, 
-                                      'conditionSpecificResearch', 
-                                      updatedResearch
-                                    );
-                                  }}
-                                  rows={3}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <input
-                                  type="text"
-                                  placeholder="URL (optional)"
-                                  value={article.url || ''}
-                                  onChange={(e) => {
-                                    const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                                    const updatedArticles = [...(updatedResearch[selectedResearchProduct] || [])];
-                                    updatedArticles[index].url = e.target.value;
-                                    
-                                    updatedResearch[selectedResearchProduct] = updatedArticles;
-                                    
-                                    updateConditionField(
-                                      selectedCondition.name, 
-                                      'conditionSpecificResearch', 
-                                      updatedResearch
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                              </div>
-                              
-                              <button
-                                onClick={() => {
-                                  const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                                  const updatedArticles = [...(updatedResearch[selectedResearchProduct] || [])];
-                                  updatedArticles.splice(index, 1);
-                                  
-                                  updatedResearch[selectedResearchProduct] = updatedArticles;
-                                  
-                                  updateConditionField(
-                                    selectedCondition.name, 
-                                    'conditionSpecificResearch', 
-                                    updatedResearch
-                                  );
-                                }}
-                                className="p-2 border border-red-300 rounded-md text-red-500 hover:bg-red-50 self-start"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                          
-                          <button
-                            onClick={() => {
-                              const updatedResearch = {...(selectedCondition.conditionSpecificResearch || {})};
-                              const updatedArticles = [...(updatedResearch[selectedResearchProduct] || []), { title: '', author: '', abstract: '', url: '' }];
-                              
-                              updatedResearch[selectedResearchProduct] = updatedArticles;
-                              
-                              updateConditionField(
-                                selectedCondition.name, 
-                                'conditionSpecificResearch', 
-                                updatedResearch
-                              );
-                            }}
-                            className="mt-2 px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 hover:bg-indigo-50 text-sm flex items-center"
-                          >
-                            <Plus size={16} className="mr-1" />
-                            Add Research Article
-                          </button>
-                        </div>
-                      )}
-                      
-                      {!selectedResearchProduct && selectedCondition && (
-                        <div className="text-gray-500 italic">
-                          Select a product from the dropdown above to manage its research articles.
-                        </div>
-                      )}
-                    </div>
                     <div className="mt-6">
                       <h3 className="font-medium text-lg mb-3">Product Details</h3>
                       
@@ -1874,7 +1706,7 @@ const handleDelete = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allProducts.map((product) => (
+              {products.map((product) => (
                 <div key={product} className="border rounded-lg p-4 hover:bg-gray-50 group">
                 <div className="flex justify-between items-start">
                   <h4 className="font-medium text-md">{product}</h4>
@@ -2016,7 +1848,7 @@ const handleDelete = () => {
               {modalType === 'condition' && 'Add New Condition'}
               {modalType === 'category' && 'Add New Category'}
               {modalType === 'ddsType' && 'Add New DDS Type'}
-              {modalType === 'product' && (editingProductId ? `Edit Product: ${editingProductId}` : 'Add New Product')}
+              {modalType === 'product' && (newItemType ? `Edit Product: ${newItemType}` : 'Add New Product')}
             </Dialog.Title>
 
               
@@ -2329,7 +2161,7 @@ const handleDelete = () => {
                     newItemData.name ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
                   }`}
                 >
-                  {editingProductId ? 'Save Changes' : 'Add'}
+                  {newItemType ? 'Save Changes' : 'Add'}
                 </button>
               </div>
             </Dialog.Content>
@@ -2337,7 +2169,7 @@ const handleDelete = () => {
         </Dialog.Root>
         
         {/* Delete Confirmation Modal */}
-        <Dialog.Root open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <Dialog.Root open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
             <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-white rounded-lg shadow-xl p-6 z-50">

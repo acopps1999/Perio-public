@@ -135,7 +135,6 @@ export function useConditionsData() {
           productDetails: conditionProductDetails,
           // Add placeholders for other fields if needed later
           // patientSpecificConfig: {}, // Example if you add this to DB
-          // conditionSpecificResearch: {} // Example if you add this to DB
         };
       });
 
