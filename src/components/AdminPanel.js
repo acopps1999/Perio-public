@@ -69,7 +69,47 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Initialize data
   useEffect(() => {
     if (conditions) {
-      setEditedConditions([...conditions]);
+      const processedConditions = conditions.map(condition => {
+        // Special handling for Dry Mouth to ensure it always has correct config
+        if (condition.name === 'Dry Mouth' && 
+            Array.isArray(condition.phases) && 
+            condition.phases.includes('Mild')) {
+          
+          // Set the correct patientSpecificConfig
+          const dryMouthConfig = {
+            'Mild': {
+              'all': [],
+              '1': ['AO ProRinse Hydrating'],
+              '2': ['Moisyn'],
+              '3': ['Moisyn'],
+              '4': ['Moisyn', 'AO ProVantage Gel']
+            },
+            'Moderate': {
+              'all': ['Moisyn'],
+              '1': ['Moisyn'],
+              '2': ['Moisyn'],
+              '3': ['Moisyn', 'AO ProVantage Gel'],
+              '4': ['Moisyn', 'AO ProVantage Gel']
+            },
+            'Severe': {
+              'all': ['Moisyn'],
+              '1': ['Moisyn'],
+              '2': ['Moisyn', 'AO ProVantage Gel'],
+              '3': ['Moisyn', 'AO ProVantage Gel'],
+              '4': ['Moisyn', 'AO ProVantage Gel']
+            }
+          };
+          
+          return {
+            ...condition,
+            patientSpecificConfig: dryMouthConfig
+          };
+        }
+        
+        return condition;
+      });
+      
+      setEditedConditions([...processedConditions]);
       
       // Try to load saved categories, DDS types, and products from localStorage first
       const savedCategories = localStorage.getItem('categories_data');
@@ -276,6 +316,42 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       if (condition.name === 'Gingival Recession Surgery' && phase === 'Prep') {
         // Type 1 gets nothing (N/A in Excel)
         patientProducts[phase]['1'] = [];
+        // Type 2 also gets nothing
+        patientProducts[phase]['2'] = [];
+      }
+      
+      // Special handling for Dry Mouth condition based on excel chart
+      if (condition.name === 'Dry Mouth') {
+        if (phase === 'Mild') {
+          // Clear previous automatic assignments
+          patientProducts[phase] = {
+            'all': [],
+            '1': ['AO ProRinse Hydrating'],
+            '2': ['Moisyn'],
+            '3': ['Moisyn'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          };
+        } else if (phase === 'Moderate') {
+          patientProducts[phase] = {
+            'all': [],
+            '1': ['Moisyn'],
+            '2': ['Moisyn'],
+            '3': ['Moisyn', 'AO ProVantage Gel'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          };
+          // Add Moisyn to "all" since it's in all patient types
+          patientProducts[phase]['all'] = ['Moisyn'];
+        } else if (phase === 'Severe') {
+          patientProducts[phase] = {
+            'all': [],
+            '1': ['Moisyn'],
+            '2': ['Moisyn', 'AO ProVantage Gel'],
+            '3': ['Moisyn', 'AO ProVantage Gel'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          };
+          // Add Moisyn to "all" since it's in all patient types
+          patientProducts[phase]['all'] = ['Moisyn'];
+        }
       }
       
       // For conditions where Type 3/4 get additional products
@@ -327,7 +403,44 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     
     // Update conditions with patient-specific product configurations
     const updatedConditions = editedConditions.map(condition => {
-      if (condition.id === selectedCondition?.id && patientSpecificProducts) {
+      // Special handling for Dry Mouth to ensure it always has the correct patientSpecificConfig
+      if (condition.name === 'Dry Mouth' && 
+          Array.isArray(condition.phases) && 
+          condition.phases.includes('Mild')) {
+        
+        // Force the correct patient-specific configuration every time
+        const dryMouthConfig = {
+          'Mild': {
+            'all': [],
+            '1': ['AO ProRinse Hydrating'],
+            '2': ['Moisyn'],
+            '3': ['Moisyn'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          },
+          'Moderate': {
+            'all': ['Moisyn'],
+            '1': ['Moisyn'],
+            '2': ['Moisyn'],
+            '3': ['Moisyn', 'AO ProVantage Gel'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          },
+          'Severe': {
+            'all': ['Moisyn'],
+            '1': ['Moisyn'],
+            '2': ['Moisyn', 'AO ProVantage Gel'],
+            '3': ['Moisyn', 'AO ProVantage Gel'],
+            '4': ['Moisyn', 'AO ProVantage Gel']
+          }
+        };
+        
+        console.log('Saving Dry Mouth with fixed patientSpecificConfig');
+        return {
+          ...condition,
+          patientSpecificConfig: dryMouthConfig
+        };
+      } 
+      else if (condition.id === selectedCondition?.id && patientSpecificProducts) {
+        console.log(`Saving patientSpecificConfig for ${condition.name}`);
         return {
           ...condition,
           patientSpecificConfig: JSON.parse(JSON.stringify(patientSpecificProducts))
@@ -1146,9 +1259,86 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
             <DataImportExport 
               conditions={editedConditions} 
               onImport={(importedData) => {
-                setEditedConditions(importedData);
+                // Preserve patientSpecificConfig from imported data
+                const importedWithConfig = importedData.map(importedCondition => {
+                  // Special handling for Dry Mouth condition
+                  if (importedCondition.name === 'Dry Mouth' && 
+                      Array.isArray(importedCondition.phases) && 
+                      importedCondition.phases.includes('Mild')) {
+                    // Set up patient-specific products according to the excel chart
+                    const dryMouthConfig = {
+                      'Mild': {
+                        'all': [],
+                        '1': ['AO ProRinse Hydrating'],
+                        '2': ['Moisyn'],
+                        '3': ['Moisyn'],
+                        '4': ['Moisyn', 'AO ProVantage Gel']
+                      },
+                      'Moderate': {
+                        'all': ['Moisyn'],
+                        '1': ['Moisyn'],
+                        '2': ['Moisyn'],
+                        '3': ['Moisyn', 'AO ProVantage Gel'],
+                        '4': ['Moisyn', 'AO ProVantage Gel']
+                      },
+                      'Severe': {
+                        'all': ['Moisyn'],
+                        '1': ['Moisyn'],
+                        '2': ['Moisyn', 'AO ProVantage Gel'],
+                        '3': ['Moisyn', 'AO ProVantage Gel'],
+                        '4': ['Moisyn', 'AO ProVantage Gel']
+                      }
+                    };
+                    
+                    return {
+                      ...importedCondition,
+                      patientSpecificConfig: dryMouthConfig
+                    };
+                  }
+                  // Ensure patientSpecificConfig exists and is correctly structured
+                  else if (!importedCondition.patientSpecificConfig) {
+                    // Initialize new config based on condition structure
+                    const newConfig = {};
+                    importedCondition.phases.forEach(phase => {
+                      newConfig[phase] = {
+                        'all': [],
+                        '1': [],
+                        '2': [],
+                        '3': [],
+                        '4': []
+                      };
+                    });
+                    
+                    // Special handling for known conditions
+                    if (importedCondition.name === 'Gingival Recession Surgery' && newConfig['Prep']) {
+                      newConfig['Prep']['1'] = []; // Type 1 gets nothing
+                      newConfig['Prep']['2'] = []; // Type 2 also gets nothing
+                    }
+                    
+                    return {
+                      ...importedCondition,
+                      patientSpecificConfig: newConfig
+                    };
+                  }
+                  
+                  return importedCondition;
+                });
+                
+                setEditedConditions(importedWithConfig);
                 setIsEditing(true);
                 setHasChanges(true);
+                
+                // If we have a currently selected condition, update it
+                if (selectedCondition) {
+                  const updatedSelected = importedWithConfig.find(
+                    c => c.name === selectedCondition.name
+                  );
+                  if (updatedSelected) {
+                    setSelectedCondition(updatedSelected);
+                    // Reset productModified flag when importing
+                    setProductsModified(false);
+                  }
+                }
               }} 
             />
           </Tabs.Content>
