@@ -5,6 +5,7 @@ import * as Select from '@radix-ui/react-select';
 import { Save, Plus, Edit, Trash2, X, ChevronDown, Info, AlertTriangle, Lock, Check, User, Filter, AlertCircle, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import DataImportExport from './DataImportExport';
+import { useToast } from './ToastContext';
 
 // Patient Types definition
 const PATIENT_TYPES = {
@@ -55,6 +56,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const toast = useToast(); // Add this line to get the toast functions
   
   // Patient-specific products configuration
   const [patientSpecificProducts, setPatientSpecificProducts] = useState({});
@@ -217,12 +219,19 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   const initializePatientSpecificProducts = (condition) => {
     if (!condition) return;
     
+    // If the condition already has a patient-specific configuration, use it
+    if (condition.patientSpecificConfig) {
+      setPatientSpecificProducts(JSON.parse(JSON.stringify(condition.patientSpecificConfig)));
+      return;
+    }
+    
+    // Otherwise create a new configuration
     const patientProducts = {};
     
     // For each phase
     condition.phases.forEach(phase => {
       patientProducts[phase] = {
-        'all': condition.products[phase] || [],
+        'all': [],
         '1': [],
         '2': [],
         '3': [],
@@ -236,6 +245,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       allProducts.forEach(product => {
         if (!product.includes('(Type')) {
           // Regular products apply to all patient types
+          patientProducts[phase]['all'].push(product);
           patientProducts[phase]['1'].push(product);
           patientProducts[phase]['2'].push(product);
           patientProducts[phase]['3'].push(product);
@@ -297,145 +307,55 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     setShowAddModal(true);
   };
 
-  // Save all changes
+  // Save all changes to local storage or backend
   const handleSaveChanges = async () => {
+    if (!hasChanges) return;
+    
     setIsSaving(true);
+    
+    // Update conditions with patient-specific product configurations
+    const updatedConditions = editedConditions.map(condition => {
+      if (condition.id === selectedCondition?.id && patientSpecificProducts) {
+        return {
+          ...condition,
+          patientSpecificConfig: JSON.parse(JSON.stringify(patientSpecificProducts))
+        };
+      }
+      return condition;
+    });
+    
     try {
-      // Apply patient-specific products to condition
-      const updatedConditions = applyPatientSpecificProducts();
-      
-      // Save all data: conditions, categories, and DDS types, and products
       const result = await saveToBackend(updatedConditions, categories, ddsTypes, products);
-      
       if (result.success) {
-        // Pass the updated data back to parent component
-        onConditionsUpdate(updatedConditions, categories, ddsTypes, products);
+        setHasChanges(false);
+        setIsSaving(false);
+        
+        // Update conditions with the saved data that includes patientSpecificConfig
+        setEditedConditions(updatedConditions);
+        
+        // Notify parent component of the updates
+        if (onConditionsUpdate) {
+          onConditionsUpdate(updatedConditions);
+        }
+        
+        // Show success message with toast instead of using the state
+        toast.success('All changes saved successfully!', {
+          position: 'bottom-right',
+          duration: 3000
+        });
+        
+        // Set the temporary success flag for UI indication
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       }
     } catch (error) {
-      console.error('Error saving changes:', error);
-      // Handle error (show error notification, etc.)
-    } finally {
+      console.error('Error saving data:', error);
       setIsSaving(false);
+      toast.error('Failed to save changes. Please try again.', {
+        position: 'bottom-right',
+        duration: 5000
+      });
     }
-  };
-  
-  // Apply patient-specific products to condition before saving
-  // Apply patient-specific products to condition before saving
-  const applyPatientSpecificProducts = () => {
-    if (!selectedCondition) return [...editedConditions];
-    
-    // Deep copy of edited conditions
-    const updatedConditions = JSON.parse(JSON.stringify(editedConditions));
-    
-    // Find the condition to update
-    const conditionIndex = updatedConditions.findIndex(c => c.name === selectedCondition.name);
-    if (conditionIndex === -1) return updatedConditions;
-    
-    // Create a metadata field if it doesn't exist to store patient-specific configurations
-    if (!updatedConditions[conditionIndex].patientSpecificConfig) {
-      updatedConditions[conditionIndex].patientSpecificConfig = {};
-    }
-    
-    // Store the complete patient-specific configuration
-    updatedConditions[conditionIndex].patientSpecificConfig = JSON.parse(JSON.stringify(patientSpecificProducts));
-    
-    // Update each phase's products for backward compatibility with existing code
-    Object.keys(patientSpecificProducts).forEach(phase => {
-      const phaseProducts = [];
-      const patientTypesForPhase = patientSpecificProducts[phase];
-      
-      // Start with regular products (all patient types)
-      const commonProducts = new Set();
-      
-      // Find products common to all patient types
-      const allPatientTypes = ['1', '2', '3', '4'];
-      const productsInAllTypes = new Set();
-      
-      // First pass: collect all products
-      allPatientTypes.forEach(patientType => {
-        (patientTypesForPhase[patientType] || []).forEach(product => {
-          productsInAllTypes.add(product);
-        });
-      });
-      
-      // Second pass: find which products are in all patient types
-      for (const product of productsInAllTypes) {
-        const isInAllTypes = allPatientTypes.every(patientType => 
-          (patientTypesForPhase[patientType] || []).includes(product)
-        );
-        
-        if (isInAllTypes) {
-          commonProducts.add(product);
-        }
-      }
-      
-      // Add common products first
-      phaseProducts.push(...Array.from(commonProducts));
-      
-      // Check for Type 3/4 specific products
-      const type34Products = new Set();
-      
-      (patientTypesForPhase['3'] || []).forEach(product => {
-        if (
-          (patientTypesForPhase['4'] || []).includes(product) && 
-          !(patientTypesForPhase['1'] || []).includes(product) && 
-          !(patientTypesForPhase['2'] || []).includes(product) &&
-          !product.includes('(Type')
-        ) {
-          type34Products.add(`${product} (Type 3/4 Only)`);
-        }
-      });
-      
-      // Add Type 3/4 specific products
-      phaseProducts.push(...Array.from(type34Products));
-      
-      // Update the condition's products for this phase
-      updatedConditions[conditionIndex].products[phase] = phaseProducts;
-      
-      // Ensure all products have product details
-      const allProductsToCheck = [
-        ...commonProducts, 
-        ...Array.from(type34Products).map(p => p.replace(' (Type 3/4 Only)', '')),
-        // Add products that are only in some patient types
-        ...[...productsInAllTypes].filter(p => !commonProducts.has(p))
-      ];
-      
-      // Initialize productDetails if it doesn't exist
-      if (!updatedConditions[conditionIndex].productDetails) {
-        updatedConditions[conditionIndex].productDetails = {};
-      }
-      
-      // Make sure all products have details
-      allProductsToCheck.forEach(product => {
-        const cleanProductName = product.replace(' (Type 3/4 Only)', '');
-        
-        // If product doesn't have details yet, create empty details
-        if (!updatedConditions[conditionIndex].productDetails[cleanProductName]) {
-          updatedConditions[conditionIndex].productDetails[cleanProductName] = {
-            usage: '',
-            rationale: '',
-            competitive: '',
-            objection: '',
-            factSheet: '#',
-            researchArticles: [] // Initialize with empty array
-          };
-          
-          // Try to find product details from other conditions
-          for (const condition of updatedConditions) {
-            if (condition.productDetails && condition.productDetails[cleanProductName]) {
-              updatedConditions[conditionIndex].productDetails[cleanProductName] = {
-                ...condition.productDetails[cleanProductName] // This will include researchArticles if they exist
-              };
-              break;
-            }
-          }
-        }
-      });
-    });
-    
-    return updatedConditions;
   };
   
   // Reset changes
@@ -459,6 +379,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Update condition field
   const updateConditionField = (conditionId, field, value) => {
     setIsEditing(true);
+    setHasChanges(true);
     setEditedConditions(prev => 
       prev.map(condition => 
         condition.name === conditionId
@@ -476,6 +397,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Update product details
   const updateProductDetail = (conditionId, productName, field, value, phase = null) => {
     setIsEditing(true);
+    setHasChanges(true);
     setEditedConditions(prev => 
       prev.map(condition => {
         if (condition.name === conditionId) {
@@ -550,6 +472,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Add product to specific patient type and phase
   const addProductToPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
+    setHasChanges(true);
     
     // Update patient-specific products
     setPatientSpecificProducts(prev => {
@@ -595,6 +518,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Remove product from specific patient type and phase
   const removeProductFromPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
+    setHasChanges(true);
     
     // Update patient-specific products
     setPatientSpecificProducts(prev => {
@@ -677,6 +601,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Submit new item from modal
   const handleSubmitNewItem = () => {
     setIsEditing(true);
+    setHasChanges(true);
     
     if (modalType === 'product') {
       const productName = newItemData.name;
@@ -842,103 +767,103 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   };
   
   // Handle delete
-  // Handle delete
-const handleDelete = () => {
-  setIsEditing(true);
-  const { type, item } = itemToDelete;
-  
-  if (type === 'condition') {
-    setEditedConditions(prev => prev.filter(c => c.name !== item.name));
+  const handleDelete = () => {
+    setIsEditing(true);
+    setHasChanges(true);
+    const { type, item } = itemToDelete;
     
-    // Select a new condition if the deleted one was selected
-    if (selectedCondition && selectedCondition.name === item.name) {
-      const remainingConditions = editedConditions.filter(c => c.name !== item.name);
-      setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
-    }
-  } else if (type === 'product') {
-    // Remove product from all conditions
-    setEditedConditions(prev => 
-      prev.map(condition => {
-        const updatedProducts = { ...condition.products };
-        Object.keys(updatedProducts).forEach(phase => {
-          updatedProducts[phase] = updatedProducts[phase].filter(p => 
-            p !== item && p !== `${item} (Type 3/4 Only)`
-          );
-        });
-        
-        const updatedProductDetails = { ...condition.productDetails };
-        delete updatedProductDetails[item];
-        
-        return { 
-          ...condition, 
-          products: updatedProducts,
-          productDetails: updatedProductDetails
-        };
-      })
-    );
-    
-    // Update allProducts list
-    setProducts(prev => prev.filter(p => p !== item));
-    
-    // Update patient-specific products
-    setPatientSpecificProducts(prev => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach(phase => {
-        Object.keys(updated[phase]).forEach(type => {
-          updated[phase][type] = updated[phase][type].filter(p => p !== item);
-        });
-      });
-      return updated;
-    });
-  } else if (type === 'category') {
-    // Don't allow deleting the 'All' category
-    if (item === 'All') {
-      setConfirmDeleteOpen(false);
-      setItemToDelete({ type: '', item: '' });
-      return;
-    }
-    
-    // Remove the category from the list
-    setCategories(prev => prev.filter(c => c !== item));
-    
-    // Update conditions that use this category (set to first available category or empty string)
-    setEditedConditions(prev => 
-      prev.map(condition => {
-        if (condition.category === item) {
-          const newCategory = categories.find(c => c !== item && c !== 'All') || '';
-          return { ...condition, category: newCategory };
-        }
-        return condition;
-      })
-    );
-  } else if (type === 'ddsType') {
-    // Don't allow deleting the 'All' DDS type
-    if (item === 'All') {
-      setConfirmDeleteOpen(false);
-      setItemToDelete({ type: '', item: '' });
-      return;
-    }
-    
-    // Remove the DDS type from the list
-    setDdsTypes(prev => prev.filter(d => d !== item));
-    
-    // Update conditions that use this DDS type (remove it from their dds array)
-    setEditedConditions(prev => 
-      prev.map(condition => {
-        if (condition.dds.includes(item)) {
+    if (type === 'condition') {
+      setEditedConditions(prev => prev.filter(c => c.name !== item.name));
+      
+      // Select a new condition if the deleted one was selected
+      if (selectedCondition && selectedCondition.name === item.name) {
+        const remainingConditions = editedConditions.filter(c => c.name !== item.name);
+        setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
+      }
+    } else if (type === 'product') {
+      // Remove product from all conditions
+      setEditedConditions(prev => 
+        prev.map(condition => {
+          const updatedProducts = { ...condition.products };
+          Object.keys(updatedProducts).forEach(phase => {
+            updatedProducts[phase] = updatedProducts[phase].filter(p => 
+              p !== item && p !== `${item} (Type 3/4 Only)`
+            );
+          });
+          
+          const updatedProductDetails = { ...condition.productDetails };
+          delete updatedProductDetails[item];
+          
           return { 
             ...condition, 
-            dds: condition.dds.filter(d => d !== item)
+            products: updatedProducts,
+            productDetails: updatedProductDetails
           };
-        }
-        return condition;
-      })
-    );
-  }
-  
-  setConfirmDeleteOpen(false);
-  setItemToDelete({ type: '', item: '' });
-};
+        })
+      );
+      
+      // Update allProducts list
+      setProducts(prev => prev.filter(p => p !== item));
+      
+      // Update patient-specific products
+      setPatientSpecificProducts(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(phase => {
+          Object.keys(updated[phase]).forEach(type => {
+            updated[phase][type] = updated[phase][type].filter(p => p !== item);
+          });
+        });
+        return updated;
+      });
+    } else if (type === 'category') {
+      // Don't allow deleting the 'All' category
+      if (item === 'All') {
+        setConfirmDeleteOpen(false);
+        setItemToDelete({ type: '', item: '' });
+        return;
+      }
+      
+      // Remove the category from the list
+      setCategories(prev => prev.filter(c => c !== item));
+      
+      // Update conditions that use this category (set to first available category or empty string)
+      setEditedConditions(prev => 
+        prev.map(condition => {
+          if (condition.category === item) {
+            const newCategory = categories.find(c => c !== item && c !== 'All') || '';
+            return { ...condition, category: newCategory };
+          }
+          return condition;
+        })
+      );
+    } else if (type === 'ddsType') {
+      // Don't allow deleting the 'All' DDS type
+      if (item === 'All') {
+        setConfirmDeleteOpen(false);
+        setItemToDelete({ type: '', item: '' });
+        return;
+      }
+      
+      // Remove the DDS type from the list
+      setDdsTypes(prev => prev.filter(d => d !== item));
+      
+      // Update conditions that use this DDS type (remove it from their dds array)
+      setEditedConditions(prev => 
+        prev.map(condition => {
+          if (condition.dds.includes(item)) {
+            return { 
+              ...condition, 
+              dds: condition.dds.filter(d => d !== item)
+            };
+          }
+          return condition;
+        })
+      );
+    }
+    
+    setConfirmDeleteOpen(false);
+    setItemToDelete({ type: '', item: '' });
+  };
   
   // Render patient type filter and product configuration UI
   const renderPatientTypeProductConfig = (phase) => {
@@ -1066,6 +991,7 @@ const handleDelete = () => {
                     isSaving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
                   }`}
                   disabled={isSaving}
+                  title={`Changes detected: ${hasChanges ? 'Yes' : 'No'}`}
                 >
                   {isSaving ? (
                     <>Saving...</>
@@ -1155,6 +1081,7 @@ const handleDelete = () => {
               onImport={(importedData) => {
                 setEditedConditions(importedData);
                 setIsEditing(true);
+                setHasChanges(true);
               }} 
             />
           </Tabs.Content>
