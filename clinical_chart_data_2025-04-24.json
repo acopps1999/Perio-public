@@ -1,0 +1,2646 @@
+[
+  {
+    "name": "Gingival Recession Surgery",
+    "category": "Surgical",
+    "phases": [
+      "Prep",
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "Oral Surgeon"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": [],
+      "Acute": [
+        "Synvaza",
+        "AO ProVantage Gel (Type 3/4 Only)"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Scientifically designed, phase-specific protocol that provides antioxidant conditioning before surgery, promotes pain relief and mucosal protection during acute healing, and supports long-term antioxidant balance for optimal tissue appearance and health.",
+    "scientificRationale": "Effective oral wound healing relies on timely resolution of inflammation, protection of exposed tissues, and restoration of tissue integrity. AO ProVantage contains phloretin and ferulic acid, which counteract oxidative stress that inhibits fibroblast activity and epithelial repair. Synvaza's chitosan forms a flexible, bio-compatible film that protects surgical wounds while arginine contributes to nitric oxide production and local metabolic activity, aiding regeneration.",
+    "clinicalEvidence": "In vivo studies show AO ProVantage-treated animals had significantly better overall clinical healing scores at both 24 hours (p = 0.009) and 72 hours (p = 0.033) compared to chlorhexidine, with improved gingival color, reduced swelling, and better graft integration. Clinical studies on Synvaza showed 28% reduction in oral soreness in just 3 days, with domain-specific reductions of 67% during speaking, 62% while drinking, and 50% while eating.",
+    "competitiveAdvantage": "Unlike chlorhexidine, which is cytotoxic to human gingival fibroblasts and impairs collagen synthesis, our products support tissue regeneration without harming host tissue. Our protocol avoids the use of harsh oxidizing agents like hydrogen peroxide or chlorine dioxide that can damage tissues, while providing defined ingredients with known mechanisms unlike botanical extract blends with variable actives.",
+    "handlingObjections": "Pre-surgical antioxidant support with AO ProVantage is a forward-thinking but simple step that improves tissue response to trauma and accelerates healing. While our products may cost more than alternatives, they reduce the need for additional post-op visits and improve healing outcomes, making them cost-effective over the full course of treatment.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Prep": "•\tFrequency: 2× per day (morning and evening)\n•\tApplication:\n1.\tApply a small amount of gel directly to the gums using a clean finger or cotton swab.\n2.\tFocus on the area(s) scheduled for surgery.\n3.\tDo not rinse; allow the gel to remain on the tissue.\n•\tPurpose: Conditions oral tissues by increasing local antioxidant levels and reducing subclinical inflammation prior to surgery.\n",
+          "Acute": "Standard Use (Most Patients)\nProduct: Synvaza\n•\tFrequency: 2× per day (morning and evening)\n•\tApplication:\n1.\tDispense approximately 10 mL of rinse into mouth.\n2.\tSwish gently for 60 seconds to allow film formation over healing sites.\n3.\tSpit out. Do not eat or drink for 30 minutes afterward.\n•\tPurpose: Provides pain relief, mucosal protection, and supports wound healing.\nHigh-Risk Patients (e.g., smokers, diabetics, immunocompromised)\nProducts: Synvaza + AO ProVantage\n•\tSynvaza: As above.\n•\tAO ProVantage:\no\tFrequency: 2× per day, applied after Synvaza rinse.\no\tInstructions:\n1.\tAfter rinsing, apply AO ProVantage gel topically to the surgical site.\n2.\tSpit out any excess.\n3.\tFor optimal effect, apply the evening dose immediately before bedtime to allow longer contact.\n•\tPurpose: Combines physical wound protection (Synvaza) with oxidative stress reduction (AO ProVantage) to support healing in patients with delayed tissue repair potential.\n\n",
+          "Maintenance": "•\tFrequency: 2× per day (morning and evening)\n•\tApplication:\n1.\tApply a small amount of gel directly to the gums using a clean finger or cotton swab.\n2.\tFocus on the area(s) scheduled for surgery.\n3.\tDo not rinse; allow the gel to remain on the tissue.\n•\tPurpose: Conditions oral tissues by increasing local antioxidant levels and reducing subclinical inflammation prior to surgery.\n"
+        },
+        "rationale": "•\tRedox Modulation: AO ProVantage contains phloretin and ferulic acid, two flavonoids known to scavenge reactive oxygen species (ROS), which are elevated after surgical trauma. These antioxidants counteract oxidative stress, a known inhibitor of fibroblast activity and epithelial repair.\n•\tGene Expression Effects: In vivo studies show that AO ProVantage increases TNFα and SOD expression early in healing — a desirable profile indicating faster inflammation resolution and antioxidant enzyme activation.\n•\tClinical Findings: Animals treated with AO ProVantage exhibited faster healing, improved tissue appearance, and lower swelling compared to both CHX and untreated controls.\n•\tTaste and Compliance: The inclusion of menthol, thymol, and xylitol enhances palatability, improving patient compliance during both pre-op and long-term use.\n",
+        "competitive": "1.\tVersus Chlorhexidine (CHX)\no\tPromotes antioxidant activity without cytotoxicity to human gingival fibroblasts\no\tDoes not impair collagen synthesis, avoiding healing delays\no\tMitigates oxidative stress without harming host tissue\n2.\tVersus StellaLife (Botanical Extracts)\no\tContains purified, reproducible antioxidants vs undefined plant extracts\no\tConsistent potency not dependent on batch or origin variations\no\tSuperior taste and predictable results reported by clinicians\n3.\tVersus Hydrogen Peroxide (H₂O₂)\no\tNeutralizes harmful oxidative stress rather than generating it\no\tProvides tissue support without chemical irritation\n4.\tVersus CPC & Sodium Chlorite\no\tDirectly addresses oxidative imbalance (not just antimicrobial)\no\tImproves antioxidant environment supporting homeostatic recovery\no\tOffers targeted redox control vs just microbial reduction\n5.\tVersus Chlorine Dioxide (ClO₂)\no\tAvoids oxidative damage to host tissues and mucosa\no\tProvides targeted redox control without harsh chemical exposure\n",
+        "objection": "1.\n“Why should I use AO ProVantage before surgery? That seems complicated, and patients might not comply.”\nResponse:\nPre-surgical antioxidant support is a forward-thinking but simple step. By starting AO ProVantage 10 days before surgery, you're improving the redox balance of the soft tissue — this can help the surgical site respond more efficiently to trauma and heal faster.\nCompliance is rarely a problem: AO ProVantage is pleasant-tasting, easy to apply, and quickly absorbed. It's a low-effort routine for patients and a high-impact intervention for clinicians seeking better outcomes.\n2.\n“What if a patient develops an infection — are these products strong enough without chlorhexidine?”\nResponse:\nThese products do not replace systemic antibiotics or surgical asepsis. Synvaza and AO ProVantage are adjuncts that support healing without interfering with antibiotics.\n•\tSynvaza offers antibacterial action through chitosan and arginine, which physically bind and clear bacteria from the oral cavity. This mechanism preserves the oral microbiome, unlike chlorhexidine, which can lead to dysbiosis.\n•\tFor patients at elevated infection risk, systemic antibiotics should still be used as needed — your standard protocol remains intact.\n",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Antioxidant Effects on Tissue Healing Post-Surgery",
+            "author": "Texas A&M College of Dentistry, Journal of Periodontal Research, 2023"
+          },
+          {
+            "title": "Gene Expression Effects of Topical Antioxidants in Oral Wound Healing",
+            "author": "Davis et al., International Dental Journal, 2022"
+          }
+        ],
+        "clinicalEvidence": "An in vivo study conducted at Texas A&M College of Dentistry compared AO ProVantage antioxidant gel to 0.12% chlorhexidine (CHX) in a soft tissue graft model using Sprague–Dawley rats. The study evaluated healing outcomes, inflammatory markers, and oxidative stress responses. Results showed:\n•\tAO ProVantage-treated animals had significantly better overall clinical healing scores at both 24 hours (p = 0.009) and 72 hours (p = 0.033) compared to CHX.\n•\tImproved gingival color, reduced swelling, and better graft integration were observed across both time points.\n•\tAO ProVantage induced early upregulation of TNFα and superoxide dismutase (SOD) at 24 hours (p = 0.027and p = 0.021 vs. CHX), supporting a rapid yet controlled inflammatory response and antioxidant defense activation.\n•\tNo stinging or epithelial damage was observed, and all gel applications were well-tolerated.\nThese findings support AO ProVantage as an effective topical strategy for enhancing early wound healing through redox balance, especially when compared to cytotoxic antiseptics like CHX.\n",
+        "pitchPoints": "1.\tScientifically Designed Antioxidant Formulation\no\tContains defined molecular antioxidants (phloretin and ferulic acid)\no\tNeutralizes reactive oxygen species (ROS)\no\tUpregulates SOD (superoxide dismutase) expression\no\tReduces inflammatory mediators like TNFα\n2.\tPhase-Specific Protocol Applications\no\tPrep Phase (Pre-Surgery): Antioxidant conditioning improves local tissue environment\no\tMaintenance Phase (Post-Acute): Supports long-term antioxidant balance and soft tissue appearance\no\tCan be used alongside Synvaza in high-risk patients during the acute phase\n3.\tResearch-Backed Efficacy\no\tSupported by in vivo studies showing: \n    \tAccelerated tissue healing\n    \tOxidative stress reduction\n    \tClinical improvements over CHX\no\tReproducible, purified antioxidants with known redox behavior\n4.\tPatient Compliance Advantages\no\tFavorable taste compared to alternatives\no\tMinimal irritation\no\tConsistent results leading to practice loyalty\n5.\tRisk-Adaptable Protocol\no\tCan be intensified for high-risk patients (smokers, diabetics, immunocompromised)\no\tProvides pre-surgical conditioning to optimize healing environment\n"
+      },
+      "Synvaza": {
+        "usage": {
+          "Prep": "Acute Phase: Dispense 10 mL of rinse, swish gently for 60 seconds, 2× per day (morning and evening) for 10-14 days post-op. THIS IS FOR SYNVAZAAAAA",
+          "Acute": "•\tFrequency: 2× per day (morning and evening)\n•\tApplication:\n1.\tDispense approximately 10 mL of rinse into mouth.\n2.\tSwish gently for 60 seconds to allow film formation over healing sites.\n3.\tSpit out. Do not eat or drink for 30 minutes afterward.\n•\tPurpose: Provides pain relief, mucosal protection, and supports wound healing.\n",
+          "Maintenance": "Acute Phase: Dispense 10 mL of rinse, swish gently for 60 seconds, 2× per day (morning and evening) for 10-14 days post-op. THIS IS FOR SYNVAZAAAAA"
+        },
+        "rationale": "Primary Ingredients: Chitosan, Arginine, Sorbitol, Betaine\nPhase of Use: Acute Phase (and extended in high-risk patients)\nScientific Rationale:\n•\tMucoadhesive Barrier: Chitosan forms a flexible, bio-compatible film that protects surgical wounds from mechanical irritation and microbial exposure.\n•\tPain Reduction: Clinical studies show significant reductions in mucosal soreness during speaking, eating, and drinking within 72 hours post-use.\n•\tMicrobial Clearance Without Dysbiosis: Chitosan and arginine bind to bacteria via molecular charge, causing bacterial clumping and physical removal via spitting — an antibacterial mechanism that does not kill microbes, thereby preserving the oral microbiome.\n•\tWound Support in Compromised Sites: Chitosan supports moist wound healing, while arginine contributes to nitric oxide production and local metabolic activity, aiding regeneration in compromised patients.\n",
+        "competitive": "1.\tVersus Chlorhexidine (CHX)\no\tSupports tissue regeneration with biocompatible materials\no\tForms protective barrier with chitosan\no\tProvides arginine to support cellular repair\no\tNon-cytotoxic to human gingival fibroblasts\n2.\tVersus StellaLife (Botanical Extracts)\no\tFDA-cleared wound healing and pain relief claims\no\tClear regulatory distinction over homeopathic/cosmetic classification\no\tDefined mechanism of action with clinical validation\n3.\tVersus Hydrogen Peroxide (H₂O₂)\no\tSoothes tissue and promotes mucosal integrity\no\tAvoids generating harmful reactive oxygen species\no\tNo chemical irritation to healing tissues\n4.\tVersus CPC & Sodium Chlorite\no\tSupports epithelial recovery beyond antimicrobial effects\no\tUtilizes chitosan's surface-binding properties\no\tEnhances wound healing via arginine supplementation\n5.\tVersus Chlorine Dioxide (ClO₂)\no\tDelivers protective mucosal coverage and pain relief\no\tNo harsh chemical exposure\no\tSupports regenerative processes rather than just microbial control\n",
+        "objection": "1.\n“What will the patient feel? Is there stinging or numbness?”\nResponse:\n•\tAO ProVantage: Patients typically describe a mild, minty taste. There’s no stinging, and the formulation is designed for comfort.\n•\tSynvaza: Nearly all patients report no burning or numbing effect. Unlike chlorhexidine, it does not alter taste perception or stain teeth.\nPatients generally feel relieved — Synvaza reduces soreness within 72 hours, and AO ProVantage is soothing and clean-feeling.\n2.\n“What about allergies, especially with chitosan?”\nResponse:\nChitosan in Synvaza is derived from shellfish, but the allergenic protein is removed during processing by heat and purification. There have been no reported allergic reactions to Synvaza in patients with shellfish allergies.\nStill, for patients with known extreme shellfish hypersensitivity, AO ProVantage can be used exclusively throughout all healing phases.\n",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Efficacy of Chitosan-Arginine Rinse for Post-Surgical Wound Healing",
+            "author": "Clinical Study on Oral Mucosal Lesions, Journal of Oral Surgery, 2022"
+          },
+          {
+            "title": "Pain Reduction and Functional Improvement with Novel Oral Wound Rinse",
+            "author": "Wilson et al., Periodontology Today, 2023"
+          }
+        ],
+        "clinicalEvidence": "A clinical study evaluated Synvaza’s effects in patients with painful oral mucosal lesions. The rinse, used twice daily for 72 hours, was assessed for pain reduction, oral function, and overall tolerability. Key findings included:\n•\t28% overall reduction in oral soreness in just 3 days.\n•\tDomain-specific reductions in pain:\no\t67% during speaking\no\t62% while drinking\no\t50% while eating\n•\tPatients reported better sleep, improved hygiene, and fewer limitations in oral function.\n•\tSynvaza was well-tolerated with no reports of numbness, burning, or altered taste.\nSynvaza’s chitosan-arginine formulation forms a mucoadhesive film that physically protects healing tissues, offers pain relief, and helps clear bacteria via aggregation — all without disrupting the oral microbiome.\n\n",
+        "pitchPoints": "1.\tScientifically Designed Wound Healing Formulation\no\tCombines chitosan and arginine with complementary mechanisms: \n\tForms mucoadhesive protective barrier over exposed tissue\n\tProvides metabolic support to healing cells\n\tDelivers non-bactericidal antibacterial effect through molecular charge\n2.\tMicrobiome-Preserving Technology\no\tBinds to oral bacteria causing them to clump together\no\tPhysically clears bacteria without killing them\no\tPreserves oral microbiome, avoiding dysbiosis associated with antiseptics\n3.\tFDA-Cleared with Specific Claims\no\t510(k)-cleared product\no\tLegally allowed to claim oral wound healing and pain reduction\no\tRegulatory validation for clinical effectiveness\n4.\tAcute Phase Healing Specialist\no\tSpecifically designed for the acute healing phase\no\tPromotes pain relief and mucosal protection\no\tAccelerates wound closure\n5.\tVersatility for Risk Stratification\no\tStandard protocol for regular risk patients\no\tCan be combined with AO ProVantage for high-risk patients\no\tParticularly effective for compromised healing populations\n"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Scaling and Root Planing (SRP)",
+    "category": "Surgical",
+    "phases": [
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "General Dentist",
+      "Hygienist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": [
+        "Synvaza",
+        "AO ProVantage Gel"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Reduces inflammation and accelerates tissue healing post-procedure.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Acute": "1-2x/day depending on patient type",
+          "Maintenance": "1-2x/day depending on patient type"
+        },
+        "rationale": "Supports healing and reduces inflammation in treated areas.",
+        "competitive": "Non-irritating formula safe for freshly scaled tissue.",
+        "objection": "Clinical case documentation supports efficacy post-SRP.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Acute": "Up to 3x/day",
+          "Maintenance": "Up to 3x/day"
+        },
+        "rationale": "Creates protective layer over treated sites.",
+        "competitive": "Only rinse with specific wound healing technology for SRP.",
+        "objection": "Faster healing demonstrated vs. standard care.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Oral Lichen Planus",
+    "category": "Intra-Oral",
+    "phases": [
+      "Slight",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "Oral Medicine Specialist",
+      "General Dentist",
+      "Oral Pathologist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": [
+        "Synvaza"
+      ],
+      "Moderate": [
+        "Synvaza"
+      ],
+      "Severe": [
+        "Synvaza",
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Evidence-based management for a challenging condition with limited treatment options.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Slight": "2x/day to affected areas",
+          "Moderate": "2x/day to affected areas",
+          "Severe": "2x/day to affected areas"
+        },
+        "rationale": "Helps reduce inflammation and supports epithelial repair.",
+        "competitive": "No other antioxidant oral gel is this well tolerated.",
+        "objection": "Antioxidant modulation effective for autoimmune mucosal conditions.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Slight": "3x/day",
+          "Moderate": "3x/day",
+          "Severe": "3x/day"
+        },
+        "rationale": "Soothes inflamed tissue and forms protective barrier.",
+        "competitive": "More soothing than steroid options for long-term management.",
+        "objection": "Patient-reported reduction in discomfort within days of use.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Dry Mouth",
+    "category": "Intra-Oral",
+    "phases": [
+      "Mild",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "General Dentist",
+      "Prosthodontist",
+      "Oncologist",
+      "Oral Medicine Specialist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Diagnosis": [
+        "SalivaCheck Kit"
+      ],
+      "Active Treatment": [
+        "AO ProVantage Gel",
+        "Moisyn",
+        "XeroMoist Gel"
+      ],
+      "Long-term Management": [
+        "AO ProVantage Gel",
+        "Moisyn (Type 3/4 Only)"
+      ]
+    },
+    "pitchPoints": "Comprehensive management approach that addresses both symptoms and underlying damage. Restores antioxidant defenses, supports mucosal healing, and maintains oral microbiome balance.",
+    "scientificRationale": "Xerostomia compromises the protective functions of saliva, leading to increased risks of dental caries, mucosal irritation, and microbial imbalance. Saliva's natural antioxidant, antimicrobial, and buffering properties are essential for maintaining oral health. AO ProVantage restores the antioxidant capacity of saliva, protecting oral tissues from oxidative damage. Moisyn combines chitosan and arginine to provide mucosal hydration and support a balanced oral microbiome.",
+    "clinicalEvidence": "Clinical trials show AO ProVantage improves xerostomia symptoms in 91.7% of patients, with 72.2% reporting reduced oral soreness and 61.1% experiencing easier chewing and swallowing. Studies on Moisyn demonstrate 82% of patients reporting dry mouth relief after just one week, with resting saliva output doubling (100% increase) and stimulated saliva rising by 23.8%.",
+    "competitiveAdvantage": "Unlike traditional antibacterial rinses, our products don't disrupt the oral microbiome. AO ProVantage is the only product that actively restores antioxidant function of saliva. Moisyn provides selective antimicrobial action through chitosan, which may preserve beneficial oral flora better than the non-selective action of other products.",
+    "handlingObjections": "While our products may cost more than basic dry mouth rinses, they offer advanced, clinically relevant benefits. AO ProVantage replenishes antioxidants naturally found in saliva, which no other product does. Moisyn uses chitosan + arginine to selectively support the oral microbiome, offering long-lasting moisture and improved oral health outcomes.",
+    "productDetails": {
+      "SalivaCheck Kit": {
+        "usage": {
+          "Diagnosis": "Use once for baseline assessment and periodically to monitor progress",
+          "Active Treatment": "Use once for baseline assessment and periodically to monitor progress",
+          "Long-term Management": "Use once for baseline assessment and periodically to monitor progress"
+        },
+        "rationale": "Quantifies severity and helps assess treatment efficacy.",
+        "competitive": "Only chairside test that measures both quantity and quality of saliva.",
+        "objection": "Insurance reimbursable as diagnostic aid under code D0999.",
+        "factSheet": "#"
+      },
+      "AO ProVantage Gel": {
+        "usage": {
+          "Diagnosis": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+          "Active Treatment": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+          "Long-term Management": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+          "Mild": "How to Use:\nApply a pea-sized amount of AO ProVantage gel directly to dry or irritated areas of the oral mucosa.\nUse a clean finger or cotton swab to spread the gel evenly across the gum tissue, cheeks, palate, or under the tongue.\nDo not rinse. Allow the gel to remain in place for prolonged contact and maximum benefit.\nApply 2–3 times daily, especially after brushing and before bed.\nSafe to use in conjunction with other oral care products.\nSpecial Instructions:\nFor patients with severe xerostomia or mucosal sensitivity, AO ProVantage can be used more frequently, up to every 4–6 hours as needed.\nSuitable for use under removable prosthetics or dentures to soothe irritated tissues.\n",
+          "Moderate": "How to Use:\nApply a pea-sized amount of AO ProVantage gel directly to dry or irritated areas of the oral mucosa.\nUse a clean finger or cotton swab to spread the gel evenly across the gum tissue, cheeks, palate, or under the tongue.\nDo not rinse. Allow the gel to remain in place for prolonged contact and maximum benefit.\nApply 2–3 times daily, especially after brushing and before bed.\nSafe to use in conjunction with other oral care products.\nSpecial Instructions:\nFor patients with severe xerostomia or mucosal sensitivity, AO ProVantage can be used more frequently, up to every 4–6 hours as needed.\nSuitable for use under removable prosthetics or dentures to soothe irritated tissues.\n",
+          "Severe": "How to Use:\nApply a pea-sized amount of AO ProVantage gel directly to dry or irritated areas of the oral mucosa.\nUse a clean finger or cotton swab to spread the gel evenly across the gum tissue, cheeks, palate, or under the tongue.\nDo not rinse. Allow the gel to remain in place for prolonged contact and maximum benefit.\nApply 2–3 times daily, especially after brushing and before bed.\nSafe to use in conjunction with other oral care products.\nSpecial Instructions:\nFor patients with severe xerostomia or mucosal sensitivity, AO ProVantage can be used more frequently, up to every 4–6 hours as needed.\nSuitable for use under removable prosthetics or dentures to soothe irritated tissues.\n"
+        },
+        "rationale": "Saliva contains antioxidants like uric acid and glutathione that neutralize free radicals and protect oral tissues from oxidative damage. In xerostomia, this antioxidant capacity is diminished, leading to increased oxidative stress. AO ProVantage replenishes this loss with ingredients such as phloretin and ferulic acid. Studies have shown that these antioxidants can mitigate oxidative stress and enhance wound healing outcomes in the oral cavity. ​ ",
+        "competitive": "Replenishes Salivary Antioxidants: Restores the Total Antioxidant Capacity (TAC) lost with reduced salivary flow. No other product does this.\nSupports Mucosal Healing: Antioxidants in the gel protect oral tissues from oxidative stress and promote healing.\nGentle, Targeted Support: Does not kill beneficial bacteria or disturb the oral microbiome—crucial for systemic and oral health.\nBarrier Protection: Provides a moisturizing layer on the mucosa for extended relief from dryness.",
+        "objection": "1.\n “Your product is more expensive than others on the market.”\nResponse: You're right—our products may cost more than basic dry mouth rinses. But here's why: unlike most products that simply coat the mouth or temporarily mask symptoms, both AO ProVantage and Moisyn offer advanced, clinically relevant benefits. AO ProVantage replenishes antioxidants naturally found in saliva, which no other product does. Moisyn uses chitosan + arginine to selectively support the oral microbiome, offer long-lasting moisture, and improve oral health outcomes.\nSo while the upfront cost may be higher, patients gain greater symptom relief, fewer complications, and better long-term protection—which means less reliance on multiple inferior products and fewer oral health issues down the line.\n2.\n “Why do I need both AO ProVantage and Moisyn for dry mouth?”\nResponse: Great question. Not all dry mouth cases are the same, so we tailor our recommendation based on severity:\nMild Dry Mouth: Start with our Hydrating Rinse—gentle relief for early symptoms.\nModerate Dry Mouth: Moisyn alone is often enough—it hydrates, protects the mucosa, and supports the microbiome.\nSevere Dry Mouth: We recommend both AO ProVantage and Moisyn. Why? AO ProVantage restores antioxidants that are depleted in saliva, which helps heal and protect tissues. Moisyn creates a long-lasting protective barrier and balances the oral microbiome. Together, they address both the symptoms and the underlying oral health challenges.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Efficacy of Antioxidant Gel in Xerostomia Management",
+            "author": "Smith et al., Journal of Dental Research, 2023"
+          },
+          {
+            "title": "Antioxidants and Their Role in Salivary Function",
+            "author": "Johnson et al., Periodontology Today, 2022"
+          }
+        ],
+        "pitchPoints": "Addresses Oxidative Stress: Xerostomia is often accompanied by high levels of inflammation and oxidative stress in the oral cavity. Antioxidant gels help neutralize free radicals, reducing tissue damage and discomfort.\nSupports Mucosal Healing: Antioxidants like phloretin and Ferulic Acid along with green tea polyphenols support the repair and resilience of delicate oral tissues prone to breakdown in dry mouth patients.\nEnhances Comfort: Antioxidant gels create a soothing barrier over oral tissues, offering immediate relief from burning or irritation often reported in xerostomic mouths.\nComplements Moisture-Based Therapies: When used alongside saliva substitutes or hydration therapies, antioxidants enhance the healing and protective benefits without interfering with the primary treatment.\nEvidence-Based Approach: Studies have shown reduced inflammatory markers and improved tissue integrity with regular use of topical antioxidants in dry mouth sufferers.\nNon-Systemic & Easy to Apply: Unlike systemic therapies, topical gels deliver targeted relief with minimal side effects and easy application.",
+        "clinicalEvidence": "A clinical trial conducted at Texas A&M College of Dentistry evaluated the efficacy of AO ProVantage antioxidant gel in patients with xerostomia. In this randomized, double-blind, crossover study, participants applied AO ProVantage twice daily for seven days. Results showed:\n91.7% of participants experienced an improvement in dry mouth symptoms.\n72.2% reported reduced oral soreness or burning.\n61.1% observed easier chewing and swallowing.\nA significant increase in both unstimulated and stimulated salivary flow was noted in over 65% of participants."
+      },
+      "Moisyn": {
+        "usage": {
+          "Diagnosis": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+          "Active Treatment": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+          "Long-term Management": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+          "Mild": "How to Use:\nDispense 5–10 mL of Moisyn oral rinse into the mouth.\nSwish thoroughly for 30–60 seconds, ensuring full contact with all oral surfaces.\nExpectorate after use. Do not rinse with water or eat/drink for at least 30 minutes.\nUse 2–3 times daily or as needed to maintain moisture and oral comfort.\nSpecial Instructions:\nFor patients with moderate to severe dry mouth, Moisyn can be paired with AO ProVantage to deliver both moisture retention and antioxidant protection.\nEspecially beneficial before sleep or in the morning when dry mouth symptoms are typically worse.\n",
+          "Moderate": "How to Use:\nDispense 5–10 mL of Moisyn oral rinse into the mouth.\nSwish thoroughly for 30–60 seconds, ensuring full contact with all oral surfaces.\nExpectorate after use. Do not rinse with water or eat/drink for at least 30 minutes.\nUse 2–3 times daily or as needed to maintain moisture and oral comfort.\nSpecial Instructions:\nFor patients with moderate to severe dry mouth, Moisyn can be paired with AO ProVantage to deliver both moisture retention and antioxidant protection.\nEspecially beneficial before sleep or in the morning when dry mouth symptoms are typically worse.\n",
+          "Severe": "How to Use:\nDispense 5–10 mL of Moisyn oral rinse into the mouth.\nSwish thoroughly for 30–60 seconds, ensuring full contact with all oral surfaces.\nExpectorate after use. Do not rinse with water or eat/drink for at least 30 minutes.\nUse 2–3 times daily or as needed to maintain moisture and oral comfort.\nSpecial Instructions:\nFor patients with moderate to severe dry mouth, Moisyn can be paired with AO ProVantage to deliver both moisture retention and antioxidant protection.\nEspecially beneficial before sleep or in the morning when dry mouth symptoms are typically worse.\n"
+        },
+        "rationale": "Moisyn combines chitosan and arginine to provide mucosal hydration and support a balanced oral microbiome. Chitosan, a positively charged biopolymer, exhibits strong mucoadhesive properties, forming a protective barrier over mucosal surfaces and prolonging the retention of therapeutic agents.  Arginine serves as a substrate for beneficial alginolytic bacteria, which metabolize it into ammonia, helping to neutralize plaque acids and maintain a healthy oral environment. ​ ",
+        "competitive": "Dual Action Relief:\nChitosan forms a protective mucoadhesive barrier, reducing tissue irritation and retaining moisture.\nArginine neutralizes acids and helps regulate pH, which is vital for beneficial bacterial growth.\nSelective Action on Bacteria:\nChitosan binds to negatively charged harmful bacteria (e.g., Fusobacterium nucleatum, Streptococcus mutans).\nBeneficial bacteria like Streptococcus salivarius remain unaffected, preserving microbiome balance.\nSubstantivity: Stays on mucosal surfaces longer than traditional rinses or substitutes, reducing frequency of application.\nSupports Salivary Flow: Arginine aids in nitric oxide production, which improves blood flow and salivary function.",
+        "objection": "1.\n “Why do I need both AO ProVantage and Moisyn for dry mouth?”\nResponse: Great question. Not all dry mouth cases are the same, so we tailor our recommendation based on severity:\nMild Dry Mouth: Start with our Hydrating Rinse—gentle relief for early symptoms.\nModerate Dry Mouth: Moisyn alone is often enough—it hydrates, protects the mucosa, and supports the microbiome.\nSevere Dry Mouth: We recommend both AO ProVantage and Moisyn. Why? AO ProVantage restores antioxidants that are depleted in saliva, which helps heal and protect tissues. Moisyn creates a long-lasting protective barrier and balances the oral microbiome. Together, they address both the symptoms and the underlying oral health challenges.\n2.\n “Moisyn contains chitosan, which is made from shellfish. I have a shellfish allergy—will I have a reaction?”\nResponse: We understand the concern! The chitosan in Moisyn is purified from the shells (exoskeletons) of shellfish—not the proteins that typically trigger allergic reactions. Most shellfish allergies are caused by muscle proteins, not the shell-derived materials used in chitosan. Additionally, chitosan undergoes rigorous purification, removing residual allergens.\nHowever, we always recommend that patients with known shellfish allergies consult their healthcare provider before use. To date, no allergic reactions have been reported from the topical use of chitosan in oral care products like Moisyn.",
+        "factSheet": "#",
+        "researchArticles": [
+          {
+            "title": "Clinical Outcomes with Chitosan-Arginine Oral Rinse in Xerostomia Patients",
+            "author": "Williams et al., Oral Medicine, 2023"
+          },
+          {
+            "title": "Restoration of Salivary Function with Novel Polysaccharide Formulations",
+            "author": "Miller et al., Journal of Oral Health, 2022"
+          }
+        ],
+        "pitchPoints": "Dual Benefit Formula: Moisyn tackles both major xerostomia challenges—discomfort and biofilm control—through its unique combination of chitosan and arginine.\nCreates Protective Oral Film: Chitosan forms a mucoadhesive film that mimics natural saliva, retaining moisture and soothing tissues for lasting comfort.\nSelective Biofilm Disruption: Unlike traditional antibacterial rinses, chitosan targets only harmful bacteria (negatively charged), sparing beneficial species and preserving microbiome balance, by molecular charge “clumping” the bacteria that can be spit out of the mouth.\npH Neutralizing Action: Arginine helps maintain an ideal oral pH by neutralizing acids, creating an environment that discourages harmful bacteria and supports enamel health.\nMicrobiome-Friendly Innovation: Moisyn respects the natural oral ecosystem, reducing the risk of dysbiosis, candidiasis, or secondary infections from broad-spectrum antimicrobials, however it does have an antibacterial effect without being bactericidal.\nIdeal for Long-Term Use: Safe and non-irritating for daily use—perfect for chronic xerostomia sufferers who require continuous relief and support.\nSupported by Science: Backed by research on the effects of chitosan and arginine in oral care, including their unique role in moisture retention, biofilm modulation, and pH stability.",
+        "clinicalEvidence": "A published Oral Medicine study on Moisyn, a polysaccharide-based oral rinse, showed significant relief in xerostomia symptoms after just one week. Among 57 patients, 82% reported dry mouth relief, 76% noted reduced thick saliva, and 15 of 33 symptoms improved significantly. Resting saliva output doubled (100% increase), and stimulated saliva rose by 23.8%. These results highlight Moisyn’s dual benefits: fast symptom relief and improved salivary flow."
+      },
+      "XeroMoist Gel": {
+        "usage": {
+          "Diagnosis": "Apply pea-sized amount to affected areas 3-4x/day and before bedtime",
+          "Active Treatment": "Apply pea-sized amount to affected areas 3-4x/day and before bedtime",
+          "Long-term Management": "Apply pea-sized amount to affected areas 3-4x/day and before bedtime"
+        },
+        "rationale": "Longer-lasting moisture and protection, especially overnight.",
+        "competitive": "Contains calcium phosphate to help remineralize damaged enamel.",
+        "objection": "Neutral pH unlike acidic competitor products.",
+        "factSheet": "#"
+      },
+      "AO ProRinse Hydrating": {
+        "usage": {
+          "Mild": "How to Use:\n\nMeasure 15 mL and swish for 30 seconds\nUse 3-4 times daily, ideally after meals and before bed\nDo not eat, drink, or rinse for 15 minutes after use\n\nSpecial Instructions:\n\nMay be refrigerated for enhanced soothing effect\nSafe with prescription dry mouth medications\nFor severe nighttime dryness, pair with AO ProVantage gel",
+          "Moderate": "How to Use:\n\nMeasure 15 mL and swish for 30 seconds\nUse 3-4 times daily, ideally after meals and before bed\nDo not eat, drink, or rinse for 15 minutes after use\n\nSpecial Instructions:\n\nMay be refrigerated for enhanced soothing effect\nSafe with prescription dry mouth medications\nFor severe nighttime dryness, pair with AO ProVantage gel",
+          "Severe": "How to Use:\n\nMeasure 15 mL and swish for 30 seconds\nUse 3-4 times daily, ideally after meals and before bed\nDo not eat, drink, or rinse for 15 minutes after use\n\nSpecial Instructions:\n\nMay be refrigerated for enhanced soothing effect\nSafe with prescription dry mouth medications\nFor severe nighttime dryness, pair with AO ProVantage gel"
+        },
+        "rationale": "AO ProRinseHydrating combines glycerin, xylitol, and biocompatible polymers to create persistent moisture while delivering antioxidants (phloretin and ferulic acid derivatives) that protect tissues from oxidative damage. Supplemental enzymes (lysozyme and lactoperoxidase) help maintain protective functions of natural saliva with a pH-balanced formula (6.8-7.2) supporting remineralization.",
+        "clinicalEvidence": "A University of Michigan study with 48 participants showed:\n\n87.5% reported improved symptoms within one week\n79% experienced reduced discomfort while eating and speaking\n31% increase in measured mucosal wetness\nEffects lasted 2.8 hours versus 0.9 hours for control products",
+        "competitive": "Superior Hydration: Advanced hydrogels provide more persistent moisture than standard glycerin rinses\nTherapeutic Benefits: Combines immediate relief with antioxidant protection\nEnzyme Supplementation: Reproduces protective functions of natural saliva\nPleasant Experience: Natural flavoring without medicinal taste\nOptimal pH: Supports remineralization without irritation",
+        "objection": "1.\n\"Your product is more expensive than others on the market.\"\nAO ProRinseHydrating offers more than basic hydration. Its antioxidant complex and enzyme supplementation provide therapeutic benefits beyond symptom masking. Patients experience better relief and fewer complications, reducing dependence on multiple products.\n\n2.\n\"Why do I need AO ProRinseHydrating when you offer other dry mouth products?\"\nOur products address different severity levels:\n\nMild: AO ProRinseHydrating provides convenient relief with antioxidant benefits.\nModerate: Moisyn offers longer-lasting effects with microbiome support.\nSevere: AO ProVantage and Moisyn together provide comprehensive therapy.",
+        "factSheet": "#",
+        "researchArticles": [],
+        "pitchPoints": "Immediate Hydration: Advanced moisture-retention formula delivers instant relief to dry tissues.\nExtended Relief: Proprietary hydrogel technology creates a lasting moisture barrier.\nAntioxidant Protection: Contains antioxidant complex to neutralize free radicals.\npH-Balanced: Neutral pH maintains oral homeostasis and protects enamel.\nMicrobiome-Friendly: Avoids harsh antimicrobials that disrupt oral ecology.\nEnhanced with Enzymes: Contains enzymes that mimic natural saliva components."
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Dry Mouth (Radiation/Chemo/Extreme Sensitivity)",
+    "category": "Intra-Oral",
+    "phases": [
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Oncologist",
+      "General Dentist",
+      "Oral Medicine Specialist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": [
+        "Synvaza",
+        "AO ProVantage Gel"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Comprehensive management to reduce oral complications of cancer therapy.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Acute": "2x/day or as needed for relief",
+          "Maintenance": "2x/day or as needed for relief"
+        },
+        "rationale": "Soothes and protects sensitive tissues affected by cancer treatment.",
+        "competitive": "Gentle formulation suitable for radiation-damaged tissues.",
+        "objection": "Clinical studies support use during cancer therapy.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Acute": "3x/day during acute phase",
+          "Maintenance": "3x/day during acute phase"
+        },
+        "rationale": "Forms protective layer over sensitive oral mucosa.",
+        "competitive": "Contains healing agents specific to treatment-induced mucositis.",
+        "objection": "Developed with input from oncology specialists.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Laser Gingivectomy",
+    "category": "Surgical",
+    "phases": [
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "General Dentist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": [
+        "Synvaza"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Minimizes post-laser tissue sensitivity and accelerates epithelialization.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Acute": "2x/day during maintenance phase",
+          "Maintenance": "2x/day during maintenance phase"
+        },
+        "rationale": "Supports ongoing tissue healing and health.",
+        "competitive": "Antioxidant formula promotes healthy tissue regeneration.",
+        "objection": "Safe for direct application to healing tissue.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Acute": "3x/day immediately after procedure",
+          "Maintenance": "3x/day immediately after procedure"
+        },
+        "rationale": "Creates protective biofilm over laser-treated sites.",
+        "competitive": "Only product clinically shown to support laser wound healing.",
+        "objection": "Helps prevent bacterial contamination of treated sites.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Gingivitis",
+    "category": "Intra-Oral",
+    "phases": [
+      "Slight",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "General Dentist",
+      "Periodontist",
+      "Hygienist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": [
+        "AO ProVantage Gel"
+      ],
+      "Moderate": [
+        "AO ProVantage Gel"
+      ],
+      "Severe": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Stops progression to periodontitis and reduces inflammation.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Slight": "2x/day after brushing",
+          "Moderate": "2x/day after brushing",
+          "Severe": "2x/day after brushing"
+        },
+        "rationale": "Controls bacterial biofilm and reduces inflammation at gumline.",
+        "competitive": "Antioxidant formulation more effective than conventional options.",
+        "objection": "Visible reduction in redness within days of use.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Denture Stomatitis",
+    "category": "Intra-Oral",
+    "phases": [
+      "Slight",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "Prosthodontist",
+      "General Dentist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": [
+        "AO ProVantage Gel"
+      ],
+      "Moderate": [
+        "AO ProVantage Gel"
+      ],
+      "Severe": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Comprehensive approach addressing both tissue inflammation and denture biofilm.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Slight": "2-3x/day to affected palatal tissue after removing denture",
+          "Moderate": "2-3x/day to affected palatal tissue after removing denture",
+          "Severe": "2-3x/day to affected palatal tissue after removing denture"
+        },
+        "rationale": "Creates antifungal environment and reduces inflammation.",
+        "competitive": "More effective than traditional antifungal medications alone.",
+        "objection": "Can be used alongside regular denture cleaning protocols.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Nicotine Stomatitis",
+    "category": "Intra-Oral",
+    "phases": [
+      "Slight",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "General Dentist",
+      "Oral Pathologist",
+      "Oral Medicine Specialist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": [
+        "AO ProVantage Gel"
+      ],
+      "Moderate": [
+        "AO ProVantage Gel"
+      ],
+      "Severe": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Early management of a potentially precancerous condition.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Slight": "2x/day to affected palatal tissue",
+          "Moderate": "2x/day to affected palatal tissue",
+          "Severe": "2x/day to affected palatal tissue"
+        },
+        "rationale": "Antioxidants neutralize free radicals from tobacco exposure.",
+        "competitive": "Higher antioxidant concentration than competing products.",
+        "objection": "Beneficial even with continued tobacco use, though cessation is advised.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Implant Placement",
+    "category": "Surgical",
+    "phases": [
+      "Prep",
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Oral Surgeon",
+      "Periodontist",
+      "General Dentist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": [
+        "AO ProVantage Gel"
+      ],
+      "Acute": [
+        "Synvaza",
+        "AO ProVantage Gel"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Optimizes healing, especially for high-risk patients. Reduces complications.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Prep": "2x/day during prep; 1-2x/day during maintenance depending on patient type",
+          "Acute": "2x/day during prep; 1-2x/day during maintenance depending on patient type",
+          "Maintenance": "2x/day during prep; 1-2x/day during maintenance depending on patient type"
+        },
+        "rationale": "Antioxidants help tissue recovery and reduce free radical damage.",
+        "competitive": "Consistent formulation with higher antioxidant content than competitors.",
+        "objection": "Clinical evidence supports improved healing outcomes.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Prep": "Up to 3x/day during acute phase",
+          "Acute": "Up to 3x/day during acute phase",
+          "Maintenance": "Up to 3x/day during acute phase"
+        },
+        "rationale": "Forms protective layer over surgical site and stimulates healing.",
+        "competitive": "FDA-cleared wound healing rinse with proven efficacy.",
+        "objection": "Clinical studies show faster integration of implants.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Soft Tissue Grafting",
+    "category": "Surgical",
+    "phases": [
+      "Prep",
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "Oral Surgeon"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Prep": [
+        "AO ProVantage Gel"
+      ],
+      "Acute": [
+        "Synvaza"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Promotes faster integration and reduces discomfort. Essential for donor site healing.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Prep": "Apply to donor and recipient sites 2x/day",
+          "Acute": "Apply to donor and recipient sites 2x/day",
+          "Maintenance": "Apply to donor and recipient sites 2x/day"
+        },
+        "rationale": "Promotes microcirculation and delivers antioxidants to healing tissues.",
+        "competitive": "Non-irritating formula safe for freshly grafted sites.",
+        "objection": "Clinical documentation supports use in graft procedures.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Prep": "Rinse 3x/day for 7-10 days post-procedure",
+          "Acute": "Rinse 3x/day for 7-10 days post-procedure",
+          "Maintenance": "Rinse 3x/day for 7-10 days post-procedure"
+        },
+        "rationale": "Helps stabilize blood clot and forms protective layer over wound.",
+        "competitive": "Only rinse with patented wound-healing technology proven for grafts.",
+        "objection": "Superior healing outcomes documented in case studies.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Extractions",
+    "category": "Surgical",
+    "phases": [
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "General Dentist",
+      "Oral Surgeon"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": [
+        "Synvaza"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Reduces dry socket risk and accelerates healing in socket area.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Acute": "Apply small amount near extraction site 1-2x/day",
+          "Maintenance": "Apply small amount near extraction site 1-2x/day"
+        },
+        "rationale": "Supports tissue regeneration in socket area.",
+        "competitive": "Doesn't interfere with clot formation like other topicals.",
+        "objection": "Safe for application after 24 hours post-extraction.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Acute": "Rinse gently 3x/day for 3-5 days post-extraction",
+          "Maintenance": "Rinse gently 3x/day for 3-5 days post-extraction"
+        },
+        "rationale": "Forms protective layer over extraction site to prevent food impaction.",
+        "competitive": "Specific indication for post-extraction care.",
+        "objection": "Reduces incidence of dry socket complications.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Laser Perio Debridement",
+    "category": "Surgical",
+    "phases": [
+      "Acute",
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "General Dentist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Acute": [
+        "Synvaza"
+      ],
+      "Maintenance": [
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Extends laser treatment efficacy by supporting tissue regeneration.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Acute": "Apply thin layer to treated areas 2x/day",
+          "Maintenance": "Apply thin layer to treated areas 2x/day"
+        },
+        "rationale": "Reduces inflammation and discomfort after laser treatment.",
+        "competitive": "Stays in place longer than other topical agents.",
+        "objection": "Patient comfort leads to better compliance with post-op instructions.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Acute": "Rinse 3x/day for 7 days post-procedure",
+          "Maintenance": "Rinse 3x/day for 7 days post-procedure"
+        },
+        "rationale": "Forms protective layer over debridement sites.",
+        "competitive": "Synergistic with laser therapy for enhanced healing.",
+        "objection": "Proven to support better clinical outcomes.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Periodontal Disease",
+    "category": "Intra-Oral",
+    "phases": [
+      "Maintenance"
+    ],
+    "dds": [
+      "Periodontist",
+      "General Dentist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Maintenance": [
+        "AO ProVantage Gel",
+        "PerioProtect Tray (H2O2)"
+      ]
+    },
+    "pitchPoints": "Multi-level approach targeting bacterial imbalance and inflammation.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Maintenance": "Apply to gumline after brushing 2x/day"
+        },
+        "rationale": "Reduces inflammation and delivers antioxidants to sulcus.",
+        "competitive": "Sustained release formula for long-lasting effect.",
+        "objection": "Targeted delivery means less total product used versus rinses.",
+        "factSheet": "#"
+      },
+      "PerioProtect Tray (H2O2)": {
+        "usage": {
+          "Maintenance": "Use as directed by dental professional with custom tray"
+        },
+        "rationale": "Delivers hydrogen peroxide deep into periodontal pockets.",
+        "competitive": "Patented seal technology reaches areas brushing and flossing cannot.",
+        "objection": "Clinical studies show significant pocket depth reduction.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Xerostomia (Dry Mouth)",
+    "category": "Intra-Oral",
+    "phases": [
+      "Slight",
+      "Mild",
+      "Moderate",
+      "Severe"
+    ],
+    "dds": [
+      "General Dentist",
+      "Prosthodontist",
+      "Oral Medicine Specialist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Slight": [
+        "AO ProRinse Hydrating"
+      ],
+      "Mild": [
+        "Moisyn"
+      ],
+      "Moderate": [
+        "Moisyn"
+      ],
+      "Severe": [
+        "Moisyn",
+        "AO ProVantage Gel"
+      ]
+    },
+    "pitchPoints": "Comprehensive management approach that addresses both symptoms and underlying damage.",
+    "productDetails": {
+      "AO ProRinse Hydrating": {
+        "usage": {
+          "Slight": "Rinse as needed throughout day",
+          "Mild": "Rinse as needed throughout day",
+          "Moderate": "Rinse as needed throughout day",
+          "Severe": "Rinse as needed throughout day"
+        },
+        "rationale": "Provides immediate relief for mild dry mouth symptoms.",
+        "competitive": "Alcohol-free formula won't worsen dryness.",
+        "objection": "More economical than competitors for daily use.",
+        "factSheet": "#"
+      },
+      "Moisyn": {
+        "usage": {
+          "Slight": "Use as directed throughout day",
+          "Mild": "Use as directed throughout day",
+          "Moderate": "Use as directed throughout day",
+          "Severe": "Use as directed throughout day"
+        },
+        "rationale": "Clinically proven to help with dry mouth where others fail.",
+        "competitive": "510k cleared vs OTC rinses with no clinical data.",
+        "objection": "Chitosan/arginine technology provides longer-lasting relief.",
+        "factSheet": "#"
+      },
+      "AO ProVantage Gel": {
+        "usage": {
+          "Slight": "Apply to oral tissues before bed and as needed",
+          "Mild": "Apply to oral tissues before bed and as needed",
+          "Moderate": "Apply to oral tissues before bed and as needed",
+          "Severe": "Apply to oral tissues before bed and as needed"
+        },
+        "rationale": "Provides longer-lasting moisture protection, especially overnight.",
+        "competitive": "Contains healing agents for compromised tissue.",
+        "objection": "Addresses both symptom relief and tissue repair.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Tongue Disorders (Geographic, Black Hairy)",
+    "category": "Intra-Oral",
+    "phases": [
+      "Maintenance"
+    ],
+    "dds": [
+      "General Dentist",
+      "Oral Medicine Specialist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Maintenance": [
+        "AO ProVantage Gel",
+        "Synvaza"
+      ]
+    },
+    "pitchPoints": "Addresses both symptoms and underlying causes of common tongue disorders.",
+    "productDetails": {
+      "AO ProVantage Gel": {
+        "usage": {
+          "Maintenance": "Apply to affected areas 2-3x/day"
+        },
+        "rationale": "Provides antioxidant protection and promotes normal epithelial turnover.",
+        "competitive": "Soothes discomfort without adverse taste or sensation.",
+        "objection": "Can be used long-term without side effects.",
+        "factSheet": "#"
+      },
+      "Synvaza": {
+        "usage": {
+          "Maintenance": "Rinse 2x/day"
+        },
+        "rationale": "Helps normalize microbial balance on tongue surface.",
+        "competitive": "Contains enzymes that help break down tongue coating.",
+        "objection": "Produces visible improvement within days of use.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  },
+  {
+    "name": "Daily Oral Hygiene (Brushing, Flossing, Rinse)",
+    "category": "Preventive",
+    "phases": [
+      "Daily Use"
+    ],
+    "dds": [
+      "General Dentist",
+      "Hygienist"
+    ],
+    "patientType": "Types 1 to 4",
+    "products": {
+      "Daily Use": [
+        "AO ProToothpaste + AO ProRinse (patient choice)"
+      ]
+    },
+    "pitchPoints": "Comprehensive daily care for optimal oral health maintenance.",
+    "productDetails": {
+      "AO ProToothpaste + AO ProRinse (patient choice)": {
+        "usage": {
+          "Daily Use": "Use toothpaste 2x/day and rinse 1-2x/day"
+        },
+        "rationale": "Provides daily protection and therapeutic benefits.",
+        "competitive": "Multiple formula options to address specific patient needs.",
+        "objection": "Personalized approach improves patient compliance.",
+        "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Prep": {
+        "1": [],
+        "2": [],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Acute": {
+        "1": [
+          "Synvaza"
+        ],
+        "2": [
+          "Synvaza"
+        ],
+        "3": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Synvaza",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Synvaza"
+        ]
+      },
+      "Maintenance": {
+        "1": [
+          "AO ProVantage Gel"
+        ],
+        "2": [
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "AO ProVantage Gel"
+        ]
+      },
+      "Mild": {
+        "1": [
+          "AO ProRinse Hydrating"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": []
+      },
+      "Moderate": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      },
+      "Severe": {
+        "1": [
+          "Moisyn"
+        ],
+        "2": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "3": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "4": [
+          "Moisyn",
+          "AO ProVantage Gel"
+        ],
+        "all": [
+          "Moisyn"
+        ]
+      }
+    }
+  }
+]

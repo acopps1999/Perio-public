@@ -112,13 +112,13 @@
   {
     "name": "Dry Mouth",
     "category": "Intra-Oral",
-    "phases": ["Diagnosis", "Active Treatment", "Long-term Management"],
+    "phases": ["Mild", "Moderate", "Severe"],
     "dds": ["General Dentist", "Prosthodontist", "Oncologist", "Oral Medicine Specialist"],
     "patientType": "Types 1 to 4",
     "products": {
-      "Diagnosis": ["SalivaCheck Kit"],
-      "Active Treatment": ["AO ProVantage Gel", "Moisyn", "XeroMoist Gel"],
-      "Long-term Management": ["AO ProVantage Gel", "Moisyn (Type 3/4 Only)"]
+      "Mild": ["SalivaCheck Kit", "AO ProVantage Gel"],
+      "Moderate": ["AO ProVantage Gel", "Moisyn", "XeroMoist Gel"],
+      "Severe": ["AO ProVantage Gel", "Moisyn", "XeroMoist Gel"]
     },
     "pitchPoints": "Comprehensive management approach that addresses both symptoms and underlying damage. Restores antioxidant defenses, supports mucosal healing, and maintains oral microbiome balance.",
     "scientificRationale": "Xerostomia compromises the protective functions of saliva, leading to increased risks of dental caries, mucosal irritation, and microbial imbalance. Saliva's natural antioxidant, antimicrobial, and buffering properties are essential for maintaining oral health. AO ProVantage restores the antioxidant capacity of saliva, protecting oral tissues from oxidative damage. Moisyn combines chitosan and arginine to provide mucosal hydration and support a balanced oral microbiome.",
@@ -127,14 +127,22 @@
     "handlingObjections": "While our products may cost more than basic dry mouth rinses, they offer advanced, clinically relevant benefits. AO ProVantage replenishes antioxidants naturally found in saliva, which no other product does. Moisyn uses chitosan + arginine to selectively support the oral microbiome, offering long-lasting moisture and improved oral health outcomes.",
     "productDetails": {
       "SalivaCheck Kit": {
-        "usage": "Use once for baseline assessment and periodically to monitor progress",
+        "usage": {
+          "Mild": "Use once for baseline assessment and periodically to monitor progress",
+          "Moderate": "Use monthly to track treatment effectiveness",
+          "Severe": "Use bi-weekly to monitor condition and adjust treatment as needed"
+        },
         "rationale": "Quantifies severity and helps assess treatment efficacy.",
         "competitive": "Only chairside test that measures both quantity and quality of saliva.",
         "objection": "Insurance reimbursable as diagnostic aid under code D0999.",
         "factSheet": "#"
       },
       "AO ProVantage Gel": {
-        "usage": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+        "usage": {
+          "Mild": "Apply a pea-sized amount to dry or irritated areas 1-2 times daily, especially after brushing.",
+          "Moderate": "Apply a pea-sized amount to dry or irritated areas 2-3 times daily, especially after brushing and before bed.",
+          "Severe": "Apply a pea-sized amount to dry or irritated areas 3-4 times daily, including after each meal and before bed."
+        },
         "rationale": "Restores antioxidant capacity of saliva, protecting oral tissues from oxidative damage and promoting healing.",
         "competitive": "Only product that actively restores antioxidant function of saliva without disrupting the oral microbiome.",
         "objection": "Cost offset by greater symptom relief, fewer complications, and better long-term protection.",
@@ -151,7 +159,11 @@
         ]
       },
       "Moisyn": {
-        "usage": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+        "usage": {
+          "Mild": "Dispense 5 mL, swish thoroughly for 30 seconds, 1-2 times daily or as needed.",
+          "Moderate": "Dispense 5-10 mL, swish thoroughly for 30-60 seconds, 2-3 times daily or as needed.",
+          "Severe": "Dispense 10 mL, swish thoroughly for 60 seconds, 3-4 times daily or as needed."
+        },
         "rationale": "Forms a protective mucoadhesive barrier, reducing tissue irritation and retaining moisture while supporting beneficial bacteria.",
         "competitive": "Selective antibacterial properties target harmful bacteria while preserving beneficial ones, unlike broad-spectrum antiseptics.",
         "objection": "For shellfish allergies, the chitosan is purified from shells, not proteins that typically trigger allergic reactions.",
@@ -168,11 +180,38 @@
         ]
       },
       "XeroMoist Gel": {
-        "usage": "Apply pea-sized amount to affected areas 3-4x/day and before bedtime",
+        "usage": {
+          "Mild": "Apply pea-sized amount to affected areas 2x/day and before bedtime",
+          "Moderate": "Apply pea-sized amount to affected areas 3x/day and before bedtime",
+          "Severe": "Apply pea-sized amount to affected areas 4-5x/day and before bedtime"
+        },
         "rationale": "Longer-lasting moisture and protection, especially overnight.",
         "competitive": "Contains calcium phosphate to help remineralize damaged enamel.",
         "objection": "Neutral pH unlike acidic competitor products.",
         "factSheet": "#"
+      }
+    },
+    "patientSpecificConfig": {
+      "Mild": {
+        "1": ["AO ProRinse Hydrating"],
+        "2": ["Moisyn"],
+        "3": ["Moisyn"],
+        "4": ["Moisyn", "AO ProVantage Gel"],
+        "all": []
+      },
+      "Moderate": {
+        "1": ["Moisyn"],
+        "2": ["Moisyn"],
+        "3": ["Moisyn", "AO ProVantage Gel"],
+        "4": ["Moisyn", "AO ProVantage Gel"],
+        "all": ["Moisyn"]
+      },
+      "Severe": {
+        "1": ["Moisyn"],
+        "2": ["Moisyn", "AO ProVantage Gel"],
+        "3": ["Moisyn", "AO ProVantage Gel"],
+        "4": ["Moisyn", "AO ProVantage Gel"],
+        "all": ["Moisyn"]
       }
     }
   },
