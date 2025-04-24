@@ -56,6 +56,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [productsModified, setProductsModified] = useState(false); // Track if user has modified products
   const toast = useToast(); // Add this line to get the toast functions
   
   // Patient-specific products configuration
@@ -211,9 +212,20 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Initialize patient-specific products when a condition is selected
   useEffect(() => {
     if (selectedCondition) {
-      initializePatientSpecificProducts(selectedCondition);
+      // Only initialize if there are no patient-specific products, 
+      // they don't match the current condition's structure,
+      // and user hasn't modified products
+      if ((!patientSpecificProducts || 
+          Object.keys(patientSpecificProducts).length === 0 || 
+          !selectedCondition.phases.every(phase => phase in patientSpecificProducts)) &&
+          !productsModified) {
+        console.log("Initializing patient-specific products for condition:", selectedCondition.name);
+        initializePatientSpecificProducts(selectedCondition);
+      } else {
+        console.log("Skipping initialization, patient-specific products already exist or user modified them");
+      }
     }
-  }, [selectedCondition]);
+  }, [selectedCondition, productsModified]);
 
   // Initialize patient-specific products for a condition
   const initializePatientSpecificProducts = (condition) => {
@@ -362,6 +374,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   const handleResetChanges = () => {
     setEditedConditions([...conditions]);
     setIsEditing(false);
+    setProductsModified(false); // Reset modification flag
     
     // Reset patient-specific products
     if (selectedCondition) {
@@ -371,9 +384,11 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   
   // Handle condition selection
   const handleConditionSelect = (condition) => {
+    console.log("Selecting condition:", condition.name);
     setSelectedCondition(condition);
     setActivePatientType('all');
-    initializePatientSpecificProducts(condition);
+    setProductsModified(false); // Reset modification flag when changing conditions
+    // The initialization will happen in the useEffect
   };
   
   // Update condition field
@@ -402,6 +417,8 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       prev.map(condition => {
         if (condition.name === conditionId) {
           const updatedProductDetails = { ...condition.productDetails };
+          
+          // Initialize product details if they don't exist
           if (!updatedProductDetails[productName]) {
             updatedProductDetails[productName] = {
               usage: {},
@@ -411,14 +428,18 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
               objection: '',
               factSheet: '#',
               researchArticles: [],
-              pitchPoints: '' // Add this field for new products
+              pitchPoints: ''
             };
           }
           
           // Handle phase-specific usage instructions
           if (field === 'usage' && phase) {
-            const updatedUsage = { ...(typeof updatedProductDetails[productName].usage === 'object' ? 
-              updatedProductDetails[productName].usage : { [phase]: updatedProductDetails[productName].usage || '' }) };
+            // Ensure usage is an object
+            if (typeof updatedProductDetails[productName].usage !== 'object') {
+              updatedProductDetails[productName].usage = {};
+            }
+            
+            const updatedUsage = { ...updatedProductDetails[productName].usage };
             updatedUsage[phase] = value;
             updatedProductDetails[productName].usage = updatedUsage;
           } else {
@@ -434,6 +455,8 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     // Update selected condition if it's the one being edited
     if (selectedCondition && selectedCondition.name === conditionId) {
       const updatedProductDetails = { ...selectedCondition.productDetails };
+      
+      // Initialize product details if they don't exist
       if (!updatedProductDetails[productName]) {
         updatedProductDetails[productName] = {
           usage: {},
@@ -443,14 +466,18 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
           objection: '',
           factSheet: '#',
           researchArticles: [],
-          pitchPoints: '' // Add this field for new products
+          pitchPoints: ''
         };
       }
       
       // Handle phase-specific usage instructions
       if (field === 'usage' && phase) {
-        const updatedUsage = { ...(typeof updatedProductDetails[productName].usage === 'object' ? 
-          updatedProductDetails[productName].usage : { [phase]: updatedProductDetails[productName].usage || '' }) };
+        // Ensure usage is an object
+        if (typeof updatedProductDetails[productName].usage !== 'object') {
+          updatedProductDetails[productName].usage = {};
+        }
+        
+        const updatedUsage = { ...updatedProductDetails[productName].usage };
         updatedUsage[phase] = value;
         updatedProductDetails[productName].usage = updatedUsage;
       } else {
@@ -467,16 +494,25 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
   // Handle patient type selection for product configuration
   const handlePatientTypeSelect = (type) => {
     setActivePatientType(type);
+    
+    // Prevent any automatic reinitialization when changing patient types
+    // by adding a small delay
+    setTimeout(() => {
+      setHasChanges(prevHasChanges => prevHasChanges); // Force re-render
+    }, 50);
   };
   
   // Add product to specific patient type and phase
   const addProductToPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
     setHasChanges(true);
+    setProductsModified(true); // Mark that user has modified products
+    
+    console.log(`Adding product "${productName}" to ${phase} phase for patient type ${patientType}`);
     
     // Update patient-specific products
     setPatientSpecificProducts(prev => {
-      const updated = { ...prev };
+      const updated = JSON.parse(JSON.stringify(prev)); // Deep clone to avoid reference issues
       
       // Initialize phase if not exists
       if (!updated[phase]) {
@@ -511,18 +547,34 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
         }
       }
       
+      console.log('Updated patient-specific products after adding:', JSON.stringify(updated));
       return updated;
     });
+
+    // ALWAYS ensure the product has an entry in productDetails when it's added
+    if (selectedCondition) {
+      // Create product details if they don't exist
+      updateProductDetail(
+        selectedCondition.name,
+        productName,
+        'usage',
+        '',
+        phase
+      );
+    }
   };
-  
+
   // Remove product from specific patient type and phase
   const removeProductFromPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
     setHasChanges(true);
+    setProductsModified(true); // Mark that user has modified products
+    
+    console.log(`Removing product "${productName}" from ${phase} phase for patient type ${patientType}`);
     
     // Update patient-specific products
     setPatientSpecificProducts(prev => {
-      const updated = { ...prev };
+      const updated = JSON.parse(JSON.stringify(prev)); // Deep clone to avoid reference issues
       
       // If patientType is 'all', remove from all patient types
       if (patientType === 'all') {
@@ -539,9 +591,11 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
         updated[phase]['all'] = updated[phase]['all'].filter(p => p !== productName);
       }
       
+      console.log('Updated patient-specific products after removing:', JSON.stringify(updated));
       return updated;
     });
   };
+
   // Add new condition
   const handleAddCondition = () => {
     const newCondition = {
@@ -863,6 +917,19 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     
     setConfirmDeleteOpen(false);
     setItemToDelete({ type: '', item: '' });
+  };
+  
+  // Check if a product is configured in any phase for any patient type
+  const isProductConfigured = (productName) => {
+    if (!patientSpecificProducts) return false;
+    
+    // Check all phases
+    return Object.keys(patientSpecificProducts).some(phase => {
+      // Check all patient types
+      return Object.keys(patientSpecificProducts[phase]).some(patientType => {
+        return patientSpecificProducts[phase][patientType].includes(productName);
+      });
+    });
   };
   
   // Render patient type filter and product configuration UI
@@ -1317,293 +1384,324 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                       <h3 className="font-medium text-lg mb-3">Product Details</h3>
                       
                       {Object.keys(selectedCondition.productDetails || {}).length > 0 ? (
-                        <div className="space-y-6">
-                          {Object.keys(selectedCondition.productDetails).map((productName) => (
-                            <div key={productName} className="border rounded-md p-4 bg-gray-50">
-                              <h4 className="font-medium text-md mb-3">{productName}</h4>
-                              
-                              <div className="space-y-3">
-                                {/* Usage Instructions with Phase Tabs */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Usage Instructions
-                                  </label>
+                        (() => {
+                          const configuredProducts = Object.keys(selectedCondition.productDetails)
+                            .filter(productName => isProductConfigured(productName));
+                            
+                          if (configuredProducts.length === 0) {
+                            return (
+                              <div className="p-6 bg-gray-50 rounded-md text-center text-gray-500">
+                                <p>No products are currently configured for this condition.</p>
+                                <p className="mt-2 text-sm">Add products to phases in the "Products by Phase" section above to configure their details.</p>
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <div className="space-y-6">
+                              {configuredProducts.map((productName) => (
+                                <div key={productName} className="border rounded-md p-4 bg-gray-50">
+                                  <h4 className="font-medium text-md mb-3">{productName}</h4>
                                   
-                                  {selectedCondition.phases && selectedCondition.phases.length > 0 ? (
-                                    <div className="border border-gray-300 rounded-md">
-                                      <Tabs.Root defaultValue={selectedCondition.phases[0]} className="w-full">
-                                        <Tabs.List className="flex border-b bg-gray-50">
+                                  <div className="space-y-3">
+                                    {/* Usage Instructions with Phase Tabs */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Usage Instructions
+                                      </label>
+                                      {typeof selectedCondition.productDetails[productName].usage === 'object' ? (
+                                        <Tabs.Root defaultValue={selectedCondition.phases[0]} className="border rounded-md bg-white">
+                                          <Tabs.List className="flex border-b">
+                                            {selectedCondition.phases.map((phase) => (
+                                              <Tabs.Trigger
+                                                key={phase}
+                                                value={phase}
+                                                className={clsx(
+                                                  "flex-1 px-2 py-1.5 text-xs font-medium",
+                                                  "data-[state=active]:text-blue-600 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+                                                  "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700"
+                                                )}
+                                              >
+                                                {phase}
+                                              </Tabs.Trigger>
+                                            ))}
+                                          </Tabs.List>
+                                          
                                           {selectedCondition.phases.map((phase) => (
-                                            <Tabs.Trigger
-                                              key={phase}
-                                              value={phase}
-                                              className={clsx(
-                                                "flex-1 px-3 py-1.5 text-sm font-medium",
-                                                "data-[state=active]:text-blue-600 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
-                                                "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700"
-                                              )}
-                                            >
-                                              {phase}
-                                            </Tabs.Trigger>
+                                            <Tabs.Content key={phase} value={phase} className="p-2">
+                                              <textarea
+                                                value={selectedCondition.productDetails[productName].usage[phase] || ''}
+                                                onChange={(e) => updateProductDetail(
+                                                  selectedCondition.name,
+                                                  productName,
+                                                  'usage',
+                                                  e.target.value,
+                                                  phase
+                                                )}
+                                                rows={3}
+                                                placeholder={`Enter usage instructions for ${phase} phase`}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                              />
+                                            </Tabs.Content>
                                           ))}
-                                        </Tabs.List>
-                                        
-                                        {selectedCondition.phases.map((phase) => (
-                                          <Tabs.Content key={phase} value={phase} className="p-2">
-                                            <textarea
-                                              value={
-                                                selectedCondition.productDetails[productName].usage && 
-                                                typeof selectedCondition.productDetails[productName].usage === 'object' ?
-                                                selectedCondition.productDetails[productName].usage[phase] || '' :
-                                                selectedCondition.productDetails[productName].usage || ''
-                                              }
-                                              onChange={(e) => updateProductDetail(
-                                                selectedCondition.name,
-                                                productName,
-                                                'usage',
-                                                e.target.value,
-                                                phase
-                                              )}
-                                              rows={3}
-                                              placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                            />
-                                          </Tabs.Content>
-                                        ))}
-                                      </Tabs.Root>
-                                    </div>
-                                  ) : (
-                                    <textarea
-                                      value={selectedCondition.productDetails[productName].usage || ''}
-                                      onChange={(e) => updateProductDetail(
-                                        selectedCondition.name,
-                                        productName,
-                                        'usage',
-                                        e.target.value
-                                      )}
-                                      rows={2}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  )}
-                                </div>
-                                
-                                {/* Scientific Rationale */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Scientific Rationale
-                                  </label>
-                                  <textarea
-                                    value={selectedCondition.productDetails[productName].rationale || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'rationale',
-                                      e.target.value
-                                    )}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
-                                  />
-                                </div>
-                                
-                                {/* Clinical Evidence */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Clinical Evidence
-                                  </label>
-                                  <textarea
-                                    value={selectedCondition.productDetails[productName].clinicalEvidence || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'clinicalEvidence',
-                                      e.target.value
-                                    )}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
-                                  />
-                                </div>
-                                
-                                {/* Competitive Advantage */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Competitive Advantage
-                                  </label>
-                                  <textarea
-                                    value={selectedCondition.productDetails[productName].competitive || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'competitive',
-                                      e.target.value
-                                    )}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter competitive advantage information. Line breaks will be preserved in the display."
-                                  />
-                                </div>
-                                
-                                {/* Handling Objections */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Handling Objections
-                                  </label>
-                                  <textarea
-                                    value={selectedCondition.productDetails[productName].objection || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'objection',
-                                      e.target.value
-                                    )}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter objection handling information. Line breaks will be preserved in the display."
-                                  />
-                                </div>
-                                
-                                {/* Key Pitch Points */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Key Pitch Points
-                                  </label>
-                                  <textarea
-                                    value={selectedCondition.productDetails[productName].pitchPoints || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'pitchPoints',
-                                      e.target.value
-                                    )}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Enter key pitch points. Line breaks will be preserved in the display."
-                                  />
-                                </div>
-                                
-                                {/* Research Articles Section */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Supporting Research Articles
-                                  </label>
-                                  
-                                  {selectedCondition.productDetails[productName].researchArticles && 
-                                    selectedCondition.productDetails[productName].researchArticles.map((article, index) => (
-                                    <div key={index} className="flex space-x-2 mb-2">
-                                      <div className="flex-grow space-y-2">
-                                        <input
-                                          type="text"
-                                          placeholder="Article title"
-                                          value={article.title || ''}
-                                          onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
-                                            updatedArticles[index].title = e.target.value;
-                                            updateProductDetail(
-                                              selectedCondition.name, 
-                                              productName, 
-                                              'researchArticles', 
-                                              updatedArticles
-                                            );
-                                          }}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                        />
-                                        
-                                        <input
-                                          type="text"
-                                          placeholder="Author/Source"
-                                          value={article.author || ''}
-                                          onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
-                                            updatedArticles[index].author = e.target.value;
-                                            updateProductDetail(
-                                              selectedCondition.name, 
-                                              productName, 
-                                              'researchArticles', 
-                                              updatedArticles
-                                            );
-                                          }}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                        />
-                                        
+                                        </Tabs.Root>
+                                      ) : (
                                         <textarea
-                                          placeholder="Abstract (optional)"
-                                          value={article.abstract || ''}
-                                          onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
-                                            updatedArticles[index].abstract = e.target.value;
-                                            updateProductDetail(
-                                              selectedCondition.name, 
-                                              productName, 
-                                              'researchArticles', 
-                                              updatedArticles
-                                            );
-                                          }}
+                                          value={selectedCondition.productDetails[productName].usage || ''}
+                                          onChange={(e) => updateProductDetail(
+                                            selectedCondition.name,
+                                            productName,
+                                            'usage',
+                                            e.target.value
+                                          )}
                                           rows={3}
                                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                         />
-                                        
-                                        <input
-                                          type="text"
-                                          placeholder="URL (optional)"
-                                          value={article.url || ''}
-                                          onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
-                                            updatedArticles[index].url = e.target.value;
-                                            updateProductDetail(
-                                              selectedCondition.name, 
-                                              productName, 
-                                              'researchArticles', 
-                                              updatedArticles
-                                            );
-                                          }}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                        />
-                                      </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Scientific Rationale */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Scientific Rationale
+                                      </label>
+                                      <textarea
+                                        value={selectedCondition.productDetails[productName].rationale || ''}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'rationale',
+                                          e.target.value
+                                        )}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Clinical Evidence */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Clinical Evidence
+                                      </label>
+                                      <textarea
+                                        value={selectedCondition.productDetails[productName].clinicalEvidence || ''}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'clinicalEvidence',
+                                          e.target.value
+                                        )}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Competitive Advantage */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Competitive Advantage
+                                      </label>
+                                      <textarea
+                                        value={selectedCondition.productDetails[productName].competitive || ''}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'competitive',
+                                          e.target.value
+                                        )}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Handling Objections */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Handling Objections
+                                      </label>
+                                      <textarea
+                                        value={selectedCondition.productDetails[productName].objection || ''}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'objection',
+                                          e.target.value
+                                        )}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Key Pitch Points */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Key Pitch Points
+                                      </label>
+                                      <textarea
+                                        value={selectedCondition.productDetails[productName].pitchPoints || ''}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'pitchPoints',
+                                          e.target.value
+                                        )}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Fact Sheet Link */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Fact Sheet URL
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={selectedCondition.productDetails[productName].factSheet || '#'}
+                                        onChange={(e) => updateProductDetail(
+                                          selectedCondition.name,
+                                          productName,
+                                          'factSheet',
+                                          e.target.value
+                                        )}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      />
+                                    </div>
+                                    
+                                    {/* Research Articles */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Supporting Research Articles
+                                      </label>
+                                      
+                                      {selectedCondition.productDetails[productName].researchArticles?.map((article, index) => (
+                                        <div key={index} className="border rounded-md p-3 mb-2 bg-white">
+                                          <div className="space-y-2">
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Article Title</label>
+                                              <input
+                                                type="text"
+                                                value={article.title || ''}
+                                                onChange={(e) => {
+                                                  const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                                  updatedArticles[index] = { ...updatedArticles[index], title: e.target.value };
+                                                  updateProductDetail(
+                                                    selectedCondition.name,
+                                                    productName,
+                                                    'researchArticles',
+                                                    updatedArticles
+                                                  );
+                                                }}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                              />
+                                            </div>
+                                            
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Author/Source</label>
+                                              <input
+                                                type="text"
+                                                value={article.author || ''}
+                                                onChange={(e) => {
+                                                  const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                                  updatedArticles[index] = { ...updatedArticles[index], author: e.target.value };
+                                                  updateProductDetail(
+                                                    selectedCondition.name,
+                                                    productName,
+                                                    'researchArticles',
+                                                    updatedArticles
+                                                  );
+                                                }}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                              />
+                                            </div>
+                                            
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">URL</label>
+                                              <input
+                                                type="text"
+                                                value={article.url || ''}
+                                                onChange={(e) => {
+                                                  const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                                  updatedArticles[index] = { ...updatedArticles[index], url: e.target.value };
+                                                  updateProductDetail(
+                                                    selectedCondition.name,
+                                                    productName,
+                                                    'researchArticles',
+                                                    updatedArticles
+                                                  );
+                                                }}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                              />
+                                            </div>
+                                            
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Abstract</label>
+                                              <textarea
+                                                value={article.abstract || ''}
+                                                onChange={(e) => {
+                                                  const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                                  updatedArticles[index] = { ...updatedArticles[index], abstract: e.target.value };
+                                                  updateProductDetail(
+                                                    selectedCondition.name,
+                                                    productName,
+                                                    'researchArticles',
+                                                    updatedArticles
+                                                  );
+                                                }}
+                                                rows={2}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                              />
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="mt-2 flex justify-end">
+                                            <button
+                                              onClick={() => {
+                                                const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                                updatedArticles.splice(index, 1);
+                                                updateProductDetail(
+                                                  selectedCondition.name,
+                                                  productName,
+                                                  'researchArticles',
+                                                  updatedArticles
+                                                );
+                                              }}
+                                              className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center"
+                                            >
+                                              <Trash2 size={12} className="mr-1" />
+                                              Remove
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
                                       
                                       <button
                                         onClick={() => {
-                                          const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
-                                          updatedArticles.splice(index, 1);
+                                          const updatedArticles = [...(selectedCondition.productDetails[productName].researchArticles || []), { title: '', author: '', url: '', abstract: '' }];
                                           updateProductDetail(
-                                            selectedCondition.name, 
-                                            productName, 
-                                            'researchArticles', 
+                                            selectedCondition.name,
+                                            productName,
+                                            'researchArticles',
                                             updatedArticles
                                           );
                                         }}
-                                        className="p-2 border border-red-300 rounded-md text-red-500 hover:bg-red-50 self-start"
+                                        className="mt-2 px-3 py-1.5 border border-blue-300 rounded-md text-blue-600 hover:bg-blue-50 text-sm flex items-center"
                                       >
-                                        <X size={16} />
+                                        <Plus size={14} className="mr-1" />
+                                        Add Research Article
                                       </button>
                                     </div>
-                                  ))}
-                                  
-                                  <button
-                                    onClick={() => {
-                                      const currentArticles = selectedCondition.productDetails[productName].researchArticles || [];
-                                      const updatedArticles = [...currentArticles, { title: '', author: '', url: '' }];
-                                      updateProductDetail(
-                                        selectedCondition.name, 
-                                        productName, 
-                                        'researchArticles', 
-                                        updatedArticles
-                                      );
-                                    }}
-                                    className="mt-2 px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 hover:bg-indigo-50 text-sm flex items-center"
-                                  >
-                                    <Plus size={16} className="mr-1" />
-                                    Add Research Article
-                                  </button>
+                                  </div>
                                 </div>
-                              </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })()
                       ) : (
-                        <p className="text-gray-500 text-sm italic">
-                          No product details available. Add products to phases first.
-                        </p>
+                        <div className="p-6 bg-gray-50 rounded-md text-center text-gray-500">
+                          <p>No products are currently configured for this condition.</p>
+                          <p className="mt-2 text-sm">Add products to phases in the "Products by Phase" section above to configure their details.</p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1957,7 +2055,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                         value={newItemData.clinicalEvidence || newItemData.rationale || ''}
                         onChange={(e) => setNewItemData({...newItemData, clinicalEvidence: e.target.value})}
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
                     
@@ -1969,7 +2067,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                         value={newItemData.competitive || ''}
                         onChange={(e) => setNewItemData({...newItemData, competitive: e.target.value})}
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
                     
@@ -1981,7 +2079,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                         value={newItemData.objection || ''}
                         onChange={(e) => setNewItemData({...newItemData, objection: e.target.value})}
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
                     
@@ -2003,7 +2101,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                                 updatedArticles[index].title = e.target.value;
                                 setNewItemData({...newItemData, researchArticles: updatedArticles});
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                             />
                             
                             <input
@@ -2012,10 +2110,10 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                               value={article.author || ''}
                               onChange={(e) => {
                                 const updatedArticles = [...newItemData.researchArticles];
-                                updatedArticles[index].author = e.target.value;
+                                updatedArticles[index] = { ...updatedArticles[index], author: e.target.value };
                                 setNewItemData({...newItemData, researchArticles: updatedArticles});
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                             />
                             
                             <textarea
@@ -2023,11 +2121,11 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                               value={article.abstract || ''}
                               onChange={(e) => {
                                 const updatedArticles = [...newItemData.researchArticles];
-                                updatedArticles[index].abstract = e.target.value;
+                                updatedArticles[index] = { ...updatedArticles[index], abstract: e.target.value };
                                 setNewItemData({...newItemData, researchArticles: updatedArticles});
                               }}
                               rows={3}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                             />
                             
                             <input
@@ -2036,10 +2134,10 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
                               value={article.url || ''}
                               onChange={(e) => {
                                 const updatedArticles = [...newItemData.researchArticles];
-                                updatedArticles[index].url = e.target.value;
+                                updatedArticles[index] = { ...updatedArticles[index], url: e.target.value };
                                 setNewItemData({...newItemData, researchArticles: updatedArticles});
                               }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                             />
                           </div>
                           

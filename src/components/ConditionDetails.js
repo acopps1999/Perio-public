@@ -465,23 +465,46 @@ function ConditionDetails({
                   {expandedSections.productUsage && (
                     <div className="mt-2 space-y-3">
                       {selectedCondition.productDetails && Object.keys(selectedCondition.productDetails).length > 0 ? (
-                        Object.entries(selectedCondition.productDetails).map(([productName, details]) => (
-                          <div key={productName} className="bg-white border rounded-md p-3">
-                            <h4 className="font-medium text-teal-800">{productName}</h4>
-                            <p className="text-teal-700 mt-1">
-                              <span className="font-medium">Usage: </span>
-                              {typeof details.usage === 'object'
-                                ? (Object.keys(details.usage).length > 0 
-                                    ? <div className="space-y-2">
-                                        {Object.entries(details.usage).map(([phase, instruction]) => (
-                                          <div key={phase}><strong>{phase} phase:</strong> <span className="whitespace-pre-line">{instruction}</span></div>
-                                        ))}
-                                      </div>
-                                    : 'Usage instructions not available.')
-                                : <span className="whitespace-pre-line">{details.usage || 'Usage instructions not available.'}</span>}
-                            </p>
-                          </div>
-                        ))
+                        (() => {
+                          // Get only products that are configured for the current phase/patient type
+                          const configuredProducts = filteredProducts.map(p => p.replace(' (Type 3/4 Only)', ''));
+                          
+                          // Filter product details to only show configured products
+                          const filteredProductDetails = Object.entries(selectedCondition.productDetails)
+                            .filter(([productName, _]) => configuredProducts.includes(productName));
+                            
+                          if (filteredProductDetails.length === 0) {
+                            return (
+                              <div className="text-teal-700">
+                                No product usage information available for the selected phase and patient type.
+                              </div>
+                            );
+                          }
+                          
+                          return filteredProductDetails.map(([productName, details]) => (
+                            <div key={productName} className="bg-white border rounded-md p-3">
+                              <h4 className="font-medium text-teal-800">{productName}</h4>
+                              <p className="text-teal-700 mt-1">
+                                <span className="font-medium">Usage: </span>
+                                {typeof details.usage === 'object'
+                                  ? (Object.keys(details.usage).length > 0 
+                                      ? <div className="space-y-2">
+                                          {/* Show only the current phase if available */}
+                                          {details.usage[activeTab] ? (
+                                            <div><strong>{activeTab} phase:</strong> <span className="whitespace-pre-line">{details.usage[activeTab]}</span></div>
+                                          ) : (
+                                            // Otherwise show all phases
+                                            Object.entries(details.usage).map(([phase, instruction]) => (
+                                              <div key={phase}><strong>{phase} phase:</strong> <span className="whitespace-pre-line">{instruction}</span></div>
+                                            ))
+                                          )}
+                                        </div>
+                                      : 'Usage instructions not available.')
+                                  : <span className="whitespace-pre-line">{details.usage || 'Usage instructions not available.'}</span>}
+                              </p>
+                            </div>
+                          ));
+                        })()
                       ) : (
                         <div className="text-teal-700">No product usage information available.</div>
                       )}

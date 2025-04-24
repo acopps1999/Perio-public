@@ -352,7 +352,24 @@ function DiagnosisWizard({ conditions, onClose }) {
                         <div className="mt-3 space-y-3">
                           <div className="bg-gray-50 p-3 rounded">
                             <div className="font-medium text-gray-700">Usage Instructions:</div>
-                            <div className="text-gray-700 mt-1">{productDetails.usage}</div>
+                            <div className="text-gray-700 mt-1">
+                              {typeof productDetails.usage === 'object' ? (
+                                productDetails.usage[selectedPhase] ? (
+                                  // Show phase-specific instructions if available
+                                  <span>{productDetails.usage[selectedPhase]}</span>
+                                ) : (
+                                  // If not available for current phase, show all phases
+                                  <div className="space-y-2">
+                                    {Object.entries(productDetails.usage).map(([phase, instruction]) => (
+                                      <div key={phase}><strong>{phase} phase:</strong> {instruction}</div>
+                                    ))}
+                                  </div>
+                                )
+                              ) : (
+                                // For backwards compatibility with string usage
+                                productDetails.usage || 'No usage instructions available'
+                              )}
+                            </div>
                           </div>
                           
                           <div className="bg-blue-50 p-3 rounded">
