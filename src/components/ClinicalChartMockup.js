@@ -10,6 +10,8 @@ import FiltersSection from './FiltersSection';
 import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
+import { useConditionsData } from '../hooks/useConditionsData';
+// Import from JSON as fallback
 import conditionsDataImport from '../conditions_complete.json';
 
 // PatientTypes definition based on project documentation
@@ -50,28 +52,75 @@ function ClinicalChartMockup() {
     productUsage: false
   });
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
+  const [useSupabase, setUseSupabase] = useState(true);
   
-  //useEffect(() => {
-    // Clear localStorage on first load in production
-    // (This is a one-time reset that can help if there's corrupted data)
-    //if (process.env.NODE_ENV === 'production' && !localStorage.getItem('render_initialized')) {
-      //localStorage.removeItem('conditions_data');
-      //localStorage.setItem('render_initialized', 'true');
-      //window.location.reload();
-    //}
-  //}, []);
+  // Get data from Supabase using the hook
+  const { conditions: supabaseConditions, categories: supabaseCategories, ddsTypes: supbaseDdsTypes, loading, error, refetch } = useConditionsData();
 
   // Load conditions on component mount
   useEffect(() => {
     // Clear localStorage on first load in production
-    // (This is a one-time reset that can help if there's corrupted data)
     if (process.env.NODE_ENV === 'production' && !localStorage.getItem('render_initialized')) {
       localStorage.removeItem('conditions_data');
       localStorage.setItem('render_initialized', 'true');
       window.location.reload();
     }
 
-    // Always use imported data instead of checking localStorage
+    if (useSupabase && supabaseConditions && supabaseConditions.length > 0) {
+      console.log("Using data from Supabase");
+      setConditions(supabaseConditions);
+      setFilteredConditions(supabaseConditions);
+      
+      // Set default selected condition
+      if (supabaseConditions.length > 0) {
+        setSelectedCondition(supabaseConditions[0]);
+        setActiveTab(supabaseConditions[0].phases[0]);
+      }
+      
+      // Load categories if available from Supabase data
+      if (supabaseCategories && supabaseCategories.length > 0) {
+        // Add 'All' only if it doesn't already exist in the categories
+        let allCategories = [...supabaseCategories];
+        if (!allCategories.includes('All')) {
+          allCategories = ['All', ...allCategories];
+        }
+        console.log("Setting categories from Supabase:", allCategories);
+        setCategoryOptions(allCategories);
+      } else {
+        // Load categories from conditions if not available separately
+        const uniqueCategories = [...new Set(supabaseConditions.map(c => c.category))];
+        if (!uniqueCategories.includes('All')) {
+          uniqueCategories.unshift('All');
+        }
+        console.log("Extracting categories from conditions:", uniqueCategories);
+        setCategoryOptions(uniqueCategories);
+      }
+      
+      // Load DDS types from Supabase data
+      if (supbaseDdsTypes && supbaseDdsTypes.length > 0) {
+        // Add 'All' only if it doesn't already exist in the DDS types
+        let allDdsTypes = [...supbaseDdsTypes];
+        if (!allDdsTypes.includes('All')) {
+          allDdsTypes = ['All', ...allDdsTypes];
+        }
+        console.log("Setting DDS types from Supabase:", allDdsTypes);
+        setDdsTypeOptions(allDdsTypes);
+      } else {
+        // Extract DDS types from conditions if not available separately  
+        const allDdsTypes = ['All'];
+        supabaseConditions.forEach(condition => {
+          condition.dds.forEach(dds => {
+            if (!allDdsTypes.includes(dds)) {
+              allDdsTypes.push(dds);
+            }
+          });
+        });
+        console.log("Extracting DDS types from conditions:", allDdsTypes);
+        setDdsTypeOptions(allDdsTypes);
+      }
+    } else {
+      console.log("Using local JSON data");
+      // Fallback to imported data
     setConditions(conditionsDataImport);
     setFilteredConditions(conditionsDataImport);
     
@@ -98,7 +147,8 @@ function ClinicalChartMockup() {
       });
     });
     setDdsTypeOptions(allDdsTypes);
-  }, []);
+    }
+  }, [supabaseConditions, supabaseCategories, supbaseDdsTypes, loading, error, useSupabase]);
 
   // Filter conditions based on selected filters and search query
   useEffect(() => {
@@ -372,19 +422,29 @@ useEffect(() => {
     setAdminOpen(!adminOpen);
   };
   // Handle conditions update from admin panel
-  const handleConditionsUpdate = (updatedConditions, updatedCategories, updatedDdsTypes) => {
-    // Update conditions
+  const handleConditionsUpdate = (updatedConditions, updatedCategories, updatedDdsTypes, shouldRefetch = false) => {
+    // If we should refetch directly from Supabase, do so
+    if (shouldRefetch) {
+      console.log("Triggering refetch from Supabase after admin panel changes");
+      refetch(); // This will call the useConditionsData hook's refetch function
+      return; // Skip the rest of the function as data will be updated by the hook
+    }
+
+    // Update conditions locally if not refetching
     setConditions(updatedConditions);
     
     // Update categories if provided
     if (updatedCategories && Array.isArray(updatedCategories)) {
+      // Make sure there are no duplicates
+      const uniqueCategories = [...new Set(updatedCategories)];
+      
       // Make sure 'All' is always the first option
       let sortedCategories;
-      if (updatedCategories.includes('All')) {
-        const filteredCategories = updatedCategories.filter(c => c !== 'All');
+      if (uniqueCategories.includes('All')) {
+        const filteredCategories = uniqueCategories.filter(c => c !== 'All');
         sortedCategories = ['All', ...filteredCategories];
       } else {
-        sortedCategories = ['All', ...updatedCategories];
+        sortedCategories = ['All', ...uniqueCategories];
       }
       
       // Update the categories
@@ -398,13 +458,16 @@ useEffect(() => {
     
     // Update DDS types if provided
     if (updatedDdsTypes && Array.isArray(updatedDdsTypes)) {
+      // Make sure there are no duplicates
+      const uniqueDdsTypes = [...new Set(updatedDdsTypes)];
+      
       // Make sure 'All' is always the first option
       let sortedDdsTypes;
-      if (updatedDdsTypes.includes('All')) {
-        const filteredDdsTypes = updatedDdsTypes.filter(d => d !== 'All');
+      if (uniqueDdsTypes.includes('All')) {
+        const filteredDdsTypes = uniqueDdsTypes.filter(d => d !== 'All');
         sortedDdsTypes = ['All', ...filteredDdsTypes];
       } else {
-        sortedDdsTypes = ['All', ...updatedDdsTypes];
+        sortedDdsTypes = ['All', ...uniqueDdsTypes];
       }
       
       // Update the DDS types

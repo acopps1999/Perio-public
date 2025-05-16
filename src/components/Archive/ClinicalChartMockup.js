@@ -915,7 +915,7 @@ function ClinicalChartMockup() {
                 
                 <div className="bg-green-50 p-4 rounded-lg">
                   <h4 className="font-medium text-green-800 mb-1">Scientific Rationale</h4>
-                  <p className="text-green-700">{selectedProduct.details.rationale || 'No scientific rationale provided.'}</p>
+                  <p className="text-green-700">{selectedProduct.details.scientificRationale || 'No scientific rationale provided.'}</p>
                 </div>
                 
                 <div className="bg-indigo-50 p-4 rounded-lg">

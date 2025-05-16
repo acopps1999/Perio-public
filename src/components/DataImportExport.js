@@ -176,8 +176,11 @@ function DataImportExport({ conditions, onImport }) {
         return { valid: false, message: `Condition "${condition.name}" is missing phases or phases is not an array.` };
       }
       
-      if (!Array.isArray(condition.dds) || condition.dds.length === 0) {
-        return { valid: false, message: `Condition "${condition.name}" is missing dds (dentist types) or dds is not an array.` };
+      // Ensure DDS array exists, but don't require it to be non-empty
+      if (!Array.isArray(condition.dds)) {
+        // Initialize as empty array if missing
+        condition.dds = [];
+        console.log(`Fixed missing dds array for condition "${condition.name}"`);
       }
       
       if (!condition.products || typeof condition.products !== 'object') {
@@ -223,6 +226,12 @@ function DataImportExport({ conditions, onImport }) {
         importedData = importedData.map(condition => {
           // Deep clone the condition to avoid reference issues
           const fixedCondition = JSON.parse(JSON.stringify(condition));
+          
+          // Ensure DDS array exists
+          if (!Array.isArray(fixedCondition.dds)) {
+            fixedCondition.dds = [];
+            console.log(`Fixed missing dds array for condition "${fixedCondition.name}"`);
+          }
           
           // Check for specific conditions that might have phase mismatches
           if (condition.name === "Dry Mouth" && 

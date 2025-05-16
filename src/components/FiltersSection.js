@@ -38,18 +38,20 @@ function FiltersSection({
               <Select.Icon><ChevronDown size={18} /></Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
+              <Select.Content position="popper" className="overflow-hidden bg-white rounded-md shadow-lg border min-w-[var(--radix-select-trigger-width)] z-50">
+                <Select.ScrollUpButton />
                 <Select.Viewport className="p-1">
-                  {categoryOptions.map((category) => (
+                  {categoryOptions.map((category, index) => (
                     <Select.Item
-                      key={category}
+                      key={`${category}`}
                       value={category}
-                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
+                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100 rounded"
                     >
                       <Select.ItemText>{category}</Select.ItemText>
                     </Select.Item>
                   ))}
                 </Select.Viewport>
+                <Select.ScrollDownButton />
               </Select.Content>
             </Select.Portal>
           </Select.Root>
@@ -65,18 +67,20 @@ function FiltersSection({
               <Select.Icon><ChevronDown size={18} /></Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
+              <Select.Content position="popper" className="overflow-hidden bg-white rounded-md shadow-lg border min-w-[var(--radix-select-trigger-width)] z-50">
+                <Select.ScrollUpButton />
                 <Select.Viewport className="p-1">
-                  {ddsTypeOptions.map((dds) => (
+                  {ddsTypeOptions.map((dds, index) => (
                     <Select.Item
-                      key={dds}
+                      key={`${dds}`}
                       value={dds}
-                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
+                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100 rounded"
                     >
                       <Select.ItemText>{dds}</Select.ItemText>
                     </Select.Item>
                   ))}
                 </Select.Viewport>
+                <Select.ScrollDownButton />
               </Select.Content>
             </Select.Portal>
           </Select.Root>
@@ -93,13 +97,14 @@ function FiltersSection({
               <Select.Icon><ChevronDown size={18} /></Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
+              <Select.Content position="popper" className="overflow-hidden bg-white rounded-md shadow-lg border min-w-[var(--radix-select-trigger-width)] z-50">
+                <Select.ScrollUpButton />
                 <Select.Viewport className="p-1">
                   {patientTypes.map((type) => (
                     <Select.Item
-                      key={type}
+                      key={`${type}`}
                       value={type}
-                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
+                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100 rounded"
                     >
                       <Select.ItemText>
                         {type === 'All' ? 'All' : `Type ${type}: ${PATIENT_TYPES[`Type ${type}`]}`}
@@ -107,6 +112,7 @@ function FiltersSection({
                     </Select.Item>
                   ))}
                 </Select.Viewport>
+                <Select.ScrollDownButton />
               </Select.Content>
             </Select.Portal>
           </Select.Root>

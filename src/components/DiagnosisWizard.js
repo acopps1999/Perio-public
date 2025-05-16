@@ -374,7 +374,7 @@ function DiagnosisWizard({ conditions, onClose }) {
                           
                           <div className="bg-blue-50 p-3 rounded">
                             <div className="font-medium text-blue-700">Clinical Rationale:</div>
-                            <div className="text-blue-700 mt-1">{productDetails.rationale}</div>
+                            <div className="text-blue-700 mt-1">{productDetails.scientificRationale}</div>
                           </div>
                           
                           <div className="bg-purple-50 p-3 rounded">

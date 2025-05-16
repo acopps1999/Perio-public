@@ -256,7 +256,7 @@ function ConditionDetails({
                   </div>
                   {expandedSections.scientificRationale && (
                     <div className="text-green-700 mt-2 whitespace-pre-line">
-                      {selectedProductDetails.rationale || 'Scientific rationale not available.'}
+                      {selectedProductDetails.scientificRationale || 'Scientific rationale not available.'}
                     </div>
                   )}
                 </div>
