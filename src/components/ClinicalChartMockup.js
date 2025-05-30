@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
-import { Search, X, ChevronDown, ChevronRight, Info, Stethoscope, Settings, Filter, BookOpen, ExternalLink, FileText } from 'lucide-react';
+import { Search, X, ChevronDown, ChevronRight, Info, Stethoscope, Settings, Filter, BookOpen, ExternalLink, FileText, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import DiagnosisWizard from './DiagnosisWizard';
 import AdminPanel from './AdminPanel';
@@ -10,6 +10,8 @@ import FiltersSection from './FiltersSection';
 import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
+import LoginModal from './LoginModal';
+import { useAuth } from './AuthContext';
 import conditionsDataImport from '../conditions_complete.json';
 
 // PatientTypes definition based on project documentation
@@ -21,6 +23,9 @@ const PATIENT_TYPES = {
 };
 
 function ClinicalChartMockup() {
+  // Authentication
+  const { isAuthenticated, logout } = useAuth();
+  
   // State management
   const [conditions, setConditions] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState(['All']);
@@ -37,6 +42,7 @@ function ClinicalChartMockup() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [researchModalOpen, setResearchModalOpen] = useState(false);
   const [selectedResearchProduct, setSelectedResearchProduct] = useState(null);
   const [filteredProducts, setFilteredProducts] = useState([]); // Store filtered products
@@ -375,10 +381,29 @@ useEffect(() => {
     setWizardOpen(!wizardOpen);
   };
   
-  // Toggle admin panel
+  // Toggle admin panel - now with authentication check
   const toggleAdmin = () => {
+    if (isAuthenticated) {
     setAdminOpen(!adminOpen);
+    } else {
+      setLoginModalOpen(true);
+    }
   };
+
+  // Handle successful login - auto-open admin panel when authenticated
+  useEffect(() => {
+    if (isAuthenticated && loginModalOpen) {
+      setLoginModalOpen(false);
+      setAdminOpen(true);
+    }
+  }, [isAuthenticated, loginModalOpen]);
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    setAdminOpen(false);
+  };
+
   // Handle conditions update from admin panel
   const handleConditionsUpdate = (updatedConditions, updatedCategories, updatedDdsTypes) => {
     // Update conditions
@@ -497,8 +522,18 @@ useEffect(() => {
               <Settings size={18} className="mr-2" />
               Admin
             </button>
-          </div>
-        </div>
+            {isAuthenticated && (
+                  <button
+                onClick={handleLogout}
+                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                title="Logout from admin"
+                  >
+                <LogOut size={18} className="mr-2" />
+                Logout
+                  </button>
+                )}
+              </div>
+            </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -551,13 +586,18 @@ useEffect(() => {
         />
       )}
       
-      {adminOpen && (
+      {adminOpen && isAuthenticated && (
         <AdminPanel 
           conditions={conditions}
           onConditionsUpdate={handleConditionsUpdate}
           onClose={toggleAdmin}
         />
       )}
+      
+      <LoginModal 
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+      />
     </div>
   );
 }
