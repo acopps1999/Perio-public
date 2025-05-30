@@ -13,71 +13,65 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [adminUser, setAdminUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check if user is already authenticated on mount
+  // Check if user is already logged in on app start
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    const checkAuth = () => {
+      const savedAuth = localStorage.getItem('admin_authenticated');
+      const savedUser = localStorage.getItem('admin_user');
+      
+      if (savedAuth === 'true' && savedUser) {
+        setIsAuthenticated(true);
+        setAdminUser(JSON.parse(savedUser));
+      }
+      setLoading(false);
+    };
 
-  const checkAuthStatus = () => {
-    const token = localStorage.getItem('admin_token');
-    const user = localStorage.getItem('admin_user');
-    
-    if (token && user) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(user));
-    }
-    setIsLoading(false);
-  };
+    checkAuth();
+  }, []);
 
   const login = async (email, password) => {
     try {
-      setIsLoading(true);
-      
-      // Query the admin table to verify credentials
+      // Query the admins table to verify credentials
       const { data, error } = await supabase
-        .from('admin')
+        .from('admins')
         .select('*')
         .eq('email', email)
-        .eq('password', password) // Note: In production, use proper password hashing
+        .eq('password', password) // Note: In production, passwords should be hashed
         .single();
 
       if (error || !data) {
         throw new Error('Invalid credentials');
       }
 
-      // Create a simple token (in production, use proper JWT)
-      const token = btoa(`${email}:${Date.now()}`);
-      
-      // Store authentication state
-      localStorage.setItem('admin_token', token);
-      localStorage.setItem('admin_user', JSON.stringify(data));
-      
+      // Set authentication state
       setIsAuthenticated(true);
-      setUser(data);
+      setAdminUser(data);
       
+      // Save to localStorage for persistence
+      localStorage.setItem('admin_authenticated', 'true');
+      localStorage.setItem('admin_user', JSON.stringify(data));
+
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
     setIsAuthenticated(false);
-    setUser(null);
+    setAdminUser(null);
+    localStorage.removeItem('admin_authenticated');
+    localStorage.removeItem('admin_user');
   };
 
   const value = {
     isAuthenticated,
-    isLoading,
-    user,
+    adminUser,
+    loading,
     login,
     logout
   };
