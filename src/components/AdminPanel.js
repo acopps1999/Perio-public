@@ -282,7 +282,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
     const productDetails = conditionWithProduct?.productDetails?.[product] || {};
     
     setNewItemData({
-      name: product,
+          name: product,
       usage: productDetails.usage || '',
       rationale: productDetails.rationale || '',
       clinicalEvidence: productDetails.clinicalEvidence || '',
@@ -499,7 +499,7 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
             updatedUsage[phase] = value;
             updatedProductDetails[productName].usage = updatedUsage;
           } else {
-            updatedProductDetails[productName][field] = value;
+          updatedProductDetails[productName][field] = value;
           }
           
           return { ...condition, productDetails: updatedProductDetails };
@@ -508,17 +508,17 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
       })
     );
   
-    // Update selected condition if it's the one being edited
-    if (selectedCondition && selectedCondition.name === conditionId) {
-      const updatedProductDetails = { ...selectedCondition.productDetails };
-      if (!updatedProductDetails[productName]) {
-        updatedProductDetails[productName] = {
+  // Update selected condition if it's the one being edited
+  if (selectedCondition && selectedCondition.name === conditionId) {
+    const updatedProductDetails = { ...selectedCondition.productDetails };
+    if (!updatedProductDetails[productName]) {
+      updatedProductDetails[productName] = {
           usage: {},
-          rationale: '',
+        rationale: '',
           clinicalEvidence: '',
-          competitive: '',
-          objection: '',
-          factSheet: '#',
+        competitive: '',
+        objection: '',
+        factSheet: '#',
           researchArticles: [],
           pitchPoints: '' // Add this field for new products
         };
@@ -531,15 +531,15 @@ function AdminPanel({ conditions, onConditionsUpdate, onClose }) {
         updatedUsage[phase] = value;
         updatedProductDetails[productName].usage = updatedUsage;
       } else {
-        updatedProductDetails[productName][field] = value;
+    updatedProductDetails[productName][field] = value;
       }
       
-      setSelectedCondition(prev => ({ 
-        ...prev, 
-        productDetails: updatedProductDetails 
-      }));
-    }
-  };
+    setSelectedCondition(prev => ({ 
+      ...prev, 
+      productDetails: updatedProductDetails 
+    }));
+  }
+};
   
   // Handle patient type selection for product configuration
   const handlePatientTypeSelect = (type) => {
@@ -1296,7 +1296,7 @@ const handleDelete = () => {
                         ))}
                       </select>
                     </div>
-                    
+
                     {/* Phases */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2096,7 +2096,7 @@ const handleDelete = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Key Pitch Points
