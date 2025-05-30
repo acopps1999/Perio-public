@@ -6,12 +6,12 @@ import { Search, X, ChevronDown, ChevronRight, Info, Stethoscope, Settings, Filt
 import clsx from 'clsx';
 import DiagnosisWizard from './DiagnosisWizard';
 import AdminPanel from './AdminPanel';
+import AdminLoginModal from './AdminLoginModal';
 import FiltersSection from './FiltersSection';
 import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
-import LoginModal from './LoginModal';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import conditionsDataImport from '../conditions_complete.json';
 
 // PatientTypes definition based on project documentation
@@ -381,27 +381,25 @@ useEffect(() => {
     setWizardOpen(!wizardOpen);
   };
   
-  // Toggle admin panel - now with authentication check
+  // Toggle admin panel
   const toggleAdmin = () => {
     if (isAuthenticated) {
-    setAdminOpen(!adminOpen);
+      setAdminOpen(!adminOpen);
     } else {
       setLoginModalOpen(true);
     }
   };
 
-  // Handle successful login - auto-open admin panel when authenticated
-  useEffect(() => {
-    if (isAuthenticated && loginModalOpen) {
-      setLoginModalOpen(false);
-      setAdminOpen(true);
-    }
-  }, [isAuthenticated, loginModalOpen]);
-
-  // Handle logout
+  // Handle admin logout
   const handleLogout = () => {
     logout();
     setAdminOpen(false);
+  };
+
+  // Handle successful login
+  const handleLoginSuccess = () => {
+    setLoginModalOpen(false);
+    setAdminOpen(true);
   };
 
   // Handle conditions update from admin panel
@@ -523,17 +521,16 @@ useEffect(() => {
               Admin
             </button>
             {isAuthenticated && (
-                  <button
+              <button
                 onClick={handleLogout}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                title="Logout from admin"
-                  >
+              >
                 <LogOut size={18} className="mr-2" />
                 Logout
-                  </button>
-                )}
-              </div>
-            </div>
+              </button>
+            )}
+          </div>
+        </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -586,18 +583,19 @@ useEffect(() => {
         />
       )}
       
-      {adminOpen && isAuthenticated && (
+      <AdminLoginModal 
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        onSuccess={handleLoginSuccess}
+      />
+      
+      {adminOpen && (
         <AdminPanel 
           conditions={conditions}
           onConditionsUpdate={handleConditionsUpdate}
           onClose={toggleAdmin}
         />
       )}
-      
-      <LoginModal 
-        isOpen={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
-      />
     </div>
   );
 }
