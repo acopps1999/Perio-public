@@ -34,15 +34,29 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login with:', { email, password });
+      console.log('Supabase client:', supabase);
+      
+      // Test connection first
+      const { data: testData, error: testError } = await supabase
+        .from('admins')
+        .select('email')
+        .limit(1);
+      
+      console.log('Test connection to admins table:', { testData, testError });
+      
       // Query the admins table to verify credentials
       const { data, error } = await supabase
         .from('admins')
         .select('*')
         .eq('email', email)
-        .eq('password', password) // Note: In production, passwords should be hashed
+        .eq('Password', password) // Note: In production, passwords should be hashed
         .single();
 
+      console.log('Supabase response:', { data, error });
+
       if (error || !data) {
+        console.error('Login failed:', error);
         throw new Error('Invalid credentials');
       }
 

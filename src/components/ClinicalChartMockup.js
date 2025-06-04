@@ -384,7 +384,7 @@ useEffect(() => {
   // Toggle admin panel
   const toggleAdmin = () => {
     if (isAuthenticated) {
-      setAdminOpen(!adminOpen);
+    setAdminOpen(!adminOpen);
     } else {
       setLoginModalOpen(true);
     }
@@ -521,16 +521,16 @@ useEffect(() => {
               Admin
             </button>
             {isAuthenticated && (
-              <button
+                  <button
                 onClick={handleLogout}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-              >
+                  >
                 <LogOut size={18} className="mr-2" />
                 Logout
-              </button>
-            )}
-          </div>
-        </div>
+                  </button>
+                )}
+              </div>
+            </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
