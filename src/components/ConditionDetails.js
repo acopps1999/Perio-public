@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { ChevronDown, ChevronRight, Info, Filter, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Filter, BookOpen, Target } from 'lucide-react';
 import clsx from 'clsx';
+import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
 
 // PatientTypes definition (consider moving to a shared constants file later)
 const PATIENT_TYPES = {
@@ -36,6 +37,8 @@ function ConditionDetails({
   });
   
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
+  const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
 
   if (!selectedCondition) {
     return (
@@ -53,6 +56,12 @@ function ConditionDetails({
     handleProductSelect(product);
   };
   
+  // Handle tab change and clear selected product
+  const handleTabChangeWithClear = (tab) => {
+    setSelectedProduct(null); // Clear selected product when changing phases
+    handleTabChange(tab); // Call the original tab change handler
+  };
+  
   // Get the details for the selected product
   const getProductDetails = (productName) => {
     if (!productName) return null;
@@ -62,6 +71,66 @@ function ConditionDetails({
   
   // Get the selected product details
   const selectedProductDetails = getProductDetails(selectedProduct);
+
+  const handleOpenCompetitiveAdvantage = () => {
+    if (!selectedProduct) return;
+    
+    // Load competitive advantage data from Supabase
+    loadCompetitiveAdvantageData(selectedProduct);
+  };
+
+  const loadCompetitiveAdvantageData = async (productName) => {
+    try {
+      const { supabase } = await import('../supabaseClient');
+      
+      // Load competitors
+      const { data: competitorsData, error: competitorsError } = await supabase
+        .from('competitive_advantage_competitors')
+        .select('competitor_name, advantages')
+        .eq('product_name', productName);
+      
+      if (competitorsError) {
+        console.error('Error loading competitors:', competitorsError);
+      }
+      
+      // Load active ingredients
+      const { data: ingredientsData, error: ingredientsError } = await supabase
+        .from('competitive_advantage_active_ingredients')
+        .select('ingredient_name, advantages')
+        .eq('product_name', productName);
+      
+      if (ingredientsError) {
+        console.error('Error loading active ingredients:', ingredientsError);
+      }
+      
+      // Format data for the component
+      const competitors = (competitorsData || []).map(item => ({
+        name: item.competitor_name,
+        advantages: item.advantages || ''
+      }));
+      
+      const activeIngredients = (ingredientsData || []).map(item => ({
+        name: item.ingredient_name,
+        advantages: item.advantages || ''
+      }));
+      
+      setCompetitiveAdvantageData({
+        competitors,
+        activeIngredients
+      });
+      
+      setCompetitiveAdvantageModalOpen(true);
+      
+    } catch (error) {
+      console.error('Error loading competitive advantage:', error);
+      // Initialize with empty structure on error and open modal
+      setCompetitiveAdvantageData({
+        competitors: [],
+        activeIngredients: []
+      });
+      setCompetitiveAdvantageModalOpen(true);
+    }
+  };
 
   return (
     <div className="lg:col-span-3 bg-white shadow rounded-lg overflow-hidden">
@@ -89,16 +158,16 @@ function ConditionDetails({
           </div>
           
           {/* Patient Type Filter for Products */}
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 mb-4">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex-shrink-0">
-                <span className="text-sm font-medium text-blue-700">Show Recommendations For:</span>
+                <span className="text-sm font-medium text-gray-700">Show Recommendations For:</span>
               </div>
               <div className="flex-grow">
                 <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelect}>
-                  <Select.Trigger className="flex justify-between items-center px-3 py-2 text-sm bg-white border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <Select.Trigger className="flex justify-between items-center px-3 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c]">
                     <div className="flex items-center">
-                      <Filter size={16} className="mr-2 text-blue-500" />
+                      <Filter size={16} className="mr-2 text-[#15396c]" />
                       <Select.Value placeholder="Select Patient Type" />
                     </div>
                     <Select.Icon><ChevronDown size={18} /></Select.Icon>
@@ -124,7 +193,7 @@ function ConditionDetails({
               </div>
             </div>
             {activePatientType !== 'All' && (
-              <div className="mt-2 text-sm text-blue-700 flex items-center">
+              <div className="mt-2 text-sm text-gray-600 flex items-center">
                 <Info size={14} className="mr-1" />
                 Showing specific recommendations for: 
                 <span className="font-medium ml-1">
@@ -135,28 +204,67 @@ function ConditionDetails({
           </div>
           
           {/* Treatment Phases Tabs */}
-          <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
-            <Tabs.List className="flex border-b divide-x divide-gray-200 bg-gray-50 rounded-t-lg">
-              {selectedCondition.phases.map((phase) => (
-                <Tabs.Trigger
-                  key={phase}
-                  value={phase}
-                  className={clsx(
-                    "flex-1 px-4 py-3 text-sm font-medium text-center focus:outline-none",
-                    activeTab === phase 
-                      ? "text-blue-600 border-b-2 border-blue-600 bg-white"
-                      : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  )}
-                >
-                  {phase} Phase
-                  {hasProductsForPhase(phase) && (
-                    <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
-                      {selectedCondition.products[phase].length}
-                    </span>
-                  )}
-                </Tabs.Trigger>
-              ))}
+          <Tabs.Root value={activeTab} onValueChange={handleTabChangeWithClear}>
+            <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
+              {selectedCondition.phases.map((phase, index) => {
+                // Different opacity levels of the selected condition color for each phase
+                const getPhaseColor = (phaseName, phaseIndex) => {
+                  const colors = [
+                    'bg-[#15396c]/40', // Prep - 40% opacity
+                    'bg-[#15396c]/60', // Acute - 60% opacity  
+                    'bg-[#15396c]/80'  // Maintenance - 80% opacity
+                  ];
+                  return colors[phaseIndex] || 'bg-[#15396c]/40';
+                };
+                
+                return (
+                  <Tabs.Trigger
+                    key={phase}
+                    value={phase}
+                    className={clsx(
+                      "flex-1 px-4 py-3 text-sm font-medium text-center focus:outline-none transition-all duration-200 text-white",
+                      getPhaseColor(phase, index),
+                      activeTab === phase 
+                        ? "shadow-[inset_0_0_0_4px_#15396c]"
+                        : "hover:shadow-[inset_0_0_0_2px_rgba(156,163,175,0.5)]"
+                    )}
+                  >
+                    {phase} Phase
+                    {hasProductsForPhase(phase) && (
+                      <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white text-[#15396c]">
+                        {selectedCondition.products[phase].length}
+                      </span>
+                    )}
+                  </Tabs.Trigger>
+                );
+              })}
             </Tabs.List>
+            
+            {/* Phase-specific Usage Instructions - More prominently displayed */}
+            {selectedProduct && selectedProductDetails && selectedProductDetails.usage && filteredProducts.length > 0 && (
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-l-6 border-[#15396c] p-4 mb-4 shadow-md rounded-r-md">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <Info className="h-5 w-5 text-[#15396c]" />
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h4 className="text-base font-semibold text-[#15396c] mb-2">
+                      Usage Instructions for {selectedProduct} - {activeTab} Phase
+                    </h4>
+                    <div className="bg-white p-3 rounded-md border border-[#15396c]/20 shadow-sm">
+                      <div className="text-sm text-gray-800 leading-relaxed">
+                        {typeof selectedProductDetails.usage === 'object'
+                          ? (selectedProductDetails.usage[activeTab] 
+                              ? <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage[activeTab]}</div>
+                              : <div className="text-gray-600 italic">No specific instructions for {activeTab} phase. See general usage below.</div>)
+                          : <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {selectedCondition.phases.map((phase) => (
               <Tabs.Content key={phase} value={phase} className="p-4 bg-white border border-t-0 rounded-b-lg">
                 {filteredProducts.length > 0 ? (
@@ -164,19 +272,34 @@ function ConditionDetails({
                     {filteredProducts.map((product) => (
                       <div 
                         key={product}
-                        className={`bg-white border border-blue-200 rounded-lg p-5 hover:bg-blue-50 shadow-sm cursor-pointer ${
-                          selectedProduct === product.replace(' (Type 3/4 Only)', '') ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={clsx(
+                          "bg-white border-2 rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-200",
+                          selectedProduct === product.replace(' (Type 3/4 Only)', '')
+                            ? "border-[#15396c] bg-[#15396c]"
+                            : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        )}
                         onClick={() => handleProductCardSelect(product)}
                       >
                         <div className="flex justify-between items-start">
-                          <h4 className="text-lg font-semibold text-blue-800">{product}</h4>
+                          <h4 className={clsx(
+                            "text-lg font-semibold",
+                            selectedProduct === product.replace(' (Type 3/4 Only)', '')
+                              ? "text-white"
+                              : "text-black"
+                          )}>
+                            {product}
+                          </h4>
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent triggering the parent onClick
                               handleOpenResearch(product);
                             }}
-                            className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
+                            className={clsx(
+                              "text-sm flex items-center transition-colors",
+                              selectedProduct === product.replace(' (Type 3/4 Only)', '')
+                                ? "text-white hover:text-gray-200"
+                                : "text-[#15396c] hover:text-blue-800"
+                            )}
                           >
                             <BookOpen size={14} className="mr-1" />
                             <span>Research</span>
@@ -184,7 +307,12 @@ function ConditionDetails({
                         </div>
                         {product.includes('(Type 3/4 Only)') && (
                           <div className="mt-2">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                            <span className={clsx(
+                              "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                              selectedProduct === product.replace(' (Type 3/4 Only)', '')
+                                ? "bg-white text-[#15396c]"
+                                : "bg-amber-100 text-amber-800"
+                            )}>
                               Recommended for Type 3/4 patients only
                             </span>
                           </div>
@@ -208,307 +336,133 @@ function ConditionDetails({
         </div>
         
         {/* Additional Information Section */}
-        {showAdditionalInfo && (
+        {showAdditionalInfo && selectedProduct && selectedProductDetails && (
           <div className="mt-6 space-y-2">
             <h3 className="text-lg font-medium text-gray-700 mb-3">
-              {selectedProduct ? `Additional Information: ${selectedProduct}` : 'Additional Information'}
+              Additional Information: {selectedProduct}
             </h3>
             
-            {selectedProduct && selectedProductDetails ? (
-              <>
-                {/* Product-specific information */}
-                
-                {/* Usage */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.productUsage ? 'bg-teal-100' : 'bg-teal-50 hover:bg-teal-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, productUsage: !prev.productUsage }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-teal-800">Usage Instructions</div>
-                    <div className="text-teal-600">
-                      {expandedSections.productUsage ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.productUsage && (
-                    <div className="text-teal-700 mt-2 whitespace-pre-line">
-                      {typeof selectedProductDetails.usage === 'object'
-                        ? (selectedProductDetails.usage[activeTab] 
-                            ? <span><strong>{activeTab} phase:</strong> <span className="whitespace-pre-line">{selectedProductDetails.usage[activeTab]}</span></span>
-                            : (Object.keys(selectedProductDetails.usage).length > 0 
-                                ? <div className="space-y-2">
-                                    {Object.entries(selectedProductDetails.usage).map(([phase, instruction]) => (
-                                      <div key={phase}><strong>{phase} phase:</strong> <span className="whitespace-pre-line">{instruction}</span></div>
-                                    ))}
-                                  </div>
-                                : 'Usage instructions not available.'))
-                        : <span className="whitespace-pre-line">{selectedProductDetails.usage || 'Usage instructions not available.'}</span>}
-                    </div>
-                  )}
+            {/* Product-specific information */}
+            
+            {/* Scientific Rationale */}
+            <div 
+              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-slate-200 border-slate-300 hover:bg-gray-50"
+              onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
+            >
+              <div className="flex justify-between items-center">
+                <div className="font-medium text-black">
+                  Scientific Rationale
                 </div>
-                
-                {/* Rationale */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.scientificRationale ? 'bg-green-100' : 'bg-green-50 hover:bg-green-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-green-800">Scientific Rationale</div>
-                    <div className="text-green-600">
-                      {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.scientificRationale && (
-                    <div className="text-green-700 mt-2 whitespace-pre-line">
-                      {selectedProductDetails.rationale || 'Scientific rationale not available.'}
-                    </div>
-                  )}
+                <div className="text-slate-600">
+                  {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                 </div>
-                
-                {/* Clinical Evidence */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.clinicalEvidence ? 'bg-indigo-100' : 'bg-indigo-50 hover:bg-indigo-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-indigo-800">Clinical Evidence</div>
-                    <div className="text-indigo-600">
-                      {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.clinicalEvidence && (
-                    <div className="text-indigo-700 mt-2 whitespace-pre-line">
-                      {selectedProductDetails.clinicalEvidence || 'Clinical evidence not available.'}
-                    </div>
-                  )}
+              </div>
+              {expandedSections.scientificRationale && (
+                <div className="text-gray-700 mt-2 whitespace-pre-line">
+                  {selectedProductDetails.rationale || 'Scientific rationale not available.'}
                 </div>
-                
-                {/* Competitive Advantage */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.competitiveAdvantage ? 'bg-purple-100' : 'bg-purple-50 hover:bg-purple-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, competitiveAdvantage: !prev.competitiveAdvantage }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-purple-800">Competitive Advantage</div>
-                    <div className="text-purple-600">
-                      {expandedSections.competitiveAdvantage ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.competitiveAdvantage && (
-                    <div className="text-purple-700 mt-2 whitespace-pre-line">
-                      {selectedProductDetails.competitive || 'Competitive advantage information not available.'}
-                    </div>
-                  )}
+              )}
+            </div>
+            
+            {/* Clinical Evidence */}
+            <div 
+              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-blue-200 border-blue-300 hover:bg-gray-50"
+              onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
+            >
+              <div className="flex justify-between items-center">
+                <div className="font-medium text-black">
+                  Clinical Evidence
                 </div>
-                
-                {/* Handling Objections */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.handlingObjections ? 'bg-amber-100' : 'bg-amber-50 hover:bg-amber-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-amber-800">Handling Objections</div>
-                    <div className="text-amber-600">
-                      {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.handlingObjections && (
-                    <div className="text-amber-700 mt-2 whitespace-pre-line">
-                      {selectedProductDetails.objection || 'Objection handling information not available.'}
-                    </div>
-                  )}
+                <div className="text-blue-600">
+                  {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                 </div>
-                
-                {/* Research Articles */}
-                {selectedProductDetails.researchArticles && selectedProductDetails.researchArticles.length > 0 && (
-                  <div 
-                    className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                      expandedSections.pitchPoints ? 'bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'
-                    }`}
-                    onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="font-medium text-blue-800">Research Articles</div>
-                      <div className="text-blue-600">
-                        {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                      </div>
-                    </div>
-                    {expandedSections.pitchPoints && (
-                      <div className="text-blue-700 mt-2 whitespace-pre-line">
-                        <ul className="list-disc pl-5 space-y-1">
-                          {selectedProductDetails.researchArticles.map((article, index) => (
-                            <li key={index}>{article.title || 'Untitled research article'}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+              </div>
+              {expandedSections.clinicalEvidence && (
+                <div className="text-gray-700 mt-2 whitespace-pre-line">
+                  {selectedProductDetails.clinicalEvidence || 'Clinical evidence not available.'}
+                </div>
+              )}
+            </div>
+            
+            {/* Competitive Advantage */}
+            <div className="p-3 rounded-md mb-2 border-2 bg-purple-200 border-purple-300">
+              <div className="flex justify-between items-center">
+                <div className="font-medium text-black">
+                  Competitive Advantage
+                </div>
+                <button
+                  onClick={handleOpenCompetitiveAdvantage}
+                  className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm flex items-center"
+                >
+                  <Target size={14} className="mr-1" />
+                  View Details
+                </button>
+              </div>
+            </div>
+            
+            {/* Competitive Advantage Modal */}
+            <CompetitiveAdvantageModal
+              isOpen={competitiveAdvantageModalOpen}
+              onClose={() => setCompetitiveAdvantageModalOpen(false)}
+              selectedProduct={selectedProduct}
+              competitiveAdvantageData={competitiveAdvantageData}
+            />
+            
+            {/* Handling Objections */}
+            <div 
+              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-amber-200 border-amber-300 hover:bg-gray-50"
+              onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
+            >
+              <div className="flex justify-between items-center">
+                <div className="font-medium text-black">
+                  Handling Objections
+                </div>
+                <div className="text-amber-600">
+                  {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                </div>
+              </div>
+              {expandedSections.handlingObjections && (
+                <div className="text-gray-700 mt-2 whitespace-pre-line">
+                  {selectedProductDetails.objection || 'Objection handling information not available.'}
+                </div>
+              )}
+            </div>
+            
+            {/* Research Articles */}
+            {selectedProductDetails.researchArticles && selectedProductDetails.researchArticles.length > 0 && (
+              <div 
+                className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-teal-200 border-teal-300 hover:bg-gray-50"
+                onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="font-medium text-black">
+                    Research Articles
+                  </div>
+                  <div className="text-teal-600">
+                    {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </div>
+                </div>
+                {expandedSections.pitchPoints && (
+                  <div className="text-gray-700 mt-2 whitespace-pre-line">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {selectedProductDetails.researchArticles.map((article, index) => (
+                        <li key={index}>{article.title || 'Untitled research article'}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
-              </>
-            ) : (
-              <>
-                {/* Condition-level information (shown when no product is selected) */}
-                
-                {/* Key Pitch Points */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.pitchPoints ? 'bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-blue-800">Key Pitch Points</div>
-                    <div className="text-blue-600">
-                      {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.pitchPoints && (
-                    <div className="text-blue-700 mt-2 whitespace-pre-line">{selectedCondition.pitchPoints || 'No pitch points available.'}</div>
-                  )}
-                </div>
-
-                {/* Scientific Rationale */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.scientificRationale ? 'bg-green-100' : 'bg-green-50 hover:bg-green-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-green-800">Scientific Rationale</div>
-                    <div className="text-green-600">
-                      {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.scientificRationale && (
-                    <div className="text-green-700 mt-2 whitespace-pre-line">
-                      {selectedCondition.scientificRationale || 'Scientific foundation for the recommended treatment approach.'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Clinical Evidence */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.clinicalEvidence ? 'bg-indigo-100' : 'bg-indigo-50 hover:bg-indigo-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-indigo-800">Clinical Evidence</div>
-                    <div className="text-indigo-600">
-                      {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.clinicalEvidence && (
-                    <div className="text-indigo-700 mt-2 whitespace-pre-line">
-                      {selectedCondition.clinicalEvidence || 'Clinical evidence supporting the treatment recommendations for this condition.'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Competitive Advantage */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.competitiveAdvantage ? 'bg-purple-100' : 'bg-purple-50 hover:bg-purple-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, competitiveAdvantage: !prev.competitiveAdvantage }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-purple-800">Competitive Advantage</div>
-                    <div className="text-purple-600">
-                      {expandedSections.competitiveAdvantage ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.competitiveAdvantage && (
-                    <div className="text-purple-700 mt-2 whitespace-pre-line">
-                      {selectedCondition.competitiveAdvantage || 'No competitive advantage information available.'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Handling Objections */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.handlingObjections ? 'bg-amber-100' : 'bg-amber-50 hover:bg-amber-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-amber-800">Handling Objections</div>
-                    <div className="text-amber-600">
-                      {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.handlingObjections && (
-                    <div className="text-amber-700 mt-2 whitespace-pre-line">
-                      {selectedCondition.handlingObjections || 'No objection handling information available.'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Product Usage Instructions */}
-                <div 
-                  className={`p-3 rounded-md mb-2 cursor-pointer transition-colors ${
-                    expandedSections.productUsage ? 'bg-teal-100' : 'bg-teal-50 hover:bg-teal-100'
-                  }`}
-                  onClick={() => setExpandedSections(prev => ({ ...prev, productUsage: !prev.productUsage }))}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-teal-800">Product Usage Instructions</div>
-                    <div className="text-teal-600">
-                      {expandedSections.productUsage ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </div>
-                  </div>
-                  {expandedSections.productUsage && (
-                    <div className="mt-2 space-y-3">
-                      {selectedCondition.productDetails && Object.keys(selectedCondition.productDetails).length > 0 ? (
-                        Object.entries(selectedCondition.productDetails).map(([productName, details]) => (
-                          <div key={productName} className="bg-white border rounded-md p-3">
-                            <h4 className="font-medium text-teal-800">{productName}</h4>
-                            <p className="text-teal-700 mt-1">
-                              <span className="font-medium">Usage: </span>
-                              {typeof details.usage === 'object'
-                                ? (Object.keys(details.usage).length > 0 
-                                    ? <div className="space-y-2">
-                                        {Object.entries(details.usage).map(([phase, instruction]) => (
-                                          <div key={phase}><strong>{phase} phase:</strong> <span className="whitespace-pre-line">{instruction}</span></div>
-                                        ))}
-                                      </div>
-                                    : 'Usage instructions not available.')
-                                : <span className="whitespace-pre-line">{details.usage || 'Usage instructions not available.'}</span>}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-teal-700">No product usage information available.</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
+              </div>
             )}
             
             {/* Add button to clear selected product and show condition-level info */}
-            {selectedProduct && (
-              <div className="mt-3 text-center">
-                <button 
-                  onClick={() => setSelectedProduct(null)}
-                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  View overall condition information
-                </button>
-              </div>
-            )}
+            <div className="mt-3 text-center">
+              <button 
+                onClick={() => setSelectedProduct(null)}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                View overall condition information
+              </button>
+            </div>
           </div>
         )}
       </div>

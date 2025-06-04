@@ -1,0 +1,34 @@
+id,name,category,pitch_points,created_at,updated_at,category_id,patient_type
+1,Gingival Recession Surgery,Surgical,"Scientifically designed, phase-specific protocol that provides antioxidant conditioning before surgery, promotes pain relief and mucosal protection during acute healing, and supports long-term antioxidant balance for optimal tissue appearance and health.",2025-05-15 01:41:31.709336+00,2025-06-03 01:01:50.847798+00,3,Types 1 to 4
+2,Scaling and Root Planing (SRP),Surgical,Reduces inflammation and accelerates tissue healing post-procedure.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:53.913844+00,3,Types 1 to 4
+3,Oral Lichen Planus,Intra-Oral,Evidence-based management for a challenging condition with limited treatment options.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:52.951298+00,1,Types 1 to 4
+4,Dry Mouth,Intra-Oral,"Comprehensive management approach that addresses both symptoms and underlying damage. Restores antioxidant defenses, supports mucosal healing, and maintains oral microbiome balance.",2025-05-15 01:41:31.709336+00,2025-06-03 01:01:50.088279+00,1,Types 1 to 4
+5,Dry Mouth (Radiation/Chemo/Extreme Sensitivity),Intra-Oral,Comprehensive management to reduce oral complications of cancer therapy.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:50.275122+00,1,Types 1 to 4
+6,Laser Gingivectomy,Surgical,Minimizes post-laser tissue sensitivity and accelerates epithelialization.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:52.10986+00,3,Types 1 to 4
+7,Gingivitis,Intra-Oral,Stops progression to periodontitis and reduces inflammation.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:51.011276+00,1,Types 1 to 4
+8,Denture Stomatitis,Intra-Oral,Comprehensive approach addressing both tissue inflammation and denture biofilm.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:49.844953+00,1,Types 1 to 4
+9,Nicotine Stomatitis,Intra-Oral,Early management of a potentially precancerous condition.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:52.779598+00,1,Types 1 to 4
+10,Implant Placement,Surgical,"Optimizes healing, especially for high-risk patients. Reduces complications.",2025-05-15 01:41:31.709336+00,2025-06-03 01:01:51.598411+00,3,Types 1 to 4
+11,Soft Tissue Grafting,Surgical,Promotes faster integration and reduces discomfort. Essential for donor site healing.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:54.072959+00,3,Types 1 to 4
+12,Extractions,Surgical,Reduces dry socket risk and accelerates healing in socket area.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:50.470388+00,3,Types 1 to 4
+13,Laser Perio Debridement,Surgical,Extends laser treatment efficacy by supporting tissue regeneration.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:52.264642+00,3,Types 1 to 4
+14,Periodontal Disease,Intra-Oral,Multi-level approach targeting bacterial imbalance and inflammation.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:53.126309+00,1,Types 1 to 4
+15,Xerostomia (Dry Mouth),Intra-Oral,Comprehensive management approach that addresses both symptoms and underlying damage.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:55.645253+00,1,Types 1 to 4
+16,"Tongue Disorders (Geographic, Black Hairy)",Intra-Oral,Addresses both symptoms and underlying causes of common tongue disorders.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:55.095569+00,1,Types 1 to 4
+17,"Daily Oral Hygiene (Brushing, Flossing, Rinse)",Preventive,Comprehensive daily care for optimal oral health maintenance.,2025-05-15 01:41:31.709336+00,2025-06-03 01:01:49.595215+00,2,Types 1 to 4
+1121,Soft Tissue Surgery (gingivectomy),Surgical,"Scientifically designed, phase-specific protocol that provides antioxidant conditioning before surgery, promotes pain relief and mucosal protection during acute healing, and supports long-term antioxidant balance for optimal tissue appearance and health.",2025-05-16 20:29:59.241226+00,2025-06-03 01:01:54.258186+00,3,All
+1122,Scaling and Root Planing,Non-Surgical,Reduces inflammation and accelerates tissue healing post-procedure.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:53.714622+00,217,All
+1123,Lichen Planus,Oral Mucosa,Evidence-based management for a challenging condition with limited treatment options.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:52.606327+00,218,All
+1124,Xerostomia,Oral Mucosa,"Comprehensive management approach that addresses both symptoms and underlying damage. Restores antioxidant defenses, supports mucosal healing, and maintains oral microbiome balance.",2025-05-16 20:29:59.241226+00,2025-06-03 01:01:55.454566+00,218,All
+1125,Stomatitis,Oral Mucosa,Comprehensive management to reduce oral complications of cancer therapy.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:54.533885+00,218,All
+1126,Implant Placement (incl. second stage uncover),Surgical,Minimizes post-laser tissue sensitivity and accelerates epithelialization.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:51.754374+00,3,All
+1128,Ulcers (aphthous / herpetic),Oral Mucosa,Comprehensive approach addressing both tissue inflammation and denture biofilm.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:55.262705+00,218,All
+1129,"Tongue Disorders (geographic, black hairy)",Oral Mucosa,Early management of a potentially precancerous condition.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:54.890891+00,218,All
+1130,Extractions  (incl. alveolar plasty & grafting),Surgical,"Optimizes healing, especially for high-risk patients. Reduces complications.",2025-05-16 20:29:59.241226+00,2025-06-03 01:01:50.624437+00,3,All
+1131,Periodontal Flap (blade or laser),Surgical,Promotes faster integration and reduces discomfort. Essential for donor site healing.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:53.495354+00,3,All
+1132,Implantitis,Surgical,Reduces dry socket risk and accelerates healing in socket area.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:51.210779+00,3,All
+1133,"Laser Bacterial Reduction ",Non-Surgical,Extends laser treatment efficacy by supporting tissue regeneration.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:51.924642+00,217,All
+1134,"Laser Periodontal Debridement ",Non-Surgical,Multi-level approach targeting bacterial imbalance and inflammation.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:52.428375+00,217,All
+1135,Periodontal Disease Management,Non-Surgical,Comprehensive management approach that addresses both symptoms and underlying damage.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:53.312307+00,217,All
+1136,Implant Mucositis,Preventive,Addresses both symptoms and underlying causes of common tongue disorders.,2025-05-16 20:29:59.241226+00,2025-06-03 01:01:51.419225+00,2,All
+1340,test,All,,2025-06-03 22:28:11.742003+00,2025-06-03 22:28:11.742003+00,,
