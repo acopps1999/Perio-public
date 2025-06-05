@@ -5,3 +5,5 @@ npm-debug.log*
 .env
 .env.local
 .cache/
+supabase/
+.cursorignore
