@@ -1249,14 +1249,17 @@ const updateConditionInSupabase = async (condition, entityIdMaps) => {
             productsForType.forEach(productName => {
               const productId = productNameToId[productName];
               if (productId) {
-                localPppSet.add(`${phaseId}-${patientTypeName}-${productId}`);
-                pppRecordsToInsert.push({
-            procedure_id: procedureId,
-            phase_id: phaseId,
-            patient_type_id: patientTypeId,
-                  product_id: productId,
-          });
-        }
+                const key = `${phaseId}-${patientTypeId}-${productId}`;
+                if (!localPppSet.has(key)) {
+                  localPppSet.add(key);
+                  pppRecordsToInsert.push({
+                    procedure_id: procedureId,
+                    phase_id: phaseId,
+                    patient_type_id: patientTypeId,
+                    product_id: productId,
+                  });
+                }
+              }
             });
     }
   }
