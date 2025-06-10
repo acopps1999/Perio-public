@@ -2,14 +2,6 @@ import React from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Search, X, ChevronDown } from 'lucide-react';
 
-// PatientTypes definition (consider moving to a shared constants file later)
-const PATIENT_TYPES = {
-  'Type 1': 'Healthy',
-  'Type 2': 'Mild inflammation, moderate risk',
-  'Type 3': 'Smoker, diabetic, immunocompromised',
-  'Type 4': 'Periodontal disease, chronic illness, poor healing'
-};
-
 function FiltersSection({
   categoryOptions,
   categoryFilter,
@@ -17,7 +9,7 @@ function FiltersSection({
   ddsTypeOptions,
   ddsTypeFilter,
   setDdsTypeFilter,
-  patientTypes, // Pass the array of patient types ['All', '1', '2', '3', '4']
+  patientTypes, // Now an array of {id, name, description}
   patientTypeFilter,
   setPatientTypeFilter,
   searchQuery,
@@ -95,14 +87,14 @@ function FiltersSection({
             <Select.Portal>
               <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
                 <Select.Viewport className="p-1">
-                  {patientTypes.map((type) => (
+                  {[{ name: 'All' }, ...patientTypes].map((pt) => (
                     <Select.Item
-                      key={type}
-                      value={type}
+                      key={pt.name}
+                      value={pt.name}
                       className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                     >
                       <Select.ItemText>
-                        {type === 'All' ? 'All' : `Type ${type}: ${PATIENT_TYPES[`Type ${type}`]}`}
+                        {pt.name === 'All' ? 'All Patient Types' : `${pt.name}: ${pt.description}`}
                       </Select.ItemText>
                     </Select.Item>
                   ))}

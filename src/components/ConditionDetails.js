@@ -5,23 +5,16 @@ import { ChevronDown, ChevronRight, Info, Filter, BookOpen, Target } from 'lucid
 import clsx from 'clsx';
 import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
 
-// PatientTypes definition (consider moving to a shared constants file later)
-const PATIENT_TYPES = {
-  'Type 1': 'Healthy',
-  'Type 2': 'Mild inflammation, moderate risk',
-  'Type 3': 'Smoker, diabetic, immunocompromised',
-  'Type 4': 'Periodontal disease, chronic illness, poor healing'
-};
-
 function ConditionDetails({
   selectedCondition,
   activeTab,
   handleTabChange,
   filteredProducts, // The already filtered product list for the current phase/patient type
-  patientTypes, // Array like ['All', '1', '2', '3', '4']
+  patientTypes, // Now an array of {id, name, description}
   activePatientType,
   handlePatientTypeSelect,
   handleProductSelect, // Handler when a product card is clicked
+  handleShowAdditionalInfo, // Handler to show additional info
   handleOpenResearch, // Handler to open research modal (general or for a specific product)
   hasProductsForPhase, // Function to check if a phase has any products
   showAdditionalInfo,
@@ -40,6 +33,12 @@ function ConditionDetails({
   const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
   const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
 
+  const getPatientTypeDescription = (name) => {
+    if (name === 'All') return 'All Patient Types';
+    const pt = patientTypes.find(p => p.name === name);
+    return pt ? `${pt.name}: ${pt.description}` : name;
+  };
+
   if (!selectedCondition) {
     return (
       <div className="lg:col-span-3 bg-white shadow rounded-lg p-8 text-center text-gray-500">
@@ -51,9 +50,11 @@ function ConditionDetails({
   // Handle clicking on a product card
   const handleProductCardSelect = (product) => {
     // Set the selected product to display its details
-    setSelectedProduct(product.replace(' (Type 3/4 Only)', ''));
-    // Also call the original handler passed as prop
-    handleProductSelect(product);
+    const cleanProductName = product.replace(' (Type 3/4 Only)', '');
+    console.log('Selecting product:', cleanProductName, 'from original:', product);
+    setSelectedProduct(cleanProductName);
+    // Show the additional information section
+    handleShowAdditionalInfo();
   };
   
   // Handle tab change and clear selected product
@@ -175,14 +176,14 @@ function ConditionDetails({
                   <Select.Portal>
                     <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
                       <Select.Viewport className="p-1">
-                        {patientTypes.map((type) => (
+                        {[{ name: 'All' }, ...patientTypes].map((pt) => (
                           <Select.Item
-                            key={type}
-                            value={type}
+                            key={pt.name}
+                            value={pt.name}
                             className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                           >
                             <Select.ItemText>
-                              {type === 'All' ? 'All Patient Types' : `Type ${type}: ${PATIENT_TYPES[`Type ${type}`]}`}
+                              {getPatientTypeDescription(pt.name)}
                             </Select.ItemText>
                           </Select.Item>
                         ))}
@@ -197,7 +198,7 @@ function ConditionDetails({
                 <Info size={14} className="mr-1" />
                 Showing specific recommendations for: 
                 <span className="font-medium ml-1">
-                  {`Type ${activePatientType}: ${PATIENT_TYPES[`Type ${activePatientType}`]}`}
+                  {getPatientTypeDescription(activePatientType)}
                 </span>
               </div>
             )}
@@ -230,7 +231,7 @@ function ConditionDetails({
                     )}
                   >
                     {phase} Phase
-                    {hasProductsForPhase(phase) && (
+                    {hasProductsForPhase(phase) && selectedCondition.products && Array.isArray(selectedCondition.products[phase]) && (
                       <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white text-[#15396c]">
                         {selectedCondition.products[phase].length}
                       </span>
@@ -269,22 +270,27 @@ function ConditionDetails({
               <Tabs.Content key={phase} value={phase} className="p-4 bg-white border border-t-0 rounded-b-lg">
                 {filteredProducts.length > 0 ? (
                   <div className="space-y-4">
-                    {filteredProducts.map((product) => (
+                    {filteredProducts.map((product) => {
+                      const cleanProductName = product.replace(' (Type 3/4 Only)', '');
+                      const isSelected = selectedProduct === cleanProductName;
+                      console.log('Rendering product:', product, 'clean:', cleanProductName, 'selected:', selectedProduct, 'isSelected:', isSelected);
+                      
+                      return (
                       <div 
                         key={product}
                         className={clsx(
-                          "bg-white border-2 rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-200",
-                          selectedProduct === product.replace(' (Type 3/4 Only)', '')
-                            ? "border-[#15396c] bg-[#15396c]"
-                            : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                          "border-2 rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-200",
+                          isSelected
+                            ? "border-[#15396c] !bg-[#15396c]" // Force background with !important
+                            : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                         )}
                         onClick={() => handleProductCardSelect(product)}
                       >
                         <div className="flex justify-between items-start">
                           <h4 className={clsx(
                             "text-lg font-semibold",
-                            selectedProduct === product.replace(' (Type 3/4 Only)', '')
-                              ? "text-white"
+                            isSelected
+                              ? "!text-white" // Force white text with !important
                               : "text-black"
                           )}>
                             {product}
@@ -296,8 +302,8 @@ function ConditionDetails({
                             }}
                             className={clsx(
                               "text-sm flex items-center transition-colors",
-                              selectedProduct === product.replace(' (Type 3/4 Only)', '')
-                                ? "text-white hover:text-gray-200"
+                              isSelected
+                                ? "!text-white hover:!text-gray-200" // Force white text with !important
                                 : "text-[#15396c] hover:text-blue-800"
                             )}
                           >
@@ -309,7 +315,7 @@ function ConditionDetails({
                           <div className="mt-2">
                             <span className={clsx(
                               "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-                              selectedProduct === product.replace(' (Type 3/4 Only)', '')
+                              isSelected
                                 ? "bg-white text-[#15396c]"
                                 : "bg-amber-100 text-amber-800"
                             )}>
@@ -318,7 +324,8 @@ function ConditionDetails({
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : activePatientType !== 'All' ? (
                   <div className="text-gray-500 bg-gray-50 p-4 rounded-md border">
@@ -423,7 +430,7 @@ function ConditionDetails({
               </div>
               {expandedSections.handlingObjections && (
                 <div className="text-gray-700 mt-2 whitespace-pre-line">
-                  {selectedProductDetails.objection || 'Objection handling information not available.'}
+                  {selectedProductDetails.handlingObjections || 'Objection handling information not available.'}
                 </div>
               )}
             </div>

@@ -2,19 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
-import { Save, Plus, Edit, Trash2, X, ChevronDown, Info, AlertTriangle, Lock, Check, User, Filter, Target } from 'lucide-react';
+import { Plus, Edit, Trash2, X, ChevronDown, Info, AlertTriangle, Check, User, Target } from 'lucide-react';
 import clsx from 'clsx';
 import DataImportExport from './DataImportExport';
 import { supabase } from '../supabaseClient';
-
-// Patient Types definition
-const PATIENT_TYPES = {
-  'all': 'All Patient Types',
-  '1': 'Type 1: Healthy',
-  '2': 'Type 2: Mild inflammation, moderate risk',
-  '3': 'Type 3: Smoker, diabetic, immunocompromised',
-  '4': 'Type 4: Periodontal disease, chronic illness, poor healing'
-};
 
 // NEW Supabase helper for adding a single category
 const addCategoryToSupabase = async (categoryName) => {
@@ -316,15 +307,11 @@ const syncCategoriesWithSupabase = async (localCategories) => {
 
     if (categoriesToDelete.length > 0) {
       console.log('SYNC_CATEGORIES: Attempting to delete categories:', categoriesToDelete);
-      const { error: deleteError } = await supabase
-        .from('categories')
-        .delete()
-        .in('name', categoriesToDelete);
-      if (deleteError) {
-        console.error('SYNC_CATEGORIES: Error deleting categories from Supabase:', deleteError);
-        // Optionally, return or throw error to handle in UI
-      } else {
-        console.log('SYNC_CATEGORIES: Successfully deleted categories:', categoriesToDelete);
+      for (const categoryName of categoriesToDelete) {
+        const deleteResult = await deleteCategoryFromSupabase(categoryName);
+        if (!deleteResult.success) {
+          console.error(`SYNC_CATEGORIES: Failed to delete category ${categoryName}:`, deleteResult.error);
+        }
       }
     }
     console.log('SYNC_CATEGORIES: Categories synced with Supabase');
@@ -387,20 +374,51 @@ const syncDdsTypesWithSupabase = async (localDdsTypes) => {
 
     if (ddsTypesToDelete.length > 0) {
       console.log('SYNC_DDS_TYPES: Attempting to delete DDS types:', ddsTypesToDelete);
-      const { error: deleteError } = await supabase
-        .from('dentists') // Assuming table name is 'dentists'
-        .delete()
-        .in('name', ddsTypesToDelete);
-      if (deleteError) {
-        console.error('SYNC_DDS_TYPES: Error deleting DDS types from Supabase:', deleteError);
-      } else {
-        console.log('SYNC_DDS_TYPES: Successfully deleted DDS types:', ddsTypesToDelete);
+      for (const ddsTypeName of ddsTypesToDelete) {
+        const deleteResult = await deleteDdsTypeFromSupabase(ddsTypeName);
+        if (!deleteResult.success) {
+          console.error(`SYNC_DDS_TYPES: Failed to delete DDS type ${ddsTypeName}:`, deleteResult.error);
+        }
       }
     }
     console.log('SYNC_DDS_TYPES: DDS types synced with Supabase');
     return { success: true };
   } catch (error) {
     console.error('SYNC_DDS_TYPES: General error syncing DDS types with Supabase:', error);
+    return { success: false, error };
+  }
+};
+
+const syncPhasesWithSupabase = async (allLocalPhaseNames) => {
+  // allLocalPhaseNames is a Set of all phase names used across all conditions
+  console.log('SYNC_PHASES: Starting phase sync. Local names:', allLocalPhaseNames);
+  try {
+    const { data: supabasePhasesData, error: fetchError } = await supabase
+      .from('phases')
+      .select('name');
+    if (fetchError) {
+      console.error('SYNC_PHASES: Error fetching phases:', fetchError);
+      return { success: false, error: fetchError };
+    }
+    const supabasePhaseNames = supabasePhasesData.map(p => p.name);
+    const phasesToAdd = [...allLocalPhaseNames].filter(name => !supabasePhaseNames.includes(name) && name); // ensure name is not empty
+
+    if (phasesToAdd.length > 0) {
+      console.log('SYNC_PHASES: Adding new phases to Supabase:', phasesToAdd);
+      const { error: insertError } = await supabase
+        .from('phases')
+        .insert(phasesToAdd.map(name => ({ name })));
+      if (insertError) {
+        console.error('SYNC_PHASES: Error adding new phases:', insertError);
+        return { success: false, error: insertError };
+      }
+      console.log('SYNC_PHASES: Successfully added new phases.');
+    } else {
+        console.log('SYNC_PHASES: No new phases to add.');
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('SYNC_PHASES: General error during phase sync:', error);
     return { success: false, error };
   }
 };
@@ -493,254 +511,315 @@ const syncProductsWithSupabase = async (localProductNames, productRenames = []) 
   }
 };
 
-// Helper to build a map from patient type name to code ('1', '2', '3', '4')
-// and from patient type ID to code.
+// Helper to build a map from patient type name to ID and vice-versa
+// This replaces the old function that relied on a 'code' column.
 const buildPatientTypeMaps = async () => {
   try {
     const { data: patientTypesData, error } = await supabase
       .from('patient_types')
-      .select('id, name'); // Assuming 'code' is '1', '2', '3', '4', 'all'
+      .select('id, name');
 
     if (error) {
-      console.error('Error fetching patient types:', error);
-      return { nameToCode: {}, idToCode: {}, idToName: {}, codeToId: {} };
+      console.error('Error fetching patient types for maps:', error);
+      return { nameToId: {}, idToName: {} };
     }
 
-    const nameToCode = {};
-    const idToCode = {};
+    console.log('PATIENT_TYPES: Fetched patient types from DB:', patientTypesData);
+
+    const nameToId = {};
     const idToName = {};
-    const codeToId = {};
 
     patientTypesData.forEach(pt => {
-      nameToCode[pt.name] = pt.code; // e.g., "Healthy": "1"
-      idToCode[pt.id] = pt.code;     // e.g., 101: "1"
-      idToName[pt.id] = pt.name;     // e.g., 101: "Healthy"
-      codeToId[pt.code] = pt.id;     // e.g., "1": 101
+      nameToId[pt.name] = pt.id;
+      idToName[pt.id] = pt.name;
     });
-    return { nameToCode, idToCode, idToName, codeToId };
+    
+    console.log('PATIENT_TYPES: Name to ID map:', nameToId);
+    console.log('PATIENT_TYPES: ID to Name map:', idToName);
+    
+    return { nameToId, idToName };
   } catch (fetchError) {
     console.error('Error in buildPatientTypeMaps:', fetchError);
-    return { nameToCode: {}, idToCode: {}, idToName: {}, codeToId: {} };
+    return { nameToId: {}, idToName: {} };
   }
 };
 
-const loadConditionsFromSupabase = async () => {
-  console.log('Starting to load conditions from Supabase...');
-  const { idToCode: patientTypeIdToCodeMap, idToName: patientTypeIdToNameMap } = await buildPatientTypeMaps();
+// Simple cache for conditions data
+let conditionsCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 30000; // 30 seconds cache
 
+// Cache invalidation helper
+const invalidateConditionsCache = () => {
+  console.log('PERFORMANCE: Invalidating conditions cache');
+  conditionsCache = null;
+  cacheTimestamp = null;
+};
+
+export const loadConditionsFromSupabase = async (forceRefresh = false) => {
+  // Check cache first
+  if (!forceRefresh && conditionsCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
+    console.log('PERFORMANCE: Using cached conditions data');
+    return conditionsCache;
+  }
+  
+  console.log('PERFORMANCE: Starting optimized conditions load from Supabase...');
+  const startTime = performance.now();
+  
   try {
-    // 1. Fetch all procedures with their category name
-    const { data: proceduresData, error: proceduresError } = await supabase
-      .from('procedures')
-      .select(`
-        id,
-        name,
-        category_id,
-        pitch_points,
-        patient_type,
-        created_at,
-        updated_at,
-        categories:category_id (name)
-      `);
-
-    if (proceduresError) {
-      console.error('Error fetching procedures:', proceduresError);
-      return [];
-    }
-    console.log('Fetched procedures:', proceduresData);
-
-    const conditions = [];
-
-    for (const proc of proceduresData) {
-      // 2a. Basic procedure info
-      const condition = {
-        name: proc.name,
-        db_id: proc.id, // Store DB ID for updates/deletes
-        category: proc.categories ? proc.categories.name : null,
-        pitchPoints: proc.pitch_points || '',
-        patientType: proc.patient_type || '', // This is a string like "Types 1 to 4"
-        // Initialize fields that will be populated
-        phases: [],
-        dds: [],
-        products: {}, // Per-phase products: { [phaseName]: ["ProductA", "ProductB (Type 3/4)"] }
-        productDetails: {}, // { [productName]: { usage, rationale, researchArticles, ... } }
-        patientSpecificConfig: {}, // { [phaseName]: { [patientTypeCode]: [productNameArray] } }
-        conditionSpecificResearch: {}, // { [productName]: [researchArticle] } - often mirrors productDetails.researchArticles
-
-        // Fields from JSON that are per-product in DB.
-        // These will be populated from the first relevant product_detail or left empty.
-        scientificRationale: '',
-        clinicalEvidence: '',
-        // competitiveAdvantage: '', // This is handled by a separate modal and tables
-        handlingObjections: '',
-      };
-
-      // 2b. Fetch phases for the current procedure
-      const { data: procedurePhasesData, error: ppError } = await supabase
+    // Get patient type maps once
+    const { idToName: patientTypeIdToNameMap } = await buildPatientTypeMaps();
+    
+    console.log('PERFORMANCE: Fetching all data in parallel...');
+    
+    // OPTIMIZATION: Fetch ALL data in parallel with a single query each
+    const [
+      proceduresResult,
+      procedurePhasesResult, 
+      procedureDentistsResult,
+      procedurePhaseProductsResult,
+      productDetailsResult,
+      phaseUsageResult,
+      researchResult
+    ] = await Promise.all([
+      // Get all procedures with categories
+      supabase
+        .from('procedures')
+        .select(`
+          id, name, category_id, pitch_points, patient_type, created_at, updated_at,
+          categories:category_id (name)
+        `),
+      
+      // Get all procedure phases with phase names
+      supabase
         .from('procedure_phases')
-        .select('*, phases!phase_id(id, name)') // Corrected Supabase query
-        .eq('procedure_id', proc.id);
-      if (ppError) console.error(`Error fetching phases for procedure ${proc.id}:`, ppError);
-      else condition.phases = procedurePhasesData ? procedurePhasesData.map(p => p.phases.name) : [];
+        .select('procedure_id, phase_id, phases:phase_id(id, name)'),
       
-      const phaseNameToIdMap = {};
-      if(procedurePhasesData) {
-        procedurePhasesData.forEach(p => {
-          if (p.phases) phaseNameToIdMap[p.phases.name] = p.phases.id;
-        });
-      }
-
-
-      // 2c. Fetch DDS types (dentists) for the current procedure
-      const { data: procedureDentistsData, error: pdError } = await supabase
+      // Get all procedure dentists
+      supabase
         .from('procedure_dentists')
-        .select('dentists:dentist_id (name)')
-        .eq('procedure_id', proc.id);
-      if (pdError) console.error(`Error fetching dentists for procedure ${proc.id}:`, pdError);
-      else condition.dds = procedureDentistsData ? procedureDentistsData.map(d => d.dentists.name) : [];
-
-      // 2d. Fetch patient_specific_configs for this procedure
-      // This populates `condition.patientSpecificConfig`
-      const { data: pscData, error: pscError } = await supabase
-        .from('patient_specific_configs')
-        .select('config, phase_id, patient_type_id, phases!phase_id(name)')
-        .eq('procedure_id', proc.id);
+        .select('procedure_id, dentists:dentist_id(name)'),
       
-      if (pscError) console.error(`Error fetching patient_specific_configs for procedure ${proc.id}:`, pscError);
-      else if (pscData) {
-        pscData.forEach(psc_item => {
-          const phaseName = psc_item.phases.name;
-          const patientTypeCode = patientTypeIdToCodeMap[psc_item.patient_type_id];
-          if (phaseName && patientTypeCode) {
-            if (!condition.patientSpecificConfig[phaseName]) {
-              condition.patientSpecificConfig[phaseName] = { '1': [], '2': [], '3': [], '4': [], 'all': [] };
-            }
-            // Assuming psc_item.config is an array of product names
-            condition.patientSpecificConfig[phaseName][patientTypeCode] = Array.isArray(psc_item.config) ? psc_item.config : [];
-          }
-        });
-      }
+      // Get all procedure phase products
+      supabase
+        .from('procedure_phase_products')
+        .select(`
+          procedure_id, product_id, phase_id, patient_type_id,
+          products:product_id(name), phases:phase_id(name)
+        `),
       
-      // Reconstruct `condition.products` (with Type 3/4 markers) using logic similar to `applyPatientSpecificProducts`
-      // This part takes the structured `patientSpecificConfig` and creates the flat list for display/legacy reasons.
-      Object.keys(condition.patientSpecificConfig).forEach(phaseName => {
-        const phaseProductsAggregated = [];
-        const patientTypesForPhase = condition.patientSpecificConfig[phaseName];
-        const commonProducts = new Set();
-        const allPatientTypeCodes = ['1', '2', '3', '4'];
-        
-        let allProductsInPhaseSet = new Set();
-        allPatientTypeCodes.forEach(ptCode => {
-            (patientTypesForPhase[ptCode] || []).forEach(prod => allProductsInPhaseSet.add(prod));
-        });
-
-        for (const product of allProductsInPhaseSet) {
-            const isInAllTypes = allPatientTypeCodes.every(ptCode => 
-                (patientTypesForPhase[ptCode] || []).includes(product)
-            );
-            if (isInAllTypes) {
-                commonProducts.add(product);
-            }
-        }
-        phaseProductsAggregated.push(...Array.from(commonProducts));
-
-        const type34Products = new Set();
-        (patientTypesForPhase['3'] || []).forEach(product => {
-            if (
-              (patientTypesForPhase['4'] || []).includes(product) &&
-              !(patientTypesForPhase['1'] || []).includes(product) &&
-              !(patientTypesForPhase['2'] || []).includes(product) &&
-              !commonProducts.has(product) // Ensure it's not already added as a common product
-            ) {
-                type34Products.add(`${product} (Type 3/4 Only)`);
-            }
-        });
-        phaseProductsAggregated.push(...Array.from(type34Products));
-        condition.products[phaseName] = phaseProductsAggregated;
-      });
-
-
-      // 2e. Fetch product_details for this procedure
-      const { data: productDetailsDbData, error: prodDetailsError } = await supabase
+      // Get all product details
+      supabase
         .from('product_details')
         .select(`
-          product_id,
-          objection_handling,
-          fact_sheet_url,
-          clinical_evidence,
-          pitch_points,
-          scientific_rationale,
-          rationale,
-          products:product_id (name)
-        `)
-        .eq('procedure_id', proc.id);
+          procedure_id, product_id, objection_handling, fact_sheet_url,
+          clinical_evidence, pitch_points, scientific_rationale, rationale,
+          products:product_id(name)
+        `),
+      
+      // Get all phase usage
+      supabase
+        .from('phase_specific_usage')
+        .select('procedure_id, product_id, instructions, phases:phase_id(name)'),
+      
+      // Get all research articles
+      supabase
+        .from('condition_product_research_articles')
+        .select('procedure_id, product_id, title, author, abstract, url')
+    ]);
 
-      if (prodDetailsError) console.error(`Error fetching product_details for procedure ${proc.id}:`, prodDetailsError);
-      else if (productDetailsDbData) {
-        let firstProductDetailPopulated = false;
-        for (const pdItem of productDetailsDbData) {
-          if (!pdItem.products) continue; // Skip if product link is broken
-          const productName = pdItem.products.name;
+    // Check for errors
+    const errors = [
+      proceduresResult.error,
+      procedurePhasesResult.error,
+      procedureDentistsResult.error, 
+      procedurePhaseProductsResult.error,
+      productDetailsResult.error,
+      phaseUsageResult.error,
+      researchResult.error
+    ].filter(Boolean);
 
-          // Populate top-level condition fields from the first product encountered (as per JSON structure)
-          // This is an approximation as these are per-product in DB.
-          if (!firstProductDetailPopulated) {
-            condition.scientificRationale = pdItem.scientific_rationale || '';
-            condition.clinicalEvidence = pdItem.clinical_evidence || '';
-            condition.handlingObjections = pdItem.objection_handling || '';
-            // condition.pitchPoints is already from procedure table. product_details also has pitch_points. Decide priority.
-            firstProductDetailPopulated = true;
+    if (errors.length > 0) {
+      console.error('PERFORMANCE: Database errors:', errors);
+      return [];
+    }
+    
+    console.log('PERFORMANCE: Data fetched, now processing...');
+
+    // Create lookup maps for fast access
+    const procedurePhaseMap = new Map();
+    const procedureDentistMap = new Map();
+    const procedurePhaseProductMap = new Map();
+    const productDetailsMap = new Map();
+    const phaseUsageMap = new Map();
+    const researchMap = new Map();
+
+    // Build lookup maps
+    procedurePhasesResult.data?.forEach(item => {
+      if (!procedurePhaseMap.has(item.procedure_id)) {
+        procedurePhaseMap.set(item.procedure_id, []);
+      }
+      if (item.phases) {
+        procedurePhaseMap.get(item.procedure_id).push(item.phases.name);
+      }
+    });
+
+    procedureDentistsResult.data?.forEach(item => {
+      if (!procedureDentistMap.has(item.procedure_id)) {
+        procedureDentistMap.set(item.procedure_id, []);
+      }
+      if (item.dentists) {
+        procedureDentistMap.get(item.procedure_id).push(item.dentists.name);
+      }
+    });
+
+    procedurePhaseProductsResult.data?.forEach(item => {
+      if (!procedurePhaseProductMap.has(item.procedure_id)) {
+        procedurePhaseProductMap.set(item.procedure_id, []);
+      }
+      procedurePhaseProductMap.get(item.procedure_id).push(item);
+    });
+
+    productDetailsResult.data?.forEach(item => {
+      if (!productDetailsMap.has(item.procedure_id)) {
+        productDetailsMap.set(item.procedure_id, []);
+      }
+      productDetailsMap.get(item.procedure_id).push(item);
+    });
+
+    phaseUsageResult.data?.forEach(item => {
+      const key = `${item.procedure_id}-${item.product_id}`;
+      if (!phaseUsageMap.has(key)) {
+        phaseUsageMap.set(key, []);
+      }
+      phaseUsageMap.get(key).push(item);
+    });
+
+    researchResult.data?.forEach(item => {
+      const key = `${item.procedure_id}-${item.product_id}`;
+      if (!researchMap.has(key)) {
+        researchMap.set(key, []);
+      }
+      researchMap.get(key).push(item);
+    });
+
+    // Process all conditions
+    const conditions = [];
+    const allPatientTypeNames = Object.values(patientTypeIdToNameMap);
+
+    for (const proc of proceduresResult.data || []) {
+      const condition = {
+        name: proc.name,
+        db_id: proc.id,
+        category: proc.categories?.name || null,
+        pitchPoints: proc.pitch_points || '',
+        patientType: proc.patient_type || '',
+        phases: procedurePhaseMap.get(proc.id) || [],
+        dds: procedureDentistMap.get(proc.id) || [],
+        products: {},
+        productDetails: {},
+        patientSpecificConfig: {},
+        conditionSpecificResearch: {},
+        scientificRationale: '',
+        clinicalEvidence: '',
+        handlingObjections: ''
+      };
+
+      // Initialize patient specific config structure
+      condition.phases.forEach(phaseName => {
+        condition.patientSpecificConfig[phaseName] = {};
+        allPatientTypeNames.forEach(ptName => {
+          condition.patientSpecificConfig[phaseName][ptName] = [];
+        });
+      });
+
+      // Process phase products
+      const phaseProducts = procedurePhaseProductMap.get(proc.id) || [];
+      phaseProducts.forEach(ppp_item => {
+        if (!ppp_item.phases?.name || !ppp_item.products?.name) return;
+
+        const phaseName = ppp_item.phases.name;
+        const productName = ppp_item.products.name;
+        let patientTypeName = patientTypeIdToNameMap[ppp_item.patient_type_id];
+        
+        if (!patientTypeName && allPatientTypeNames.length > 0) {
+          patientTypeName = allPatientTypeNames[0];
+        }
+
+        if (patientTypeName && condition.patientSpecificConfig[phaseName]) {
+          if (!condition.patientSpecificConfig[phaseName][patientTypeName].includes(productName)) {
+            condition.patientSpecificConfig[phaseName][patientTypeName].push(productName);
           }
+        }
+      });
 
-          // Fetch phase-specific usage for this product & procedure
-          const { data: usageData, error: usageError } = await supabase
-            .from('phase_specific_usage')
-            .select('instructions, phases:phase_id (name)')
-            .eq('procedure_id', proc.id)
-            .eq('product_id', pdItem.product_id);
-          
-          const usageInstructionsByPhase = {};
-          if (usageError) console.error(`Error fetching usage for prod ${pdItem.product_id} in proc ${proc.id}:`, usageError);
-          else if (usageData) {
-            usageData.forEach(u => {
-              if (u.phases) usageInstructionsByPhase[u.phases.name] = u.instructions;
-            });
+      // Process product details
+      const productDetails = productDetailsMap.get(proc.id) || [];
+      let firstProductDetailProcessed = false;
+      
+      for (const pdItem of productDetails) {
+        if (!pdItem.products?.name) continue;
+        
+        const productName = pdItem.products.name;
+        
+        // Set condition-level fields from first product
+        if (!firstProductDetailProcessed) {
+          condition.scientificRationale = pdItem.scientific_rationale || '';
+          condition.clinicalEvidence = pdItem.clinical_evidence || '';
+          condition.handlingObjections = pdItem.objection_handling || '';
+          firstProductDetailProcessed = true;
+        }
+
+        // Process usage instructions
+        const usageKey = `${proc.id}-${pdItem.product_id}`;
+        const usageData = phaseUsageMap.get(usageKey) || [];
+        const usageInstructionsByPhase = {};
+        usageData.forEach(u => {
+          if (u.phases?.name) {
+            usageInstructionsByPhase[u.phases.name] = u.instructions;
           }
+        });
 
-          // Fetch research articles for this product & procedure
-          const { data: researchData, error: researchError } = await supabase
-            .from('condition_product_research_articles') //This is the correct table name from schema
-            .select('title, author, abstract, url')
-            .eq('procedure_id', proc.id)
-            .eq('product_id', pdItem.product_id);
+        // Process research articles
+        const researchKey = `${proc.id}-${pdItem.product_id}`;
+        const researchArticles = researchMap.get(researchKey) || [];
 
-          const researchArticles = (researchError || !researchData) ? [] : researchData;
-          if(researchError) console.error(`Error fetching research for prod ${pdItem.product_id} in proc ${proc.id}:`, researchError);
+        // Store product details
+        condition.productDetails[productName] = {
+          scientificRationale: pdItem.scientific_rationale || '',
+          clinicalEvidence: pdItem.clinical_evidence || '',
+          handlingObjections: pdItem.objection_handling || '',
+          pitchPoints: pdItem.pitch_points || '',
+          rationale: pdItem.rationale || '',
+          factSheetUrl: pdItem.fact_sheet_url || '',
+          usage: usageInstructionsByPhase,
+          researchArticles: researchArticles
+        };
 
-
-          condition.productDetails[productName] = {
-            usage: usageInstructionsByPhase, // Component expects object keyed by phase
-            rationale: pdItem.rationale || '',
-            objection: pdItem.objection_handling || '',
-            factSheet: pdItem.fact_sheet_url || '#',
-            researchArticles: researchArticles,
-            // Component might expect these per product_detail too
-            clinicalEvidence: pdItem.clinical_evidence || '',
-            pitchPoints: pdItem.pitch_points || '', 
-            scientificRationale: pdItem.scientific_rationale || '',
-          };
-          
-          // Populate conditionSpecificResearch as well (often mirrors productDetails.researchArticles)
+        // Store condition-specific research
+        if (researchArticles.length > 0) {
           condition.conditionSpecificResearch[productName] = researchArticles;
         }
       }
+
+      // Add patient type names for filtering
+      const patientTypeIds = [...new Set(phaseProducts.map(p => p.patient_type_id).filter(Boolean))];
+      condition.patientTypeNames = patientTypeIds.map(id => patientTypeIdToNameMap[id]).filter(Boolean);
+
       conditions.push(condition);
     }
-    console.log('Finished loading and transforming conditions:', conditions);
+
+    const endTime = performance.now();
+    console.log(`PERFORMANCE: Loaded ${conditions.length} conditions in ${Math.round(endTime - startTime)}ms`);
+    
+    // Cache the results
+    conditionsCache = conditions;
+    cacheTimestamp = Date.now();
+    
     return conditions;
 
   } catch (error) {
-    console.error('General error in loadConditionsFromSupabase:', error);
+    console.error('PERFORMANCE: Critical error in loadConditionsFromSupabase:', error);
     return [];
   }
 };
@@ -752,7 +831,8 @@ const getEntityIdMaps = async () => {
   let productNameToId = {};
   let phaseNameToId = {}; // This might be static or fetched if dynamic
   let ddsTypeNameToId = {};
-  let patientCodeToIdMap = {};
+  // The new patient type map will be name -> ID.
+  let patientTypeNameToIdMap = {};
 
   try {
     const { data: categoriesData, error: catError } = await supabase.from('categories').select('id, name');
@@ -772,7 +852,7 @@ const getEntityIdMaps = async () => {
     else ddsTypeNameToId = Object.fromEntries(ddsData.map(d => [d.name, d.id]));
 
     const patientTypeMaps = await buildPatientTypeMaps();
-    patientCodeToIdMap = patientTypeMaps.codeToId;
+    patientTypeNameToIdMap = patientTypeMaps.nameToId;
 
   } catch (error) {
     console.error("Error in getEntityIdMaps:", error);
@@ -783,13 +863,13 @@ const getEntityIdMaps = async () => {
     productNameToId,
     phaseNameToId,
     ddsTypeNameToId,
-    patientCodeToIdMap,
+    patientTypeNameToIdMap,
   };
 };
 
 const addConditionToSupabase = async (condition, entityIdMaps) => {
   console.log('SUPABASE_CUD: Adding condition:', condition.name);
-  const { categoryNameToId, productNameToId, phaseNameToId, ddsTypeNameToId, patientCodeToIdMap } = entityIdMaps;
+  const { categoryNameToId, productNameToId, phaseNameToId, ddsTypeNameToId, patientTypeNameToIdMap } = entityIdMaps;
 
   // 1. Insert into 'procedures'
   const categoryId = categoryNameToId[condition.category] || null;
@@ -859,8 +939,8 @@ const addConditionToSupabase = async (condition, entityIdMaps) => {
         .insert([{
             procedure_id: newProcedureId,
             product_id: productId,
-            objection_handling: details.objection,
-            fact_sheet_url: details.factSheet,
+            objection_handling: details.handlingObjections,
+            fact_sheet_url: details.factSheetUrl,
             clinical_evidence: details.clinicalEvidence,
             pitch_points: details.pitchPoints, // Ensure this is the product-specific one
             scientific_rationale: details.scientificRationale,
@@ -907,27 +987,69 @@ const addConditionToSupabase = async (condition, entityIdMaps) => {
     }
   }
 
-  // 5. Insert into 'patient_specific_configs'
-  const pscRecords = [];
+    // 5. Create basic product_details entries for all products referenced in patientSpecificConfig
+  const referencedProducts = new Set();
   if (condition.patientSpecificConfig) {
     for (const phaseName of Object.keys(condition.patientSpecificConfig)) {
-      const phaseId = phaseNameToId[phaseName];
-      if (!phaseId) continue;
-      for (const patientTypeCode of Object.keys(condition.patientSpecificConfig[phaseName])) {
-        const patientTypeId = patientCodeToIdMap[patientTypeCode];
-        const productsForType = condition.patientSpecificConfig[phaseName][patientTypeCode];
-        if (patientTypeId && Array.isArray(productsForType) && productsForType.length > 0) {
-          pscRecords.push({
-            procedure_id: newProcedureId,
-            phase_id: phaseId,
-            patient_type_id: patientTypeId,
-            config: productsForType, // Assuming 'config' stores array of product names
-          });
+      for (const patientTypeName of Object.keys(condition.patientSpecificConfig[phaseName])) {
+        const productsForType = condition.patientSpecificConfig[phaseName][patientTypeName];
+        if (Array.isArray(productsForType)) {
+          productsForType.forEach(productName => referencedProducts.add(productName));
         }
       }
     }
   }
-  if (!await batchInsert('patient_specific_configs', pscRecords, `procedure ${newProcedureId}`)) {
+
+  // Create basic product_details entries for products that don't already have them
+  for (const productName of referencedProducts) {
+    const productId = productNameToId[productName];
+    if (productId && !condition.productDetails[productName]) {
+      const { error: pdError } = await supabase
+        .from('product_details')
+        .insert([{
+          procedure_id: newProcedureId,
+          product_id: productId,
+          objection_handling: `Basic objection handling for ${productName}`,
+          fact_sheet_url: '#',
+          clinical_evidence: `Clinical evidence for ${productName} in ${condition.name}`,
+          pitch_points: `Key benefits of ${productName}`,
+          scientific_rationale: `Scientific rationale for using ${productName}`,
+          rationale: `Recommended for use in ${condition.name} treatment`,
+        }]);
+      if (pdError) {
+        console.error(`Error creating basic product_details for ${productName}:`, pdError);
+      }
+    }
+  }
+
+  // 6. Insert into 'procedure_phase_products' (The new relational way)
+  const pppRecords = [];
+  if (condition.patientSpecificConfig) {
+    for (const phaseName of Object.keys(condition.patientSpecificConfig)) {
+      const phaseId = phaseNameToId[phaseName];
+      if (!phaseId) continue;
+      // Key change: The key is now the patient type's name
+      for (const patientTypeName of Object.keys(condition.patientSpecificConfig[phaseName])) {
+        const patientTypeId = patientTypeNameToIdMap[patientTypeName]; // Use the map to get the ID
+        const productsForType = condition.patientSpecificConfig[phaseName][patientTypeName];
+        if (patientTypeId && Array.isArray(productsForType) && productsForType.length > 0) {
+          // Create a record for each product
+          productsForType.forEach(productName => {
+            const productId = productNameToId[productName];
+            if (productId) {
+              pppRecords.push({
+            procedure_id: newProcedureId,
+            phase_id: phaseId,
+            patient_type_id: patientTypeId,
+                product_id: productId,
+          });
+        }
+          });
+      }
+    }
+  }
+  }
+  if (!await batchInsert('procedure_phase_products', pppRecords, `procedure ${newProcedureId}`)) {
     // Rollback?
   }
 
@@ -938,7 +1060,7 @@ const addConditionToSupabase = async (condition, entityIdMaps) => {
 
 const updateConditionInSupabase = async (condition, entityIdMaps) => {
   console.log('SUPABASE_CUD: Updating condition:', condition.name, '(db_id:', condition.db_id,')');
-  const { categoryNameToId, productNameToId, phaseNameToId, ddsTypeNameToId, patientCodeToIdMap } = entityIdMaps;
+  const { categoryNameToId, productNameToId, phaseNameToId, ddsTypeNameToId, patientTypeNameToIdMap } = entityIdMaps;
   const procedureId = condition.db_id;
 
   if (!procedureId) {
@@ -967,42 +1089,46 @@ const updateConditionInSupabase = async (condition, entityIdMaps) => {
   }
   console.log('SUPABASE_CUD: Updated procedure', procedureId);
 
-  // Helper for delete and batch insert pattern
-  const syncRelatedTable = async (tableName, joinColumn, currentItems, idField, foreignKeyField, getItemId) => {
-    console.log(`SUPABASE_CUD: Syncing ${tableName} for procedure ${procedureId}`);
-    // Delete existing relations
-    const { error: deleteError } = await supabase.from(tableName).delete().eq(joinColumn, procedureId);
-    if (deleteError) {
-      console.error(`SUPABASE_CUD: Error deleting old ${tableName} for ${procedureId}:`, deleteError);
-      return false; // Abort this part of update
-    }
-    // Insert new relations
-    const records = currentItems
-      .map(item => ({
-        [joinColumn]: procedureId,
-        [foreignKeyField]: getItemId(item),
-      }))
-      .filter(record => record[foreignKeyField]); // Ensure FK is valid
+  // Helper for performing a diff-based sync on simple join tables
+  const syncSimpleJoinTable = async (tableName, procedureId, localItemNames, idMap, fkColumn) => {
+    console.log(`SUPABASE_CUD: Efficiently syncing ${tableName} for procedure ${procedureId}`);
     
-    if (records.length > 0) {
-      const { error: insertError } = await supabase.from(tableName).insert(records);
-      if (insertError) {
-        console.error(`SUPABASE_CUD: Error inserting new ${tableName} for ${procedureId}:`, insertError);
-        return false;
-      }
+    // Get existing items from DB
+    const { data: dbData, error: fetchError } = await supabase
+      .from(tableName)
+      .select(fkColumn)
+      .eq('procedure_id', procedureId);
+    
+    if (fetchError) {
+      console.error(`Error fetching from ${tableName} for diff-sync:`, fetchError);
+      return; // Or handle error more gracefully
     }
-    console.log(`SUPABASE_CUD: Synced ${tableName} for procedure ${procedureId}`);
-    return true;
+
+    const dbItemIds = dbData.map(row => row[fkColumn]);
+    const localItemIds = localItemNames.map(name => idMap[name]).filter(id => id);
+
+    const toAddIds = localItemIds.filter(id => !dbItemIds.includes(id));
+    const toDeleteIds = dbItemIds.filter(id => !localItemIds.includes(id));
+
+    if (toDeleteIds.length > 0) {
+      console.log(`SYNC_JOIN: Deleting from ${tableName}:`, toDeleteIds);
+      await supabase.from(tableName).delete().eq('procedure_id', procedureId).in(fkColumn, toDeleteIds);
+    }
+    if (toAddIds.length > 0) {
+      console.log(`SYNC_JOIN: Adding to ${tableName}:`, toAddIds);
+      await supabase.from(tableName).insert(toAddIds.map(id => ({ procedure_id: procedureId, [fkColumn]: id })));
+    }
+     console.log(`SUPABASE_CUD: Finished sync for ${tableName}`);
   };
 
   // 2. Sync 'procedure_phases'
-  await syncRelatedTable('procedure_phases', 'procedure_id', condition.phases, 'id', 'phase_id', (phaseName) => phaseNameToId[phaseName]);
+  await syncSimpleJoinTable('procedure_phases', procedureId, condition.phases, phaseNameToId, 'phase_id');
 
   // 3. Sync 'procedure_dentists'
-  await syncRelatedTable('procedure_dentists', 'procedure_id', condition.dds, 'id', 'dentist_id', (ddsName) => ddsTypeNameToId[ddsName]);
+  await syncSimpleJoinTable('procedure_dentists', procedureId, condition.dds, ddsTypeNameToId, 'dentist_id');
   
-  // 4. Sync 'product_details' and their sub-tables ('phase_specific_usage', 'condition_product_research_articles')
-  // This is more complex than a simple sync. Delete all existing product_details and related for this procedure, then re-insert.
+  // 4. Sync 'product_details' and their sub-tables.
+  // This remains delete-then-insert due to its complexity, but the simpler joins above are now efficient.
   console.log(`SUPABASE_CUD: Clearing old product-related data for procedure ${procedureId}`);
   await supabase.from('phase_specific_usage').delete().eq('procedure_id', procedureId);
   await supabase.from('condition_product_research_articles').delete().eq('procedure_id', procedureId);
@@ -1013,7 +1139,7 @@ const updateConditionInSupabase = async (condition, entityIdMaps) => {
     const details = condition.productDetails[productName];
     const productId = productNameToId[productName];
     if (!productId) {
-        console.warn(`SUPABASE_CUD: Product ID not found for ${productName} during update, skipping product_details.`);
+        console.warn(`SUPABASE_CUD: Product ID not found for ${productName}, skipping product_details.`);
         continue;
     }
     const { data: pdData, error: pdError } = await supabase
@@ -1021,8 +1147,8 @@ const updateConditionInSupabase = async (condition, entityIdMaps) => {
         .insert([{
             procedure_id: procedureId,
             product_id: productId,
-            objection_handling: details.objection,
-            fact_sheet_url: details.factSheet,
+            objection_handling: details.handlingObjections,
+            fact_sheet_url: details.factSheetUrl,
             clinical_evidence: details.clinicalEvidence,
             pitch_points: details.pitchPoints,
             scientific_rationale: details.scientificRationale,
@@ -1047,32 +1173,110 @@ const updateConditionInSupabase = async (condition, entityIdMaps) => {
     if(researchRecords.length > 0) await supabase.from('condition_product_research_articles').insert(researchRecords);
   }
 
-  // 5. Sync 'patient_specific_configs'
-  console.log(`SUPABASE_CUD: Syncing patient_specific_configs for procedure ${procedureId}`);
-  await supabase.from('patient_specific_configs').delete().eq('procedure_id', procedureId);
-  const pscRecords = [];
+  // 5. Create basic product_details entries for any new products referenced in patientSpecificConfig
+  const referencedProducts = new Set();
   if (condition.patientSpecificConfig) {
     for (const phaseName of Object.keys(condition.patientSpecificConfig)) {
-      const phaseId = phaseNameToId[phaseName];
-      if (!phaseId) continue;
-      for (const patientTypeCode of Object.keys(condition.patientSpecificConfig[phaseName])) {
-        const patientTypeId = patientCodeToIdMap[patientTypeCode]; // Ensure patientCodeToIdMap is correct
-        const productsForType = condition.patientSpecificConfig[phaseName][patientTypeCode];
-        if (patientTypeId && Array.isArray(productsForType) && productsForType.length > 0) {
-          pscRecords.push({
-            procedure_id: procedureId,
-            phase_id: phaseId,
-            patient_type_id: patientTypeId,
-            config: productsForType,
-          });
+      for (const patientTypeName of Object.keys(condition.patientSpecificConfig[phaseName])) {
+        const productsForType = condition.patientSpecificConfig[phaseName][patientTypeName];
+        if (Array.isArray(productsForType)) {
+          productsForType.forEach(productName => referencedProducts.add(productName));
         }
       }
     }
   }
-  if (pscRecords.length > 0) {
-    const { error: pscInsertError } = await supabase.from('patient_specific_configs').insert(pscRecords);
-    if (pscInsertError) console.error(`SUPABASE_CUD: Error inserting patient_specific_configs for ${procedureId}:`, pscInsertError);
+
+  // Create basic product_details entries for products that don't already have them
+  for (const productName of referencedProducts) {
+    const productId = productNameToId[productName];
+    if (productId) {
+      // Check if product_details already exists for this product/procedure combination
+      const { data: existingPd, error: checkError } = await supabase
+        .from('product_details')
+        .select('id')
+        .eq('procedure_id', procedureId)
+        .eq('product_id', productId)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error(`Error checking existing product_details for ${productName}:`, checkError);
+      } else if (!existingPd) {
+        // No existing record, create one
+        const { error: pdError } = await supabase
+          .from('product_details')
+          .insert([{
+            procedure_id: procedureId,
+            product_id: productId,
+            objection_handling: `Basic objection handling for ${productName}`,
+            fact_sheet_url: '#',
+            clinical_evidence: `Clinical evidence for ${productName} in ${condition.name}`,
+            pitch_points: `Key benefits of ${productName}`,
+            scientific_rationale: `Scientific rationale for using ${productName}`,
+            rationale: `Recommended for use in ${condition.name} treatment`,
+          }]);
+        if (pdError) {
+          console.error(`Error creating basic product_details for ${productName}:`, pdError);
+        }
+      }
+    }
   }
+
+  // 6. Sync 'procedure_phase_products'
+  console.log(`SUPABASE_CUD: Syncing procedure_phase_products for procedure ${procedureId}`);
+  
+  // First, get all existing recommendations for this procedure from the DB
+  const { data: existingPppData, error: fetchPppError } = await supabase
+    .from('procedure_phase_products')
+    .select('id, phase_id, patient_type_id, product_id')
+    .eq('procedure_id', procedureId);
+
+  if (fetchPppError) {
+    console.error(`SUPABASE_CUD: Error fetching existing product recommendations for sync:`, fetchPppError);
+  } else {
+    // Create a set of local recommendations for easy lookup, e.g., "phaseId-patientTypeId-productId"
+    const localPppSet = new Set();
+    const pppRecordsToInsert = [];
+
+  if (condition.patientSpecificConfig) {
+    for (const phaseName of Object.keys(condition.patientSpecificConfig)) {
+      const phaseId = phaseNameToId[phaseName];
+      if (!phaseId) continue;
+        // Key change: The key is now the patient type's name
+        for (const patientTypeName of Object.keys(condition.patientSpecificConfig[phaseName])) {
+          const patientTypeId = patientTypeNameToIdMap[patientTypeName]; // Use map to get the ID
+          const productsForType = condition.patientSpecificConfig[phaseName][patientTypeName];
+          if (patientTypeId && Array.isArray(productsForType)) {
+            productsForType.forEach(productName => {
+              const productId = productNameToId[productName];
+              if (productId) {
+                localPppSet.add(`${phaseId}-${patientTypeName}-${productId}`);
+                pppRecordsToInsert.push({
+            procedure_id: procedureId,
+            phase_id: phaseId,
+            patient_type_id: patientTypeId,
+                  product_id: productId,
+          });
+        }
+            });
+    }
+  }
+      }
+    }
+    
+    // As a simple, robust sync strategy for now, we'll just delete all and re-insert.
+    // A more complex diff-based approach could be implemented later if performance is an issue.
+    console.log(`SUPABASE_CUD: Deleting all old product recommendations for procedure ${procedureId}.`);
+    await supabase.from('procedure_phase_products').delete().eq('procedure_id', procedureId);
+    
+    if (pppRecordsToInsert.length > 0) {
+        console.log(`SUPABASE_CUD: Inserting ${pppRecordsToInsert.length} new product recommendations.`);
+        const { error: pppInsertError } = await supabase.from('procedure_phase_products').insert(pppRecordsToInsert);
+        if (pppInsertError) {
+            console.error(`SUPABASE_CUD: Error inserting product recommendations for ${procedureId}:`, pppInsertError);
+  }
+    }
+  }
+
   console.log(`SUPABASE_CUD: Successfully updated condition ${condition.name}`);
   return { success: true, error: null, data: condition };
 };
@@ -1084,7 +1288,7 @@ const deleteConditionFromSupabase = async (conditionId) => {
   const tablesToDeleteFrom = [
     'phase_specific_usage', 
     'condition_product_research_articles',
-    'patient_specific_configs',
+    'procedure_phase_products', // Replaces patient_specific_configs
     'product_details', // product_details references procedures
     'procedure_phases',
     'procedure_dentists',
@@ -1101,7 +1305,7 @@ const deleteConditionFromSupabase = async (conditionId) => {
   }
 
   // Finally, delete from 'procedures' table itself
-  const { data, error: procError } = await supabase.from('procedures').delete().eq('id', conditionId).select().single();
+  const { error: procError } = await supabase.from('procedures').delete().eq('id', conditionId);
   if (procError) {
     console.error(`SUPABASE_CUD: Error deleting procedure ${conditionId} from procedures table:`, procError);
     return { success: false, error: procError, data: null };
@@ -1110,7 +1314,7 @@ const deleteConditionFromSupabase = async (conditionId) => {
   return { success: true, error: null, data: { id: conditionId } };
 };
 
-function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, categories: propsCategories, ddsTypes: propsDdsTypes, allProducts: propsAllProducts }) {
+function AdminPanel({ onSaveChangesSuccess, onClose }) {
   const [activeTab, setActiveTab] = useState('conditions');
   const [initialConditions, setInitialConditions] = useState([]); // For diffing
   const [editedConditions, setEditedConditions] = useState([]);
@@ -1123,10 +1327,13 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
   const [productRenames, setProductRenames] = useState([]); // To track {oldName, newName}
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [conditionsToDelete, setConditionsToDelete] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
   
   // Patient-specific products configuration
-  const [activePatientType, setActivePatientType] = useState('all');
+  const [patientTypes, setPatientTypes] = useState([]); // To hold [{id, name}, ...] from DB
+  const [activePatientType, setActivePatientType] = useState('All'); // Holds the name or "All"
   const [patientSpecificProducts, setPatientSpecificProducts] = useState({});
   
   // Modal states
@@ -1145,68 +1352,49 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
   });
   
   // Initialize data
-  useEffect(() => {
-    console.log("AdminPanel: propsConditions changed, resetting initial and edited states.");
-    const deepClonedConditions = JSON.parse(JSON.stringify(propsConditions || []));
-    setInitialConditions(deepClonedConditions);
-    setEditedConditions(JSON.parse(JSON.stringify(propsConditions || []))); 
+  const loadInitialData = useCallback(async (forceRefresh = false) => {
+    console.log("PERFORMANCE_ADMIN: AdminPanel loading data...");
     
-    // If a condition was selected, try to find it in the new propsConditions
-    if (selectedCondition) {
-        const updatedSelected = deepClonedConditions.find(c => c.db_id ? c.db_id === selectedCondition.db_id : c.name === selectedCondition.name);
-        setSelectedCondition(updatedSelected || (deepClonedConditions.length > 0 ? deepClonedConditions[0] : null));
-    } else if (deepClonedConditions.length > 0) {
-        setSelectedCondition(deepClonedConditions[0]);
+    // Load conditions from Supabase (use cache when possible)
+    const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
+    const deepClonedConditions = JSON.parse(JSON.stringify(supabaseConditions || []));
+    setInitialConditions(deepClonedConditions);
+    setEditedConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
+    
+    // Auto-select the first condition
+    if (supabaseConditions.length > 0) {
+        setSelectedCondition(supabaseConditions[0]);
     } else {
         setSelectedCondition(null);
     }
-    setIsEditing(false);
-  }, [propsConditions]);
 
-  const loadInitialData = useCallback(async () => {
-    // Load conditions from Supabase
-    console.log("LOAD_INITIAL_DATA: Fetching conditions...");
-    const supabaseConditions = await loadConditionsFromSupabase();
-    // setEditedConditions(supabaseConditions); // This will be set via onConditionsUpdate pattern
-
-    // Load categories, DDS types, and products
-    console.log("LOAD_INITIAL_DATA: Fetching categories, DDS types, products...");
+    // Load categories, DDS types, and products directly into AdminPanel state
     const supabaseCategories = await loadCategoriesFromSupabase();
     const supabaseDdsTypes = await loadDdsTypesFromSupabase();
     const productsResult = await loadProductsFromSupabase();
-    const supabaseProducts = productsResult.success ? productsResult.data : [];
-
-    // Update parent and local state
-    // The `conditions` prop change will trigger the useEffect to set initialConditions and editedConditions
-    onConditionsUpdate(supabaseConditions, supabaseCategories, supabaseDdsTypes, supabaseProducts);
-
-
-    // Logic for merging with localStorage can be removed if Supabase is sole source of truth
-    // setCategories(supabaseCategories.sort());
-    // setDdsTypes(supabaseDdsTypes.sort());
-    // setAllProducts(supabaseProducts.sort());
-
-    if (supabaseConditions.length > 0 && !selectedCondition) {
-      // setSelectedCondition(supabaseConditions[0]); // Selection will be handled by parent or prop changes
-    } else if (selectedCondition) {
-      const updatedSelected = supabaseConditions.find(c => c.db_id === selectedCondition.db_id || c.name === selectedCondition.name);
-      setSelectedCondition(updatedSelected || (supabaseConditions.length > 0 ? supabaseConditions[0] : null));
+    
+    setCategories(supabaseCategories.sort());
+    setDdsTypes(supabaseDdsTypes.sort());
+    if (productsResult.success) {
+      setAllProducts(productsResult.data.sort());
     }
-    console.log("LOAD_INITIAL_DATA: Completed.");
-  }, [onConditionsUpdate]); // selectedCondition removed as it's managed internally or via props
+    
+    // Load dynamic patient types
+    const { data: ptData, error: ptError } = await supabase.from('patient_types').select('id, name').order('name');
+    if (ptError) {
+      console.error("Failed to load patient types", ptError);
+      setPatientTypes([]);
+    } else {
+      setPatientTypes(ptData);
+    }
+    
+    setIsEditing(false); // Reset editing state after a full load
+    console.log("PERFORMANCE_ADMIN: AdminPanel data fetch completed.");
+  }, []);
 
   useEffect(() => {
     loadInitialData();
-  }, [loadInitialData]); // loadInitialData is stable due to useCallback
-
-  // Effect to update local states when props change (e.g., after loadInitialData calls onConditionsUpdate)
-  useEffect(() => {
-    console.log("AdminPanel: Props changed, updating local states (categories, ddsTypes, allProducts).");
-    // `conditions` prop is handled by a separate useEffect to set initialConditions/editedConditions
-    setCategories(propsCategories || []);
-    setDdsTypes(propsDdsTypes || []);
-    setAllProducts(propsAllProducts || []);
-  }, [propsCategories, propsDdsTypes, propsAllProducts]);
+  }, [loadInitialData]);
 
   // Initialize patient-specific products when a condition is selected
   useEffect(() => {
@@ -1243,61 +1431,46 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
 
   // Initialize patient-specific products for a condition
   const initializePatientSpecificProducts = (condition) => {
-    if (!condition) return;
+    if (!condition) {
+        return;
+    }
     
-    const patientProducts = {};
-    
-    // For each phase
-    condition.phases.forEach(phase => {
-      patientProducts[phase] = {
-        'all': condition.products[phase] || [],
-        '1': [],
-        '2': [],
-        '3': [],
-        '4': []
-      };
-      
-      // Analyze existing products to determine patient-specific assignments
-      const allProducts = condition.products[phase] || [];
-      
-      // Process regular products (for all patients)
-      allProducts.forEach(product => {
-        if (!product.includes('(Type')) {
-          // Regular products apply to all patient types
-          patientProducts[phase]['1'].push(product);
-          patientProducts[phase]['2'].push(product);
-          patientProducts[phase]['3'].push(product);
-          patientProducts[phase]['4'].push(product);
-        } 
-        // Process type-specific products
-        else if (product.includes('(Type 3/4 Only)')) {
-          const baseProduct = product.replace(' (Type 3/4 Only)', '');
-          patientProducts[phase]['3'].push(baseProduct);
-          patientProducts[phase]['4'].push(baseProduct);
+    const newPatientSpecificProducts = {};
+    const phases = condition.phases || [];
+
+    phases.forEach(phase => {
+        // The config is already keyed by name, so this is simpler.
+        // We just ensure all patient types exist in the structure for the UI.
+        const phaseConfig = (condition.patientSpecificConfig && condition.patientSpecificConfig[phase])
+            ? JSON.parse(JSON.stringify(condition.patientSpecificConfig[phase])) // Deep copy
+            : {};
+
+        const fullPhaseConfig = {};
+        patientTypes.forEach(pt => {
+          fullPhaseConfig[pt.name] = phaseConfig[pt.name] || [];
+        });
+
+        // Derive the 'all' list for UI display. 'all' represents products common to all patient types.
+        const allProductsInPhase = new Set();
+        Object.values(fullPhaseConfig).forEach(prodList => {
+            prodList.forEach(prod => allProductsInPhase.add(prod));
+        });
+
+        const commonProducts = [];
+        if (allProductsInPhase.size > 0 && patientTypes.length > 0) {
+            allProductsInPhase.forEach(product => {
+                const isInAllTypes = patientTypes.every(pt => (fullPhaseConfig[pt.name] || []).includes(product));
+                if(isInAllTypes) {
+                    commonProducts.push(product);
+                }
+            });
         }
-      });
-      
-      // Try to infer patient types from condition patterns in Excel
-      // For specific conditions with known patterns
-      if (condition.name === 'Gingival Recession Surgery' && phase === 'Prep') {
-        // Type 1 gets nothing (N/A in Excel)
-        patientProducts[phase]['1'] = [];
-      }
-      
-      // For conditions where Type 3/4 get additional products
-      if (
-        (condition.name === 'Gingival Recession Surgery' && phase === 'Acute') ||
-        (condition.name === 'Scaling and Root Planing (SRP)' && phase === 'Acute')
-      ) {
-        if (patientProducts[phase]['3'].includes('Synvaza') && 
-            !patientProducts[phase]['3'].includes('AO ProVantage Gel')) {
-          patientProducts[phase]['3'].push('AO ProVantage Gel');
-          patientProducts[phase]['4'].push('AO ProVantage Gel');
-        }
-      }
+        
+        fullPhaseConfig.all = [...new Set(commonProducts)];
+        newPatientSpecificProducts[phase] = fullPhaseConfig;
     });
     
-    setPatientSpecificProducts(patientProducts);
+    setPatientSpecificProducts(newPatientSpecificProducts);
   };
 
   // Edit existing product
@@ -1314,47 +1487,95 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
 
   // Save all changes
   const handleSaveChanges = async () => {
-    console.log('SAVE_CHANGES: Starting to save UPDATED conditions to Supabase...');
+    console.log('PERFORMANCE_SAVE: Starting optimized save to Supabase...');
+    const saveStartTime = performance.now();
     setIsSaving(true);
     let overallSuccess = true;
     let finalError = null;
 
     try {
-      console.log('SAVE_CHANGES: Fetching latest entity ID maps...');
+      // Step 0: Apply the patient-specific product configurations from the UI state
+      // back to the `editedConditions` array before we start the save process.
+      applyPatientSpecificProductsToCondition();
+
+      // Step 1: Sync all lookup tables in parallel (Categories, DDS, Products, Phases)
+      console.log('PERFORMANCE_SAVE: Syncing all lookup tables in parallel...');
+      const allPhaseNames = new Set(editedConditions.flatMap(c => c.phases || []));
+      
+      await Promise.all([
+        syncCategoriesWithSupabase(categories),
+        syncDdsTypesWithSupabase(ddsTypes),
+        syncProductsWithSupabase(allProducts, productRenames),
+        syncPhasesWithSupabase(allPhaseNames)
+      ]);
+      
+      setProductRenames([]); // Clear renames after they are processed
+      console.log('PERFORMANCE_SAVE: All lookup tables synced in parallel.');
+
+      // Step 2: Get fresh ID maps AFTER syncing everything.
+      console.log('SAVE_CHANGES: Fetching latest entity ID maps post-sync...');
       const entityIdMaps = await getEntityIdMaps();
-      if (!entityIdMaps.categoryNameToId || !entityIdMaps.productNameToId || !entityIdMaps.phaseNameToId || !entityIdMaps.ddsTypeNameToId || !entityIdMaps.patientCodeToIdMap) {
-          console.error("SAVE_CHANGES: Failed to fetch critical ID maps. Aborting save.");
+      if (!entityIdMaps.categoryNameToId || !entityIdMaps.productNameToId || !entityIdMaps.phaseNameToId || !entityIdMaps.ddsTypeNameToId || !entityIdMaps.patientTypeNameToIdMap) {
+          console.error("SAVE_CHANGES: Failed to fetch critical ID maps after sync. Aborting save.");
           setIsSaving(false);
           // Show error to user
           return;
       }
-      console.log('SAVE_CHANGES: Entity ID maps fetched.');
+      console.log('SAVE_CHANGES: Entity ID maps fetched successfully.');
 
-      // Sync categories, DDS types, and Products can be a fallback or for complex ops not made immediate.
-      // For now, assuming individual CUDs are making them mostly up-to-date.
-      // Consider if these are still needed or if their logic needs adjustment.
-      console.log('SAVE_CHANGES: Syncing categories, DDS types, products (as fallback/complex ops)...');
-      await syncCategoriesWithSupabase(categories); 
-      await syncDdsTypesWithSupabase(ddsTypes);
-      await syncProductsWithSupabase(allProducts, productRenames); // productRenames might be empty if renames are immediate
-      setProductRenames([]); // Clear renames if they were processed by syncProducts
-      console.log('SAVE_CHANGES: Categories, DDS Types, Products synced (fallback).');
+      // Step 3: Process DELETED conditions
+      const conditionsToDeleteCopy = [...conditionsToDelete];
+      setConditionsToDelete([]); // Clear immediately
+      for (const condIdToDelete of conditionsToDeleteCopy) {
+        console.log(`SAVE_CHANGES: Deleting condition with ID: ${condIdToDelete}`);
+        const deleteResult = await deleteConditionFromSupabase(condIdToDelete);
+        if (!deleteResult.success) {
+            overallSuccess = false;
+            finalError = deleteResult.error;
+            console.error(`SAVE_CHANGES: Failed to delete condition ${condIdToDelete}:`, deleteResult.error);
+        }
+      }
 
-      // Determine only UPDATED conditions
+      // Step 4: Determine ADDED and UPDATED conditions from the single source of truth: `editedConditions`
       const conditionsToUpdate = [];
+      const conditionsToAdd = [];
       const initialConditionsMap = new Map(initialConditions.map(c => [c.db_id, c]));
 
       for (const editedCond of editedConditions) {
-        if (editedCond.db_id) { // Only consider existing conditions for update
+        if (editedCond.db_id) { // Existing condition
           const originalCond = initialConditionsMap.get(editedCond.db_id);
-          if (originalCond && JSON.stringify(originalCond) !== JSON.stringify(editedCond)) {
-            conditionsToUpdate.push(editedCond);
+          if (originalCond) {
+            const originalStr = JSON.stringify(originalCond);
+            const editedStr = JSON.stringify(editedCond);
+            
+            if (originalStr !== editedStr) {
+              console.log(`CHANGE_DETECTION: Condition "${editedCond.name}" has changes detected.`);
+              console.log('Original patientSpecificConfig:', JSON.stringify(originalCond.patientSpecificConfig, null, 2));
+              console.log('Edited patientSpecificConfig:', JSON.stringify(editedCond.patientSpecificConfig, null, 2));
+              conditionsToUpdate.push(editedCond);
+            } else {
+              console.log(`CHANGE_DETECTION: No changes detected for condition "${editedCond.name}".`);
+            }
           }
+        } else { // New condition
+          conditionsToAdd.push(editedCond);
         }
       }
+      console.log('SAVE_CHANGES: Conditions to add:', conditionsToAdd.map(c => c.name));
       console.log('SAVE_CHANGES: Conditions to update:', conditionsToUpdate.map(c => c.name));
       
-      // Process Updates for existing conditions
+      // Step 5: Process ADDED new conditions
+      for (const condToAdd of conditionsToAdd) {
+        console.log(`SAVE_CHANGES: Adding new condition: ${condToAdd.name}`);
+        const addResult = await addConditionToSupabase(condToAdd, entityIdMaps);
+         if (!addResult.success) {
+          overallSuccess = false;
+          finalError = addResult.error;
+          console.error(`SAVE_CHANGES: Failed to add condition ${condToAdd.name}:`, addResult.error);
+        }
+      }
+
+      // Step 6: Process UPDATED existing conditions
       for (const condToUpdate of conditionsToUpdate) {
         console.log(`SAVE_CHANGES: Updating condition: ${condToUpdate.name}`);
         const updateResult = await updateConditionInSupabase(condToUpdate, entityIdMaps);
@@ -1365,164 +1586,138 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
         }
       }
 
+      // Step 7: Finalize and reload
       if (overallSuccess) {
-        console.log('SAVE_CHANGES: All Supabase operations for condition updates successful.');
-        console.log('SAVE_CHANGES: Reloading all data from Supabase to ensure UI consistency...');
-        await loadInitialData(); // Reloads everything and calls onConditionsUpdate
+        const saveEndTime = performance.now();
+        console.log(`PERFORMANCE_SAVE: All operations successful in ${Math.round(saveEndTime - saveStartTime)}ms`);
+        console.log('PERFORMANCE_SAVE: Reloading data and notifying parent...');
         
-        // UI update handled by loadInitialData and prop changes
+        // Invalidate cache and reload data in parallel
+        invalidateConditionsCache();
+        await Promise.all([
+          loadInitialData(true), // Force refresh for admin panel state
+          Promise.resolve(onSaveChangesSuccess()) // Notifies the parent to reload its own data
+        ]);
+        
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
-        console.log('SAVE_CHANGES: Successfully saved condition updates to Supabase and updated parent.');
       } else {
-        console.error('SAVE_CHANGES: One or more Supabase operations failed for condition updates.', finalError);
+        console.error('PERFORMANCE_SAVE: One or more operations failed.', finalError);
         // Attempt to reload to reflect DB state even on partial failure
-        await loadInitialData();
+        await Promise.all([
+          loadInitialData(true),
+          Promise.resolve(onSaveChangesSuccess())
+        ]);
       }
-      // Removed localStorage save as Supabase is the source of truth
 
     } catch (error) {
-      console.error('SAVE_CHANGES: Critical error during save process:', error);
+      console.error('PERFORMANCE_SAVE: Critical error during save process:', error);
       overallSuccess = false;
-      await loadInitialData(); // Attempt to sync with DB on critical error
+      await Promise.all([
+        loadInitialData(true),
+        Promise.resolve(onSaveChangesSuccess())
+      ]);
     } finally {
       setIsSaving(false);
-      console.log('SAVE_CHANGES: Finished saving changes process.');
+      const totalTime = performance.now() - saveStartTime;
+      console.log(`PERFORMANCE_SAVE: Total save process completed in ${Math.round(totalTime)}ms`);
     }
   };
   
-  // Apply patient-specific products to condition before saving
-  const applyPatientSpecificProducts = () => {
-    if (!selectedCondition) return [...editedConditions];
-    
-    // Deep copy of edited conditions
-    const updatedConditions = JSON.parse(JSON.stringify(editedConditions));
-    
-    // Find the condition to update
-    const conditionIndex = updatedConditions.findIndex(c => c.name === selectedCondition.name);
-    if (conditionIndex === -1) return updatedConditions;
-    
-    // Create a metadata field if it doesn't exist to store patient-specific configurations
-    if (!updatedConditions[conditionIndex].patientSpecificConfig) {
-      updatedConditions[conditionIndex].patientSpecificConfig = {};
+  const applyPatientSpecificProductsToCondition = () => {
+    if (!selectedCondition || !patientSpecificProducts) {
+      console.log("APPLY_CONFIG: Skipping - no selected condition or patient specific products");
+      return;
     }
     
-    // Store the complete patient-specific configuration
-    updatedConditions[conditionIndex].patientSpecificConfig = JSON.parse(JSON.stringify(patientSpecificProducts));
+    console.log("APPLY_CONFIG: Applying patient-specific products to condition:", selectedCondition.name);
+    console.log("APPLY_CONFIG: Current patientSpecificProducts:", JSON.stringify(patientSpecificProducts, null, 2));
     
-    // Update each phase's products for backward compatibility with existing code
-    Object.keys(patientSpecificProducts).forEach(phase => {
-      const phaseProducts = [];
-      const patientTypesForPhase = patientSpecificProducts[phase];
-      
-      // Start with regular products (all patient types)
-      const commonProducts = new Set();
-      
-      // Find products common to all patient types
-      const allPatientTypes = ['1', '2', '3', '4'];
-      const productsInAllTypes = new Set();
-      
-      // First pass: collect all products
-      allPatientTypes.forEach(patientType => {
-        (patientTypesForPhase[patientType] || []).forEach(product => {
-          productsInAllTypes.add(product);
-        });
-      });
-      
-      // Second pass: find which products are in all patient types
-      for (const product of productsInAllTypes) {
-        const isInAllTypes = allPatientTypes.every(patientType => 
-          (patientTypesForPhase[patientType] || []).includes(product)
-        );
-        
-        if (isInAllTypes) {
-          commonProducts.add(product);
-        }
-      }
-      
-      // Add common products first
-      phaseProducts.push(...Array.from(commonProducts));
-      
-      // Check for Type 3/4 specific products
-      const type34Products = new Set();
-      
-      (patientTypesForPhase['3'] || []).forEach(product => {
-        if (
-          (patientTypesForPhase['4'] || []).includes(product) && 
-          !(patientTypesForPhase['1'] || []).includes(product) && 
-          !(patientTypesForPhase['2'] || []).includes(product) &&
-          !product.includes('(Type')
-        ) {
-          type34Products.add(`${product} (Type 3/4 Only)`);
-        }
-      });
-      
-      // Add Type 3/4 specific products
-      phaseProducts.push(...Array.from(type34Products));
-      
-      // Update the condition's products for this phase
-      updatedConditions[conditionIndex].products[phase] = phaseProducts;
-      
-      // Ensure all products have product details
-      const allProductsToCheck = [
-        ...commonProducts, 
-        ...Array.from(type34Products).map(p => p.replace(' (Type 3/4 Only)', '')),
-        // Add products that are only in some patient types
-        ...[...productsInAllTypes].filter(p => !commonProducts.has(p))
-      ];
-      
-      // Initialize productDetails if it doesn't exist
-      if (!updatedConditions[conditionIndex].productDetails) {
-        updatedConditions[conditionIndex].productDetails = {};
-      }
-      
-      // Make sure all products have details
-      allProductsToCheck.forEach(product => {
-        const cleanProductName = product.replace(' (Type 3/4 Only)', '');
-        
-        // If product doesn't have details yet, create empty details
-        if (!updatedConditions[conditionIndex].productDetails[cleanProductName]) {
-          updatedConditions[conditionIndex].productDetails[cleanProductName] = {
-            usage: '',
-            rationale: '',
-            competitive: '',
-            objection: '',
-            factSheet: '#',
-            researchArticles: [] // Initialize with empty array
-          };
+    // This helper updates the `editedConditions` array, which is the single source of truth.
+    setEditedConditions(prevConditions =>
+      prevConditions.map(cond => {
+        if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+          // The patientSpecificProducts state has a `all` key for the UI which we must omit before saving.
+          const configToSave = {};
+          Object.keys(patientSpecificProducts).forEach(phase => {
+            configToSave[phase] = {};
+            Object.keys(patientSpecificProducts[phase]).forEach(ptName => {
+              if (ptName !== 'all') { // Exclude the 'all' property
+                configToSave[phase][ptName] = patientSpecificProducts[phase][ptName];
+              }
+            });
+          });
           
-          // Try to find product details from other conditions
-          for (const condition of updatedConditions) {
-            if (condition.productDetails && condition.productDetails[cleanProductName]) {
-              updatedConditions[conditionIndex].productDetails[cleanProductName] = {
-                ...condition.productDetails[cleanProductName] // This will include researchArticles if they exist
-              };
-              break;
+          console.log("APPLY_CONFIG: Config to save:", JSON.stringify(configToSave, null, 2));
+          
+          // Return a new condition object with the updated config
+          return { ...cond, patientSpecificConfig: configToSave };
+        }
+        return cond;
+      })
+    );
+    console.log("APPLY_CONFIG: Synced patient-specific product config to the main editedConditions state for saving.");
+  };
+
+  // Get all products that should be shown in Product Details (both saved and newly added)
+  const getAllProductsForCondition = (condition) => {
+    if (!condition) return {};
+      
+    // Start with saved product details
+    const allProducts = { ...(condition.productDetails || {}) };
+
+    // Add products from current session's patient-specific configuration
+    const currentConfig = patientSpecificProducts || {};
+    Object.keys(currentConfig).forEach(phase => {
+      if (phase && currentConfig[phase]) {
+        Object.keys(currentConfig[phase]).forEach(patientTypeName => {
+          if (patientTypeName !== 'all') {
+            const products = currentConfig[phase][patientTypeName] || [];
+            products.forEach(productName => {
+              if (!allProducts[productName]) {
+                // Create a basic product detail entry for newly added products
+                allProducts[productName] = {
+                  usage: {},
+            rationale: '',
+            handlingObjections: '',
+            factSheetUrl: '#',
+                  researchArticles: [],
+                  clinicalEvidence: '',
+                  pitchPoints: '',
+                  scientificRationale: '',
+                };
             }
-          }
+            });
         }
       });
+      }
     });
     
-    return updatedConditions;
+    return allProducts;
   };
   
   // Reset changes
   const handleResetChanges = () => {
-    setEditedConditions([...propsConditions]);
+    const deepClonedInitial = JSON.parse(JSON.stringify(initialConditions));
+    setEditedConditions(deepClonedInitial);
+    
+    // Find the currently selected condition in the newly reset list
+    const newSelectedCond = selectedCondition 
+      ? deepClonedInitial.find(c => c.db_id ? c.db_id === selectedCondition.db_id : c.name === selectedCondition.name)
+      : deepClonedInitial[0] || null;
+
+    setSelectedCondition(newSelectedCond);
     setIsEditing(false);
     setProductRenames([]); // Clear pending renames on reset
+    setConditionsToDelete([]); // Clear pending deletes
     
-    // Reset patient-specific products
-    if (selectedCondition) {
-      initializePatientSpecificProducts(selectedCondition);
-    }
+    // The useEffect for selectedCondition will re-initialize patient-specific products
   };
   
   // Handle condition selection
   const handleConditionSelect = (condition) => {
     setSelectedCondition(condition);
-    setActivePatientType('all');
+    setActivePatientType('All');
     initializePatientSpecificProducts(condition);
   };
   
@@ -1556,8 +1751,8 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
               rationale: '',
               clinicalEvidence: '',
               competitive: '',
-              objection: '',
-              factSheet: '#',
+              handlingObjections: '',
+              factSheetUrl: '#',
               researchArticles: [],
               pitchPoints: '' // Add this field for new products
             };
@@ -1588,8 +1783,8 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
         rationale: '',
           clinicalEvidence: '',
         competitive: '',
-        objection: '',
-        factSheet: '#',
+        handlingObjections: '',
+        factSheetUrl: '#',
           researchArticles: [],
           pitchPoints: '' // Add this field for new products
       };
@@ -1617,48 +1812,82 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
     setActivePatientType(type);
   };
   
+  const updatePatientSpecificConfigForSelectedCondition = (newConfig) => {
+    if (!selectedCondition) return;
+    
+    // This helper updates the `editedConditions` array, which is the single source of truth.
+    setEditedConditions(prevConditions => 
+      prevConditions.map(cond => {
+        if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+          // Return a new condition object with the updated config
+          return { ...cond, patientSpecificConfig: newConfig };
+        }
+        return cond;
+      })
+    );
+  };
+  
   // Add product to specific patient type and phase
   const addProductToPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
     
-    // Update patient-specific products
     setPatientSpecificProducts(prev => {
-      const updated = { ...prev };
-      
-      // Initialize phase if not exists
-      if (!updated[phase]) {
-        updated[phase] = {
-          'all': [],
-          '1': [],
-          '2': [],
-          '3': [],
-          '4': []
-        };
-      }
-      
-      // If patientType is 'all', add to all patient types
-      if (patientType === 'all') {
-        // Add to all patient types, including 'all'
-        updated[phase]['all'] = [...new Set([...updated[phase]['all'], productName])];
-        updated[phase]['1'] = [...new Set([...updated[phase]['1'], productName])];
-        updated[phase]['2'] = [...new Set([...updated[phase]['2'], productName])];
-        updated[phase]['3'] = [...new Set([...updated[phase]['3'], productName])];
-        updated[phase]['4'] = [...new Set([...updated[phase]['4'], productName])];
-      } else {
-        // Add to specific patient type
-        updated[phase][patientType] = [...new Set([...updated[phase][patientType], productName])];
+        const newConfig = JSON.parse(JSON.stringify(prev));
         
-        // Check if product is now in all individual patient types and update 'all' accordingly
-        const isInAllTypes = ['1', '2', '3', '4'].every(type => 
-          updated[phase][type].includes(productName)
-        );
-        
-        if (isInAllTypes && !updated[phase]['all'].includes(productName)) {
-          updated[phase]['all'] = [...updated[phase]['all'], productName];
+        if (!newConfig[phase]) {
+            newConfig[phase] = { 'all': [], ...Object.fromEntries(patientTypes.map(pt => [pt.name, []])) };
         }
-      }
-      
-      return updated;
+
+      if (patientType === 'all') {
+            // Add product to every patient type
+            patientTypes.forEach(type => {
+                newConfig[phase][type.name] = [...new Set([...(newConfig[phase][type.name] || []), productName])];
+            });
+      } else {
+            newConfig[phase][patientType] = [...new Set([...(newConfig[phase][patientType] || []), productName])];
+        }
+
+        // Recalculate the 'all' list for UI display
+        const allProductsInPhase = new Set();
+        const commonProducts = [];
+
+        patientTypes.forEach(pt => {
+            (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
+        });
+
+        if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
+            allProductsInPhase.forEach(product => {
+                const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
+                if (isInAllTypes) {
+                    commonProducts.push(product);
+                }
+            });
+        }
+        newConfig[phase].all = [...new Set(commonProducts)];
+
+        // Immediately update editedConditions to ensure proper change detection
+        if (selectedCondition) {
+          const configToSave = {};
+          Object.keys(newConfig).forEach(phaseName => {
+            configToSave[phaseName] = {};
+            Object.keys(newConfig[phaseName]).forEach(ptName => {
+              if (ptName !== 'all') { // Exclude the 'all' property
+                configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
+              }
+            });
+          });
+
+          setEditedConditions(prevConditions =>
+            prevConditions.map(cond => {
+              if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+                return { ...cond, patientSpecificConfig: configToSave };
+              }
+              return cond;
+            })
+          );
+        }
+
+        return newConfig;
     });
   };
   
@@ -1666,26 +1895,66 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
   const removeProductFromPatientType = (phase, patientType, productName) => {
     setIsEditing(true);
     
-    // Update patient-specific products
     setPatientSpecificProducts(prev => {
-      const updated = { ...prev };
+        const newConfig = JSON.parse(JSON.stringify(prev));
       
-      // If patientType is 'all', remove from all patient types
+        if (!newConfig[phase]) return prev; // No change if phase doesn't exist
+
       if (patientType === 'all') {
-        updated[phase]['all'] = updated[phase]['all'].filter(p => p !== productName);
-        updated[phase]['1'] = updated[phase]['1'].filter(p => p !== productName);
-        updated[phase]['2'] = updated[phase]['2'].filter(p => p !== productName);
-        updated[phase]['3'] = updated[phase]['3'].filter(p => p !== productName);
-        updated[phase]['4'] = updated[phase]['4'].filter(p => p !== productName);
+            // When removing from 'all', remove from every patient type
+            patientTypes.forEach(type => {
+                if (newConfig[phase][type.name]) {
+                    newConfig[phase][type.name] = newConfig[phase][type.name].filter(p => p !== productName);
+                }
+            });
       } else {
-        // Remove from specific patient type
-        updated[phase][patientType] = updated[phase][patientType].filter(p => p !== productName);
+            // Just remove from the specific type
+            if (newConfig[phase][patientType]) {
+                newConfig[phase][patientType] = newConfig[phase][patientType].filter(p => p !== productName);
+            }
+        }
+
+        // Recalculate the 'all' list since a product was removed
+        const allProductsInPhase = new Set();
+        const commonProducts = [];
+
+        patientTypes.forEach(pt => {
+            (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
+        });
         
-        // Remove from 'all' as well since it's no longer in all patient types
-        updated[phase]['all'] = updated[phase]['all'].filter(p => p !== productName);
+        if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
+            allProductsInPhase.forEach(product => {
+                const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
+                if (isInAllTypes) {
+                    commonProducts.push(product);
       }
+            });
+        }
+        newConfig[phase].all = [...new Set(commonProducts)];
+
+        // Immediately update editedConditions to ensure proper change detection
+        if (selectedCondition) {
+          const configToSave = {};
+          Object.keys(newConfig).forEach(phaseName => {
+            configToSave[phaseName] = {};
+            Object.keys(newConfig[phaseName]).forEach(ptName => {
+              if (ptName !== 'all') { // Exclude the 'all' property
+                configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
+              }
+            });
+          });
+
+          setEditedConditions(prevConditions =>
+            prevConditions.map(cond => {
+              if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+                return { ...cond, patientSpecificConfig: configToSave };
+              }
+              return cond;
+            })
+          );
+        }
       
-      return updated;
+        return newConfig;
     });
   };
   // Add new condition
@@ -1751,78 +2020,88 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
       const productName = itemName;
       if (editingProductId) { // Editing existing product (rename)
         if (editingProductId !== productName) {
-          console.log(`SUBMIT_NEW_ITEM: Renaming product ${editingProductId} to ${productName}`);
-          const renameResult = await updateProductInSupabase(editingProductId, productName);
-          if (renameResult.success) {
-            console.log('SUBMIT_NEW_ITEM: Product rename successful.');
-            // No longer need productRenames state if renames are immediate like this.
-            // Ensure allProducts and condition details are updated.
-            success = true;
-          } else {
-            console.error('SUBMIT_NEW_ITEM: Product rename failed.');
-            // Show error to user
-          }
-        } else { // Name didn't change, no DB op needed, just close modal
+          console.log(`SUBMIT_NEW_ITEM: Staging rename of product ${editingProductId} to ${productName}`);
+          // Instead of immediate Supabase call, stage the rename
+          setProductRenames(prev => [...prev, { oldName: editingProductId, newName: productName }]);
+          // Update allProducts list locally for immediate UI feedback
+          setAllProducts(prev => prev.map(p => p === editingProductId ? productName : p).sort());
+          // Update editedConditions to reflect the rename
+          setEditedConditions(prevConditions =>
+            prevConditions.map(condition => {
+                const updatedProductsInPhases = { ...condition.products };
+                Object.keys(updatedProductsInPhases).forEach(phase => {
+                    updatedProductsInPhases[phase] = updatedProductsInPhases[phase].map(p =>
+                        p === editingProductId ? productName :
+                        p === `${editingProductId} (Type 3/4 Only)` ? `${productName} (Type 3/4 Only)` : p
+                    );
+                });
+                const updatedProductDetails = { ...condition.productDetails };
+                if (updatedProductDetails[editingProductId]) {
+                    updatedProductDetails[productName] = updatedProductDetails[editingProductId];
+                    delete updatedProductDetails[editingProductId];
+                }
+                const updatedPatientSpecificConfig = JSON.parse(JSON.stringify(condition.patientSpecificConfig || {}));
+                Object.keys(updatedPatientSpecificConfig).forEach(phase => {
+                    Object.keys(updatedPatientSpecificConfig[phase]).forEach(type => {
+                        updatedPatientSpecificConfig[phase][type] = (updatedPatientSpecificConfig[phase][type] || []).map(p => p === editingProductId ? productName : p);
+                    });
+                });
+
+                return {
+                    ...condition,
+                    products: updatedProductsInPhases,
+                    productDetails: updatedProductDetails,
+                    patientSpecificConfig: updatedPatientSpecificConfig,
+                };
+            })
+          );
+          success = true;
+        } else { // Name didn't change
           success = true; 
         }
       } else { // Adding new product
-        console.log(`SUBMIT_NEW_ITEM: Adding new product ${productName}`);
-        const addResult = await addProductToSupabase(productName);
-        if (addResult.success) {
-          console.log('SUBMIT_NEW_ITEM: Product add successful.');
-          success = true;
-        } else {
-          console.error('SUBMIT_NEW_ITEM: Product add failed.');
+        console.log(`SUBMIT_NEW_ITEM: Staging addition of new product ${productName}`);
+        // Instead of immediate Supabase call, add to local list
+        if (!allProducts.includes(productName)) {
+          setAllProducts(prev => [...prev, productName].sort());
         }
-      }
-      if (success) await loadInitialData(); // Reload all products and other data
+          success = true;
+        }
 
   } else if (modalType === 'condition') {
-    console.log(`SUBMIT_NEW_ITEM: Adding new condition ${itemName}`);
-    const entityIdMaps = await getEntityIdMaps(); // Get maps for creating relations
-    const newConditionObject = { // Build the full new condition object from newItemData
+    // This is now handled by handleSaveChanges
+    console.log(`SUBMIT_NEW_ITEM: Staging new condition for addition: ${itemName}`);
+    const newConditionObject = {
         name: itemName,
         category: newItemData.category || (categories.length > 0 ? categories[0] : ''),
-        phases: newItemData.phases || ['Prep', 'Acute', 'Maintenance'], // Default phases
+        phases: newItemData.phases || ['Prep', 'Acute', 'Maintenance'],
         dds: newItemData.dds || [],
-        patientType: newItemData.patientType || 'Types 1 to 4', // Default
-        products: newItemData.products || { Prep: [], Acute: [], Maintenance: [] }, // Ensure products structure
+        patientType: newItemData.patientType || 'Types 1 to 4',
+        products: newItemData.products || { Prep: [], Acute: [], Maintenance: [] },
         productDetails: newItemData.productDetails || {},
         patientSpecificConfig: newItemData.patientSpecificConfig || {},
         conditionSpecificResearch: newItemData.conditionSpecificResearch || {},
         pitchPoints: newItemData.pitchPoints || '',
         scientificRationale: newItemData.scientificRationale || '',
         clinicalEvidence: newItemData.clinicalEvidence || '',
-        handlingObjections: newItemData.objection || '', //newItemData uses 'objection'
+        handlingObjections: newItemData.handlingObjections || '',
+        // No db_id, which marks it as new
       };
-    const addResult = await addConditionToSupabase(newConditionObject, entityIdMaps);
-    if (addResult.success && addResult.data) {
-      console.log('SUBMIT_NEW_ITEM: Condition add successful, new ID:', addResult.data.db_id);
+    setEditedConditions(prev => [...prev, newConditionObject]);
       success = true;
-      await loadInitialData(); // Reload all conditions
-    } else {
-      console.error('SUBMIT_NEW_ITEM: Condition add failed.', addResult.error);
-    }
+
   } else if (modalType === 'category') {
-    console.log(`SUBMIT_NEW_ITEM: Adding new category ${itemName}`);
-    const addResult = await addCategoryToSupabase(itemName);
-    if (addResult.success) {
-        console.log('SUBMIT_NEW_ITEM: Category add successful.');
-        success = true;
-        await loadInitialData(); // Reload categories and other data
-    } else {
-        console.error('SUBMIT_NEW_ITEM: Category add failed.');
+    console.log(`SUBMIT_NEW_ITEM: Staging addition of new category ${itemName}`);
+    if (!categories.includes(itemName)) {
+      setCategories(prev => [...prev, itemName].sort());
     }
+    success = true;
   } else if (modalType === 'ddsType') {
-    console.log(`SUBMIT_NEW_ITEM: Adding new DDS Type ${itemName}`);
-    const addResult = await addDdsTypeToSupabase(itemName);
-     if (addResult.success) {
-        console.log('SUBMIT_NEW_ITEM: DDS Type add successful.');
-        success = true;
-        await loadInitialData(); // Reload DDS Types and other data
-    } else {
-        console.error('SUBMIT_NEW_ITEM: DDS Type add failed.');
+    console.log(`SUBMIT_NEW_ITEM: Staging addition of new DDS Type ${itemName}`);
+    if (!ddsTypes.includes(itemName)) {
+      setDdsTypes(prev => [...prev, itemName].sort());
     }
+        success = true;
   }
   
   if (success) {
@@ -1885,82 +2164,88 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
   
   // Handle delete
   const handleDelete = async () => {
-  // setIsEditing(true); // Flag that a change is occurring.
+    if (isDeleting) return;
+  
+    try {
+      setIsEditing(true);
+      setIsDeleting(true);
   const { type, item } = itemToDelete;
   let success = false;
   
   if (type === 'condition') {
     if (!item.db_id) {
-        console.log("DELETE: Attempting to delete a new, unsaved condition locally:", item.name);
+            console.log("DELETE: Staging deletion of a new, unsaved condition locally:", item.name);
         setEditedConditions(prev => prev.filter(c => c.name !== item.name));
         if (selectedCondition && selectedCondition.name === item.name) {
-            setSelectedCondition(editedConditions.length > 1 ? editedConditions.filter(c=>c.name !== item.name)[0] : null);
-        }
-        success = true; // Local removal success
-    } else {
-        console.log(`DELETE: Deleting condition "${item.name}" (ID: ${item.db_id}) from Supabase.`);
-        const deleteResult = await deleteConditionFromSupabase(item.db_id);
-        if (deleteResult.success) {
-            console.log('DELETE: Condition deletion from Supabase successful.');
+                const remainingConditions = editedConditions.filter(c => c.name !== item.name);
+                setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
+            }
             success = true;
         } else {
-            console.error('DELETE: Condition deletion from Supabase failed.', deleteResult.error);
-        }
-    }
-  } else if (type === 'product') {
-    console.log(`DELETE: Deleting product "${item}" from Supabase.`);
-    // Before deleting product, remove its references from conditions
-    // This is complex due to patientSpecificConfig, productDetails etc.
-    // A simpler approach for product deletion might be to rely on cascade or handle it via a backend function.
-    // For now, we will proceed with direct deletion and then reload data.
-    // Potential orphaned references in condition JSON might occur if not handled carefully by loadConditionsFromSupabase.
-
-    const deleteResult = await deleteProductFromSupabase(item); // item is productName
-    if (deleteResult.success) {
-        console.log('DELETE: Product deletion from Supabase successful.');
+            console.log(`DELETE: Staging deletion of condition "${item.name}" (ID: ${item.db_id}).`);
+            setConditionsToDelete(prev => {
+              if (prev.includes(item.db_id)) {
+                  return prev;
+              }
+              return [...prev, item.db_id];
+            });
+            setEditedConditions(prev => prev.filter(c => c.db_id !== item.db_id));
+            if (selectedCondition && selectedCondition.db_id === item.db_id) {
+                const remainingConditions = editedConditions.filter(c => c.db_id !== item.db_id);
+                setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
+            }
         success = true;
+        }
+      } else if (type === 'product') {
+        console.log(`DELETE: Staging deletion of product "${item}".`);
+        // Instead of immediate Supabase call, remove from local lists
+        setAllProducts(prev => prev.filter(p => p !== item));
         // Clean up from local productRenames if any involve this product
         setProductRenames(prevRenames => prevRenames.filter(r => r.oldName !== item && r.newName !== item));
-    } else {
-        console.error('DELETE: Product deletion from Supabase failed.', deleteResult.error);
-    }
+        success = true;
   } else if (type === 'category') {
     if (item === 'All') { // 'All' category should not be deleted
       setShowDeleteModal(false); setItemToDelete(null); return;
     }
-    console.log(`DELETE: Deleting category "${item}" from Supabase.`);
-    const deleteResult = await deleteCategoryFromSupabase(item); // item is categoryName
-    if (deleteResult.success) {
-        console.log('DELETE: Category deletion from Supabase successful.');
+        console.log(`DELETE: Staging deletion of category "${item}".`);
+        setCategories(prev => prev.filter(c => c !== item));
+        // When a category is deleted, conditions using it should be updated to have no category.
+        setEditedConditions(prev => prev.map(cond => {
+            if (cond.category === item) {
+                return { ...cond, category: null }; // or a default category if that's preferred
+            }
+            return cond;
+        }));
         success = true;
-    } else {
-        console.error('DELETE: Category deletion from Supabase failed.', deleteResult.error);
-    }
   } else if (type === 'ddsType') {
      if (item === 'All') { // 'All' DDS type should not be deleted
       setShowDeleteModal(false); setItemToDelete(null); return;
     }
-    console.log(`DELETE: Deleting DDS Type "${item}" from Supabase.`);
-    const deleteResult = await deleteDdsTypeFromSupabase(item); // item is ddsTypeName
-    if (deleteResult.success) {
-        console.log('DELETE: DDS Type deletion from Supabase successful.');
+        console.log(`DELETE: Staging deletion of DDS Type "${item}".`);
+        setDdsTypes(prev => prev.filter(d => d !== item));
+        // When a DDS Type is deleted, remove it from any conditions that use it.
+        setEditedConditions(prev => prev.map(cond => {
+            if (cond.dds.includes(item)) {
+                return { ...cond, dds: cond.dds.filter(d => d !== item) };
+            }
+            return cond;
+        }));
         success = true;
-    } else {
-        console.error('DELETE: DDS Type deletion from Supabase failed.', deleteResult.error);
-    }
   }
   
   if (success) {
-    console.log("DELETE: Operation successful, reloading initial data.");
-    await loadInitialData(); // Reload all data from Supabase to reflect changes
-    // setIsEditing(false); // Reset editing state only if no other pending changes
+        // For local-only changes, we don't need to reload, just close the modal.
+        // The main save button will handle Supabase sync and subsequent reload.
+        // console.log("DELETE: Operation successful, reloading initial data.");
+        // await loadInitialData();
   } else {
     console.error("DELETE: An error occurred during deletion. Data might be out of sync.");
-    // Potentially show an error message to the user.
   }
-
+    } finally {
   setShowDeleteModal(false);
   setItemToDelete(null);
+      setIsDeleting(false);
+    }
 };
   
   // Render patient type filter and product configuration UI
@@ -1980,13 +2265,20 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
               <Select.Portal>
                 <Select.Content className="bg-white rounded-md shadow-lg border min-w-[220px] z-[9999]">
                   <Select.Viewport className="p-1">
-                    {Object.entries(PATIENT_TYPES).map(([type, label]) => (
                       <Select.Item
-                        key={type}
-                        value={type}
+                        key="all"
+                        value="All"
                         className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                       >
-                        <Select.ItemText>{label}</Select.ItemText>
+                      <Select.ItemText>All Patient Types</Select.ItemText>
+                    </Select.Item>
+                    {patientTypes.map((type) => (
+                      <Select.Item
+                        key={type.id}
+                        value={type.name}
+                        className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
+                      >
+                        <Select.ItemText>{type.name}</Select.ItemText>
                       </Select.Item>
                     ))}
                   </Select.Viewport>
@@ -2000,14 +2292,14 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
           <div className="mb-4 p-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-700 flex items-center">
             <Info size={15} className="mr-1 flex-shrink-0 text-[#15396c]" />
             <span>
-              Configuring products specifically for <strong>{PATIENT_TYPES[activePatientType]}</strong>.
+              Configuring products specifically for <strong>{activePatientType}</strong>.
               Products added here will only be recommended for this patient type.
             </span>
           </div>
         )}
         
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'all' ? 'All Patient Types' : `Type ${activePatientType}`}</span>
+          <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'all' ? 'All Patient Types' : `${activePatientType}`}</span>
           <select
             onChange={(e) => {
               if (e.target.value) {
@@ -2059,10 +2351,16 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
   };
   
   // Return early if no data
-  if (!propsConditions || propsConditions.length === 0) {
+  if (editedConditions.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
-        No conditions data available to edit.
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8">
+              <h2 className="text-xl font-bold mb-4">Knowledge Base Administrator</h2>
+              <p>Loading conditions...</p>
+              <button onClick={onClose} className="mt-4 px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm">
+                  Close
+              </button>
+          </div>
       </div>
     );
   }
@@ -2794,9 +3092,12 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                     <div className="mt-6">
                       <h3 className="font-medium text-lg mb-3">Product Details</h3>
                       
-                      {Object.keys(selectedCondition.productDetails || {}).length > 0 ? (
+                      {Object.keys(getAllProductsForCondition(selectedCondition)).length > 0 ? (
                         <div className="space-y-6">
-                          {Object.keys(selectedCondition.productDetails).map((productName) => (
+                          {Object.keys(getAllProductsForCondition(selectedCondition)).map((productName) => {
+                            const allProducts = getAllProductsForCondition(selectedCondition);
+                            const productDetails = allProducts[productName];
+                            return (
                             <div key={productName} className="border rounded-md p-4 bg-gray-50">
                               <h4 className="font-medium text-md mb-3">{productName}</h4>
                               
@@ -2843,10 +3144,10 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                           <Tabs.Content key={phase} value={phase} className="p-4">
                                             <textarea
                                               value={
-                                                selectedCondition.productDetails[productName].usage && 
-                                                typeof selectedCondition.productDetails[productName].usage === 'object' ?
-                                                selectedCondition.productDetails[productName].usage[phase] || '' :
-                                                selectedCondition.productDetails[productName].usage || ''
+                                                productDetails.usage && 
+                                                typeof productDetails.usage === 'object' ?
+                                                productDetails.usage[phase] || '' :
+                                                productDetails.usage || ''
                                               }
                                               onChange={(e) => updateProductDetail(
                                                 selectedCondition.name,
@@ -2865,7 +3166,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     </div>
                                   ) : (
                                     <textarea
-                                      value={selectedCondition.productDetails[productName].usage || ''}
+                                      value={productDetails.usage || ''}
                                       onChange={(e) => updateProductDetail(
                                         selectedCondition.name,
                                         productName,
@@ -2884,7 +3185,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     Scientific Rationale
                                   </label>
                                   <textarea
-                                    value={selectedCondition.productDetails[productName].rationale || ''}
+                                    value={productDetails.rationale || ''}
                                     onChange={(e) => updateProductDetail(
                                       selectedCondition.name,
                                       productName,
@@ -2903,7 +3204,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     Clinical Evidence
                                   </label>
                                   <textarea
-                                    value={selectedCondition.productDetails[productName].clinicalEvidence || ''}
+                                    value={productDetails.clinicalEvidence || ''}
                                     onChange={(e) => updateProductDetail(
                                       selectedCondition.name,
                                       productName,
@@ -2922,11 +3223,11 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     Handling Objections
                                   </label>
                                   <textarea
-                                    value={selectedCondition.productDetails[productName].objection || ''}
-                                    onChange={(e) => updateProductDetail(
-                                      selectedCondition.name,
-                                      productName,
-                                      'objection',
+                                                          value={productDetails.handlingObjections || ''}
+                      onChange={(e) => updateProductDetail(
+                        selectedCondition.name,
+                        productName,
+                        'handlingObjections',
                                       e.target.value
                                     )}
                                     rows={2}
@@ -2941,7 +3242,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     Key Pitch Points
                                   </label>
                                   <textarea
-                                    value={selectedCondition.productDetails[productName].pitchPoints || ''}
+                                    value={productDetails.pitchPoints || ''}
                                     onChange={(e) => updateProductDetail(
                                       selectedCondition.name,
                                       productName,
@@ -2960,8 +3261,8 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                     Supporting Research Articles
                                   </label>
                                   
-                                  {selectedCondition.productDetails[productName].researchArticles && 
-                                    selectedCondition.productDetails[productName].researchArticles.map((article, index) => (
+                                  {productDetails.researchArticles && 
+                                    productDetails.researchArticles.map((article, index) => (
                                     <div key={index} className="flex space-x-2 mb-2">
                                       <div className="flex-grow space-y-2">
                                         <input
@@ -2969,7 +3270,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                           placeholder="Article title"
                                           value={article.title || ''}
                                           onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                            const updatedArticles = [...productDetails.researchArticles];
                                             updatedArticles[index].title = e.target.value;
                                             updateProductDetail(
                                               selectedCondition.name, 
@@ -2986,7 +3287,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                           placeholder="Author/Source"
                                           value={article.author || ''}
                                           onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                            const updatedArticles = [...productDetails.researchArticles];
                                             updatedArticles[index].author = e.target.value;
                                             updateProductDetail(
                                               selectedCondition.name, 
@@ -3002,7 +3303,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                           placeholder="Abstract (optional)"
                                           value={article.abstract || ''}
                                           onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                            const updatedArticles = [...productDetails.researchArticles];
                                             updatedArticles[index].abstract = e.target.value;
                                             updateProductDetail(
                                               selectedCondition.name, 
@@ -3020,7 +3321,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                           placeholder="URL (optional)"
                                           value={article.url || ''}
                                           onChange={(e) => {
-                                            const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                            const updatedArticles = [...productDetails.researchArticles];
                                             updatedArticles[index].url = e.target.value;
                                             updateProductDetail(
                                               selectedCondition.name, 
@@ -3035,7 +3336,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                       
                                       <button
                                         onClick={() => {
-                                          const updatedArticles = [...selectedCondition.productDetails[productName].researchArticles];
+                                          const updatedArticles = [...productDetails.researchArticles];
                                           updatedArticles.splice(index, 1);
                                           updateProductDetail(
                                             selectedCondition.name, 
@@ -3053,7 +3354,7 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                   
                                   <button
                                     onClick={() => {
-                                      const currentArticles = selectedCondition.productDetails[productName].researchArticles || [];
+                                      const currentArticles = productDetails.researchArticles || [];
                                       const updatedArticles = [...currentArticles, { title: '', author: '', url: '' }];
                                       updateProductDetail(
                                         selectedCondition.name, 
@@ -3070,7 +3371,8 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-sm italic">
@@ -3255,7 +3557,8 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                         type="text"
                         value={newItemData.name || ''}
                         onChange={(e) => setNewItemData({...newItemData, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                        placeholder="Enter condition name"
                       />
                     </div>
                     <div>
@@ -3265,73 +3568,19 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                       <select
                         value={newItemData.category || ''}
                         onChange={(e) => setNewItemData({...newItemData, category: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
                       >
-                        {categories.map((category) => (
+                        <option value="">Select a category</option>
+                        {categories.filter(cat => cat !== 'All').map((category) => (
                           <option key={category} value={category}>
                             {category}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Scientific Rationale
-                      </label>
-                      <textarea
-                        value={newItemData.scientificRationale || ''}
-                        onChange={(e) => setNewItemData({...newItemData, scientificRationale: e.target.value})}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Clinical Evidence
-                      </label>
-                      <textarea
-                        value={newItemData.clinicalEvidence || ''}
-                        onChange={(e) => setNewItemData({...newItemData, clinicalEvidence: e.target.value})}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Competitive Advantage
-                      </label>
-                      <textarea
-                        value={newItemData.competitive || ''}
-                        onChange={(e) => setNewItemData({...newItemData, competitive: e.target.value})}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Handling Objections
-                      </label>
-                      <textarea
-                        value={newItemData.objection || ''}
-                        onChange={(e) => setNewItemData({...newItemData, objection: e.target.value})}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Key Pitch Points
-                      </label>
-                      <textarea
-                        value={newItemData.pitchPoints || ''}
-                        onChange={(e) => setNewItemData({...newItemData, pitchPoints: e.target.value})}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
+                    <p className="text-sm text-gray-500">
+                      All detailed configuration (phases, products, scientific rationale, etc.) can be configured after creating the condition in the Conditions tab.
+                    </p>
                   </>
                 )}
                 
@@ -3450,9 +3699,12 @@ function AdminPanel({ conditions: propsConditions, onConditionsUpdate, onClose, 
                 
                 <button
                   onClick={handleDelete}
-                  className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                  disabled={isDeleting}
+                  className={`px-3 py-1.5 rounded-md text-white text-sm ${
+                    isDeleting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+                  }`}
                 >
-                  Delete
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </Dialog.Content>

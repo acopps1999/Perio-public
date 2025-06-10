@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, BookOpen } from 'lucide-react';
 
-function DiagnosisWizard({ conditions, onClose }) {
+function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const [step, setStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedCondition, setSelectedCondition] = useState(null);
@@ -56,8 +56,11 @@ function DiagnosisWizard({ conditions, onClose }) {
       // Filter products based on patient type if needed
       let filteredProducts = [...products];
       
+      // This logic needs to be updated based on the name, not an id
+      const selectedPtObject = patientTypes.find(pt => pt.id === selectedPatientType);
+      
       // For Type 3/4 Only products
-      if (selectedPatientType === '1' || selectedPatientType === '2') {
+      if (selectedPtObject && (selectedPtObject.name === 'Type 1' || selectedPtObject.name === 'Type 2')) {
         filteredProducts = filteredProducts.filter(product => !product.includes('Type 3/4 Only'));
       }
       
@@ -68,7 +71,7 @@ function DiagnosisWizard({ conditions, onClose }) {
         setActiveResearchTab(filteredProducts[0].replace(' (Type 3/4 Only)', ''));
       }
     }
-  }, [selectedCondition, selectedPhase, selectedPatientType]);
+  }, [selectedCondition, selectedPhase, selectedPatientType, patientTypes]);
 
   // Navigate to next step if valid
   const handleNext = () => {
@@ -256,21 +259,21 @@ function DiagnosisWizard({ conditions, onClose }) {
         return (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Step 4: Select Patient Type</h2>
-            <p className="text-gray-600">What is the patient's health status?</p>
-            <div className="grid grid-cols-1 gap-4 mt-4">
-              {Object.entries(patientTypeDesc).map(([type, desc]) => (
+            <p className="text-gray-600">What type of patient is being treated?</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {patientTypes.map((pt) => (
                 <button
-                  key={type}
+                  key={pt.id}
                   className={`p-4 border rounded-lg text-left hover:bg-blue-50 transition-colors ${
-                    selectedPatientType === type ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                    selectedPatientType === pt.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                   }`}
                   onClick={() => {
-                    setSelectedPatientType(type);
+                    setSelectedPatientType(pt.id);
                     setStep(5);
                   }}
                 >
-                  <div className="font-medium text-lg">Type {type}</div>
-                  <div className="text-sm text-gray-600 mt-1">{desc}</div>
+                  <div className="font-medium text-lg">{pt.name}</div>
+                  <div className="text-sm text-gray-500 mt-1">{pt.description}</div>
                 </button>
               ))}
             </div>
@@ -367,7 +370,7 @@ function DiagnosisWizard({ conditions, onClose }) {
                           
                           <div className="bg-amber-50 p-3 rounded">
                             <div className="font-medium text-amber-700">Handling Objections:</div>
-                            <div className="text-amber-700 mt-1">{productDetails.objection}</div>
+                            <div className="text-amber-700 mt-1">{productDetails.handlingObjections}</div>
                           </div>
                           
                           <button
