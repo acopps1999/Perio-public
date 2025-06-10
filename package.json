@@ -35,6 +35,13 @@
     ]
   },
   "devDependencies": {
+    "eslint-plugin-react-hooks": "^4.6.2",
     "firebase-admin": "^13.4.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   }
 }

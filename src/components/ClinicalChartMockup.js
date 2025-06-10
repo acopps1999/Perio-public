@@ -1,9 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import * as Tabs from '@radix-ui/react-tabs';
-import * as Dialog from '@radix-ui/react-dialog';
-import * as Select from '@radix-ui/react-select';
-import { Search, X, ChevronDown, ChevronRight, Info, Stethoscope, Settings, Filter, BookOpen, ExternalLink, FileText, LogOut } from 'lucide-react';
-import clsx from 'clsx';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Stethoscope, Settings, LogOut } from 'lucide-react';
 import DiagnosisWizard from './DiagnosisWizard';
 import AdminPanel from './AdminPanel';
 import AdminLoginModal from './AdminLoginModal';
@@ -12,15 +8,8 @@ import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import { useAuth } from '../contexts/AuthContext';
-import conditionsDataImport from '../conditions_complete.json';
-
-// PatientTypes definition based on project documentation
-const PATIENT_TYPES = {
-  'Type 1': 'Healthy',
-  'Type 2': 'Mild inflammation, moderate risk',
-  'Type 3': 'Smoker, diabetic, immunocompromised',
-  'Type 4': 'Periodontal disease, chronic illness, poor healing'
-};
+import { loadConditionsFromSupabase } from './AdminPanel'; // Import the robust loading function
+import { supabase } from '../supabaseClient'; // Import supabase client
 
 function ClinicalChartMockup() {
   // Authentication
@@ -35,7 +24,8 @@ function ClinicalChartMockup() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [ddsTypeFilter, setDdsTypeFilter] = useState('All');
   const [patientTypeFilter, setPatientTypeFilter] = useState('All');
-  const [activePatientType, setActivePatientType] = useState('All'); // Active patient type for product filtering
+  const [activePatientType, setActivePatientType] = useState('All');
+  const [patientTypes, setPatientTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,66 +35,89 @@ function ClinicalChartMockup() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [researchModalOpen, setResearchModalOpen] = useState(false);
   const [selectedResearchProduct, setSelectedResearchProduct] = useState(null);
-  const [filteredProducts, setFilteredProducts] = useState([]); // Store filtered products
-  const [patientSpecificProducts, setPatientSpecificProducts] = useState({}); // Store patient-specific product recommendations
-  const [expandedSections, setExpandedSections] = useState({
-    pitchPoints: false,
-    competitiveAdvantage: false,
-    handlingObjections: false,
-    scientificRationale: false,
-    clinicalEvidence: false,
-    productUsage: false
-  });
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
-  //useEffect(() => {
-    // Clear localStorage on first load in production
-    // (This is a one-time reset that can help if there's corrupted data)
-    //if (process.env.NODE_ENV === 'production' && !localStorage.getItem('render_initialized')) {
-      //localStorage.removeItem('conditions_data');
-      //localStorage.setItem('render_initialized', 'true');
-      //window.location.reload();
-    //}
-  //}, []);
+  const loadChartData = useCallback(async (forceRefresh = false) => {
+    console.log("CHART_LOAD: Starting chart data load...");
+    setIsLoadingData(true);
+    
+    try {
+      // Use the functional form of setState to get the previous state
+      // without creating a dependency on `selectedCondition` in useCallback.
+      let currentSelectedId;
+      setSelectedCondition(prev => {
+        currentSelectedId = prev?.db_id;
+        return prev;
+      });
+
+      console.log("CHART_LOAD: Fetching conditions and patient types from Supabase...");
+      
+      // Parallelize fetching - only force refresh when needed (e.g., after admin saves)
+      const [newConditions, dbPatientTypes] = await Promise.all([
+          loadConditionsFromSupabase(forceRefresh),
+          supabase.from('patient_types').select('id, name, description').order('name', { ascending: true })
+      ]);
+
+      console.log("CHART_LOAD: Raw data received - Conditions:", newConditions?.length || 0, "Patient Types:", dbPatientTypes?.data?.length || 0);
+
+      if (dbPatientTypes.error) {
+          console.error("CHART_LOAD: Error fetching patient types:", dbPatientTypes.error);
+          return;
+      }
+
+      if (!newConditions || newConditions.length === 0) {
+          console.warn("CHART_LOAD: No conditions loaded from Supabase");
+      }
+      
+      const uniqueCategories = ['All', ...new Set(newConditions.map(c => c.category).filter(Boolean))];
+      const allDdsTypes = ['All', ...new Set(newConditions.flatMap(c => c.dds || []))];
+
+      console.log("CHART_LOAD: Processed categories:", uniqueCategories.length, "DDS types:", allDdsTypes.length);
+
+      setConditions(newConditions);
+      setFilteredConditions(newConditions);
+      setCategoryOptions(uniqueCategories);
+      setDdsTypeOptions(allDdsTypes);
+      setPatientTypes(dbPatientTypes.data || []); // Set the patient types from DB
+
+      // After reload, try to re-select the same condition
+      const reSelectedCondition = newConditions.find(c => c.db_id === currentSelectedId);
+
+      if (reSelectedCondition) {
+        console.log("CHART_LOAD: Re-selecting previous condition:", reSelectedCondition.name);
+        setSelectedCondition(reSelectedCondition);
+      } else if (newConditions.length > 0) {
+        // Fallback to the first condition if the old one doesn't exist anymore
+        console.log("CHART_LOAD: Selecting first condition:", newConditions[0].name);
+        setSelectedCondition(newConditions[0]);
+        setActiveTab(newConditions[0].phases && newConditions[0].phases.length > 0 ? newConditions[0].phases[0] : '');
+      } else {
+        console.log("CHART_LOAD: No conditions available");
+        setSelectedCondition(null); // No conditions left
+      }
+      
+      console.log("CHART_LOAD: Chart data loaded successfully!");
+      
+    } catch (error) {
+      console.error("CHART_LOAD: Critical error during chart data loading:", error);
+      // Set fallback empty state
+      setConditions([]);
+      setFilteredConditions([]);
+      setCategoryOptions(['All']);
+      setDdsTypeOptions(['All']);
+      setPatientTypes([]);
+      setSelectedCondition(null);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []); // Empty dependency array is critical to prevent a stale function.
 
   // Load conditions on component mount
   useEffect(() => {
-    // Clear localStorage on first load in production
-    // (This is a one-time reset that can help if there's corrupted data)
-    if (process.env.NODE_ENV === 'production' && !localStorage.getItem('render_initialized')) {
-      localStorage.removeItem('conditions_data');
-      localStorage.setItem('render_initialized', 'true');
-      window.location.reload();
-    }
-
-    // Always use imported data instead of checking localStorage
-    setConditions(conditionsDataImport);
-    setFilteredConditions(conditionsDataImport);
-    
-    // Set default selected condition
-    if (conditionsDataImport.length > 0) {
-      setSelectedCondition(conditionsDataImport[0]);
-      setActiveTab(conditionsDataImport[0].phases[0]);
-    }
-    
-    // Load categories if available from the imported data
-    const uniqueCategories = [...new Set(conditionsDataImport.map(c => c.category))];
-    if (!uniqueCategories.includes('All')) {
-      uniqueCategories.unshift('All');
-    }
-    setCategoryOptions(uniqueCategories);
-    
-    // Load DDS types from the imported data
-    const allDdsTypes = ['All'];
-    conditionsDataImport.forEach(condition => {
-      condition.dds.forEach(dds => {
-        if (!allDdsTypes.includes(dds)) {
-          allDdsTypes.push(dds);
-        }
-      });
-    });
-    setDdsTypeOptions(allDdsTypes);
-  }, []);
+    loadChartData();
+  }, [loadChartData]);
 
   // Filter conditions based on selected filters and search query
   useEffect(() => {
@@ -122,15 +135,11 @@ function ClinicalChartMockup() {
     
     // Filter by patient type
     if (patientTypeFilter !== 'All') {
-      filtered = filtered.filter(condition => {
-        // Check if condition's patientType includes the selected patient type
-        // This assumes patientType can be a string like "Types 1 to 4" or an array
-        if (Array.isArray(condition.patientType)) {
-          return condition.patientType.includes(`Type ${patientTypeFilter}`);
-        } else {
-          return condition.patientType.includes(patientTypeFilter);
-        }
-      });
+        // The condition object has a `patientTypeNames` array from the loader function.
+        // The `patientTypeFilter` is now the name string from the dropdown.
+        filtered = filtered.filter(condition => 
+            condition.patientTypeNames && condition.patientTypeNames.includes(patientTypeFilter)
+        );
     }
     
     // Filter by search query
@@ -152,114 +161,38 @@ function ClinicalChartMockup() {
 
   // Generate patient-specific product recommendations when selectedCondition changes
 useEffect(() => {
-  if (!selectedCondition) return;
-  
-  console.log("Setting up patient-specific products for:", selectedCondition.name);
-  
-  // Create a map of phase -> patientType -> products
-  let patientProducts = {};
-  
-  // Check if condition has patientSpecificConfig from admin panel
-  if (selectedCondition.patientSpecificConfig) {
-    console.log("Using admin-configured products");
-    // Use the configuration directly
-    patientProducts = JSON.parse(JSON.stringify(selectedCondition.patientSpecificConfig));
-  } else {
-    console.log("Inferring patient-specific products");
-    // Process each phase
-    selectedCondition.phases.forEach(phase => {
-      patientProducts[phase] = {
-        'All': [],
-        '1': [],
-        '2': [],
-        '3': [],
-        '4': []
-      };
-      
-      // First pass: add all products to 'All' category
-      const phaseProducts = selectedCondition.products[phase] || [];
-      patientProducts[phase]['All'] = [...phaseProducts];
-      
-      // Second pass: distribute products to specific patient types
-      phaseProducts.forEach(product => {
-        if (product.includes('(Type 3/4 Only)')) {
-          const baseProduct = product.replace(' (Type 3/4 Only)', '');
-          patientProducts[phase]['3'].push(baseProduct);
-          patientProducts[phase]['4'].push(baseProduct);
-        } else {
-          // Regular products apply to all patient types
-          patientProducts[phase]['1'].push(product);
-          patientProducts[phase]['2'].push(product);
-          patientProducts[phase]['3'].push(product);
-          patientProducts[phase]['4'].push(product);
-        }
-      });
-    });
-  }
-  
-  console.log("Final patient-specific products:", patientProducts);
-  setPatientSpecificProducts(patientProducts);
-  
-  // Set initial filtered products based on current activeTab and activePatientType
-  if (activeTab) {
-    const phaseProducts = patientProducts[activeTab] || { 'All': [] };
-    if (activePatientType !== 'All') {
-      setFilteredProducts(phaseProducts[activePatientType] || []);
-    } else {
-      setFilteredProducts(phaseProducts['All'] || []);
-    }
-  }
-}, [selectedCondition]);
-
-  // Filter products for display based on selected phase and patient type
-  useEffect(() => {
-    console.log("[FilterEffect] Running - Deps:", { 
-      condition: selectedCondition?.name, 
-      tab: activeTab, 
-      patientType: activePatientType, 
-      hasStructure: !!patientSpecificProducts 
-    });
-
     if (!selectedCondition || !activeTab) {
-        console.log("[FilterEffect] No condition or active tab, clearing products.");
         setFilteredProducts([]);
         return;
     }
 
-    // Ensure the structure for the current condition/phase exists
-    if (!patientSpecificProducts || !patientSpecificProducts[activeTab]) {
-      console.log(`[FilterEffect] Product structure not ready for phase: ${activeTab}. Waiting...`);
-      // Avoid setting empty products if the structure just isn't ready yet
-      // setFilteredProducts([]); 
-      return;
-    }
-
-    const phaseProductsStructure = patientSpecificProducts[activeTab];
-    console.log(`[FilterEffect] Structure for phase ${activeTab}:`, JSON.stringify(phaseProductsStructure));
     let productsToShow = [];
+    const config = selectedCondition.patientSpecificConfig;
+
+    if (config && config[activeTab]) {
+        const phaseConfig = config[activeTab];
 
       if (activePatientType !== 'All') {
-        productsToShow = phaseProductsStructure[activePatientType] || [];
-        console.log(`[FilterEffect] Using products for specific type ${activePatientType}:`, productsToShow);
+            // Get products for the specific patient type by NAME
+            productsToShow = phaseConfig[activePatientType] || [];
       } else {
-        // 'All' patient type should show products from the original 'All' list in the structure
-        productsToShow = phaseProductsStructure['All'] || [];
-        console.log(`[FilterEffect] Using products for 'All' type:`, productsToShow);
+            // For 'All', find products common to all patient types defined for this phase
+            const patientTypeNamesInPhase = Object.keys(phaseConfig);
+            if (patientTypeNamesInPhase.length > 0) {
+              const firstPtProductSet = new Set(phaseConfig[patientTypeNamesInPhase[0]]);
+              
+              productsToShow = [...firstPtProductSet].filter(product =>
+                patientTypeNamesInPhase.every(ptName =>
+                  (phaseConfig[ptName] || []).includes(product)
+                )
+              );
+            }
+        }
     }
 
-    // Check if the products actually changed before setting state
-    // Note: React's state setter already optimizes this, so explicit check might be redundant
-    // if (JSON.stringify(filteredProducts) !== JSON.stringify(productsToShow)) { 
-      console.log(`[FilterEffect] Updating filteredProducts state for Phase: ${activeTab}, Patient Type: ${activePatientType}`, productsToShow);
-      setFilteredProducts([...productsToShow]); // Ensure a new array is set
-    // } else {
-      // console.log(`[FilterEffect] No change detected in products for Phase: ${activeTab}, Patient Type: ${activePatientType}. Skipping update.`);
-    // }
+    setFilteredProducts([...new Set(productsToShow)]); // Ensure unique products
 
-}, [selectedCondition, activeTab, activePatientType, patientSpecificProducts]); // Removed filteredProducts from deps
-
-  // Get patient types from PATIENT_TYPES constant
-  const patientTypes = ['All', '1', '2', '3', '4'];
+  }, [selectedCondition, activeTab, activePatientType]);
 
   // Handle condition selection
   const handleConditionSelect = (condition) => {
@@ -272,39 +205,13 @@ useEffect(() => {
   // Handle tab change
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    // Re-apply the product filtering when tab changes
-    if (selectedCondition && patientSpecificProducts[tab]) {
-      if (activePatientType !== 'All') {
-        setFilteredProducts([...(patientSpecificProducts[tab][activePatientType] || [])]);
-      } else {
-        setFilteredProducts([...(patientSpecificProducts[tab]['All'] || [])]);
-      }
-    }
+    // The main useEffect will handle re-filtering products automatically.
   };
 
   // Handle patient type selection for product filtering
   const handlePatientTypeSelect = (type) => {
-    console.log("Patient type selected:", type);
     setActivePatientType(type);
-    
-    // Force immediate update of filtered products
-    if (selectedCondition && activeTab) {
-      const phaseProducts = patientSpecificProducts[activeTab] || {
-        'All': [],
-        '1': [],
-        '2': [],
-        '3': [],
-        '4': []
-      };
-      
-      if (type !== 'All') {
-        console.log("Immediately updating products for type:", type, phaseProducts[type]);
-        setFilteredProducts([...(phaseProducts[type] || [])]);
-      } else {
-        console.log("Immediately updating products for all types:", phaseProducts['All']);
-        setFilteredProducts([...(phaseProducts['All'] || [])]);
-      }
-    }
+    // The main useEffect will handle re-filtering products automatically.
   };
 
   // Handle product selection for modal
@@ -317,6 +224,11 @@ useEffect(() => {
       name: product,
       details: selectedCondition.productDetails[product.replace(' (Type 3/4 Only)', '')]
     });
+  };
+
+  // Simple handler to show additional info
+  const handleShowAdditionalInfo = () => {
+    setShowAdditionalInfo(true);
   };
 
   // Handle opening research modal for a specific product
@@ -370,10 +282,12 @@ useEffect(() => {
 
   // Determine if a phase has products for the selected condition
   const hasProductsForPhase = (phase) => {
-    return selectedCondition && 
-           selectedCondition.products && 
-           selectedCondition.products[phase] && 
-           selectedCondition.products[phase].length > 0;
+    if (!selectedCondition || !selectedCondition.patientSpecificConfig || !selectedCondition.patientSpecificConfig[phase]) {
+      return false;
+    }
+    // Check if any patient type within the phase has at least one product
+    const phaseConfig = selectedCondition.patientSpecificConfig[phase];
+    return Object.values(phaseConfig).some(products => Array.isArray(products) && products.length > 0);
   };
 
   // Toggle diagnosis wizard
@@ -402,103 +316,12 @@ useEffect(() => {
     setAdminOpen(true);
   };
 
-  // Handle conditions update from admin panel
-  const handleConditionsUpdate = (updatedConditions, updatedCategories, updatedDdsTypes) => {
-    // Update conditions
-    setConditions(updatedConditions);
-    
-    // Update categories if provided
-    if (updatedCategories && Array.isArray(updatedCategories)) {
-      // Make sure 'All' is always the first option
-      let sortedCategories;
-      if (updatedCategories.includes('All')) {
-        const filteredCategories = updatedCategories.filter(c => c !== 'All');
-        sortedCategories = ['All', ...filteredCategories];
-      } else {
-        sortedCategories = ['All', ...updatedCategories];
-      }
-      
-      // Update the categories
-      setCategoryOptions(sortedCategories);
-      
-      // Keep current filter if valid, otherwise reset to 'All'
-      if (categoryFilter !== 'All' && !sortedCategories.includes(categoryFilter)) {
-        setCategoryFilter('All');
-      }
-    }
-    
-    // Update DDS types if provided
-    if (updatedDdsTypes && Array.isArray(updatedDdsTypes)) {
-      // Make sure 'All' is always the first option
-      let sortedDdsTypes;
-      if (updatedDdsTypes.includes('All')) {
-        const filteredDdsTypes = updatedDdsTypes.filter(d => d !== 'All');
-        sortedDdsTypes = ['All', ...filteredDdsTypes];
-      } else {
-        sortedDdsTypes = ['All', ...updatedDdsTypes];
-      }
-      
-      // Update the DDS types
-      setDdsTypeOptions(sortedDdsTypes);
-      
-      // Keep current filter if valid, otherwise reset to 'All'
-      if (ddsTypeFilter !== 'All' && !sortedDdsTypes.includes(ddsTypeFilter)) {
-        setDdsTypeFilter('All');
-      }
-    }
-    
-    // Update filtered conditions based on current filters
-    let filtered = [...updatedConditions];
-    
-    // Apply existing filters
-    if (categoryFilter !== 'All') {
-      filtered = filtered.filter(condition => condition.category === categoryFilter);
-    }
-    
-    if (ddsTypeFilter !== 'All') {
-      filtered = filtered.filter(condition => condition.dds.includes(ddsTypeFilter));
-    }
-    
-    if (patientTypeFilter !== 'All') {
-      filtered = filtered.filter(condition => {
-        if (Array.isArray(condition.patientType)) {
-          return condition.patientType.includes(`Type ${patientTypeFilter}`);
-        } else {
-          return condition.patientType.includes(patientTypeFilter);
-        }
-      });
-    }
-    
-    if (searchQuery) {
-      filtered = filtered.filter(condition => 
-        condition.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    setFilteredConditions(filtered);
-    
-    // If previously selected condition exists in updated data, keep it selected
-    if (selectedCondition) {
-      const updatedSelectedCondition = updatedConditions.find(c => c.name === selectedCondition.name);
-      if (updatedSelectedCondition) {
-        setSelectedCondition(updatedSelectedCondition);
-        
-        // Ensure active tab is valid for updated condition
-        if (updatedSelectedCondition.phases && !updatedSelectedCondition.phases.includes(activeTab)) {
-          setActiveTab(updatedSelectedCondition.phases[0]);
-        }
-      } else {
-        // If selected condition no longer exists, select the first condition
-        if (updatedConditions.length > 0) {
-          setSelectedCondition(updatedConditions[0]);
-          setActiveTab(updatedConditions[0].phases[0]);
-        } else {
-          setSelectedCondition(null);
-          setActiveTab('');
-        }
-      }
-    }
+  // When AdminPanel saves, we just need to reload our data.
+  const handleSaveChangesSuccess = () => {
+    console.log("CHART_LOAD: AdminPanel saved. Reloading chart data with fresh data.");
+    loadChartData(true); // Force refresh after admin saves
   };
+
   return (
     
     <div className="min-h-screen bg-gray-50">
@@ -534,39 +357,51 @@ useEffect(() => {
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FiltersSection
-          categoryOptions={categoryOptions}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          ddsTypeOptions={ddsTypeOptions}
-          ddsTypeFilter={ddsTypeFilter}
-          setDdsTypeFilter={setDdsTypeFilter}
-          patientTypes={patientTypes}
-          patientTypeFilter={patientTypeFilter}
-          setPatientTypeFilter={setPatientTypeFilter}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-        />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          <ConditionsList
-            filteredConditions={filteredConditions}
-            selectedCondition={selectedCondition}
-            handleConditionSelect={handleConditionSelect}
-          />
-          <ConditionDetails
-            selectedCondition={selectedCondition}
-            activeTab={activeTab}
-            handleTabChange={handleTabChange}
-            filteredProducts={filteredProducts}
-            patientTypes={patientTypes}
-            activePatientType={activePatientType}
-            handlePatientTypeSelect={handlePatientTypeSelect}
-            handleProductSelect={handleProductSelect}
-            handleOpenResearch={handleOpenResearch}
-            hasProductsForPhase={hasProductsForPhase}
-            showAdditionalInfo={showAdditionalInfo}
-          />
-        </div>
+        {isLoadingData ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 text-lg">Loading clinical data from database...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <FiltersSection
+              categoryOptions={categoryOptions}
+              categoryFilter={categoryFilter}
+              setCategoryFilter={setCategoryFilter}
+              ddsTypeOptions={ddsTypeOptions}
+              ddsTypeFilter={ddsTypeFilter}
+              setDdsTypeFilter={setDdsTypeFilter}
+              patientTypes={patientTypes}
+              patientTypeFilter={patientTypeFilter}
+              setPatientTypeFilter={setPatientTypeFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+              <ConditionsList
+                filteredConditions={filteredConditions}
+                selectedCondition={selectedCondition}
+                handleConditionSelect={handleConditionSelect}
+              />
+              <ConditionDetails
+                selectedCondition={selectedCondition}
+                activeTab={activeTab}
+                handleTabChange={handleTabChange}
+                filteredProducts={filteredProducts}
+                patientTypes={patientTypes}
+                activePatientType={activePatientType}
+                handlePatientTypeSelect={handlePatientTypeSelect}
+                handleProductSelect={handleProductSelect}
+                handleShowAdditionalInfo={handleShowAdditionalInfo}
+                handleOpenResearch={handleOpenResearch}
+                hasProductsForPhase={hasProductsForPhase}
+                showAdditionalInfo={showAdditionalInfo}
+              />
+            </div>
+          </>
+        )}
       </main>
       <ResearchModal 
         isOpen={researchModalOpen}
@@ -579,6 +414,7 @@ useEffect(() => {
       {wizardOpen && (
         <DiagnosisWizard 
           conditions={conditions} 
+          patientTypes={patientTypes}
           onClose={toggleWizard} 
         />
       )}
@@ -591,8 +427,7 @@ useEffect(() => {
       
       {adminOpen && (
         <AdminPanel 
-          conditions={conditions}
-          onConditionsUpdate={handleConditionsUpdate}
+          onSaveChangesSuccess={loadChartData}
           onClose={toggleAdmin}
         />
       )}
