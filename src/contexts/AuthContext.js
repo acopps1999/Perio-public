@@ -32,75 +32,50 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  // Auto-logout security features
+  // Auto-logout after 10 minutes of inactivity
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    let visibilityTimeout;
+    let inactivityTimeout;
 
     // Function to perform logout
     const performLogout = () => {
-      console.log('SECURITY: Auto-logout triggered - user left the application');
+      console.log('SECURITY: Auto-logout triggered - 10 minutes of inactivity');
       setIsAuthenticated(false);
       setAdminUser(null);
       localStorage.removeItem('admin_authenticated');
       localStorage.removeItem('admin_user');
     };
 
-    // 1. Logout when page visibility changes (user switches tabs/apps)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        console.log('SECURITY: Page hidden - starting logout timer');
-        // Give user 60 seconds grace period when they switch tabs
-        visibilityTimeout = setTimeout(() => {
-          performLogout();
-        }, 60000);
-      } else {
-        console.log('SECURITY: Page visible - clearing logout timer');
-        // Cancel logout if they come back quickly
-        if (visibilityTimeout) {
-          clearTimeout(visibilityTimeout);
-          visibilityTimeout = null;
-        }
+    // Reset the inactivity timer
+    const resetInactivityTimer = () => {
+      if (inactivityTimeout) {
+        clearTimeout(inactivityTimeout);
       }
+      inactivityTimeout = setTimeout(() => {
+        performLogout();
+      }, 600000); // 10 minutes = 600,000 ms
     };
 
-    // 2. Logout when window loses focus (user clicks outside browser)
-    const handleWindowBlur = () => {
-      console.log('SECURITY: Window lost focus - immediate logout');
-      performLogout();
-    };
+    // Events that indicate user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
-    // 3. Logout when user navigates away or closes tab
-    const handleBeforeUnload = (e) => {
-      console.log('SECURITY: User attempting to leave page - clearing session');
-      localStorage.removeItem('admin_authenticated');
-      localStorage.removeItem('admin_user');
-      // Don't prevent the user from leaving, just clean up
-    };
+    // Add event listeners for user activity
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetInactivityTimer, true);
+    });
 
-    // 4. Logout when user navigates away (pagehide is more reliable than beforeunload)
-    const handlePageHide = () => {
-      console.log('SECURITY: Page being hidden/unloaded - clearing session');
-      localStorage.removeItem('admin_authenticated');
-      localStorage.removeItem('admin_user');
-    };
-
-    // Add event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handlePageHide);
+    // Start the initial timer
+    resetInactivityTimer();
 
     // Cleanup function
     return () => {
-      if (visibilityTimeout) {
-        clearTimeout(visibilityTimeout);
+      if (inactivityTimeout) {
+        clearTimeout(inactivityTimeout);
       }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handlePageHide);
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, resetInactivityTimer, true);
+      });
     };
   }, [isAuthenticated]);
 

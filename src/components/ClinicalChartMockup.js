@@ -8,7 +8,7 @@ import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import { useAuth } from '../contexts/AuthContext';
-import { loadConditionsFromSupabase } from './AdminPanel'; // Import the robust loading function
+import { loadConditionsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
 import { supabase } from '../supabaseClient'; // Import supabase client
 
 function ClinicalChartMockup() {
@@ -61,6 +61,11 @@ function ClinicalChartMockup() {
       ]);
 
       console.log("CHART_LOAD: Raw data received - Conditions:", newConditions?.length || 0, "Patient Types:", dbPatientTypes?.data?.length || 0);
+      
+      // Debug: Log first condition to see its structure
+      if (newConditions && newConditions.length > 0) {
+        console.log("CHART_LOAD: First condition structure:", JSON.stringify(newConditions[0], null, 2));
+      }
 
       if (dbPatientTypes.error) {
           console.error("CHART_LOAD: Error fetching patient types:", dbPatientTypes.error);
@@ -176,17 +181,9 @@ useEffect(() => {
             // Get products for the specific patient type by NAME
             productsToShow = phaseConfig[activePatientType] || [];
       } else {
-            // For 'All', find products common to all patient types defined for this phase
-            const patientTypeNamesInPhase = Object.keys(phaseConfig);
-            if (patientTypeNamesInPhase.length > 0) {
-              const firstPtProductSet = new Set(phaseConfig[patientTypeNamesInPhase[0]]);
-              
-              productsToShow = [...firstPtProductSet].filter(product =>
-                patientTypeNamesInPhase.every(ptName =>
-                  (phaseConfig[ptName] || []).includes(product)
-                )
-              );
-            }
+            // For 'All', show only products that are explicitly configured for 'All' patient types
+            // This means products that were specifically saved for all patient types in the admin panel
+            productsToShow = phaseConfig['All'] || [];
         }
     }
 
@@ -317,9 +314,9 @@ useEffect(() => {
   };
 
   // When AdminPanel saves, we just need to reload our data.
-  const handleSaveChangesSuccess = () => {
+  const handleSaveChangesSuccess = async () => {
     console.log("CHART_LOAD: AdminPanel saved. Reloading chart data with fresh data.");
-    loadChartData(true); // Force refresh after admin saves
+    await loadChartData(true); // Force refresh after admin saves
   };
 
   return (
@@ -427,7 +424,7 @@ useEffect(() => {
       
       {adminOpen && (
         <AdminPanel 
-          onSaveChangesSuccess={loadChartData}
+          onSaveChangesSuccess={handleSaveChangesSuccess}
           onClose={toggleAdmin}
         />
       )}
