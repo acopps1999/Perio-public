@@ -8,9 +8,9 @@ function ConditionsList({
 }) {
   return (
     <div className="lg:col-span-1 bg-white shadow rounded-lg overflow-hidden">
-      <h2 className="text-lg font-medium p-4 border-b">Conditions</h2>
+      <h2 className="text-lg font-medium p-4 border-b">Conditions & Surgical Procedures</h2>
       {filteredConditions.length === 0 ? (
-        <div className="p-4 text-gray-500">No conditions match the selected filters.</div>
+        <div className="p-4 text-gray-500">No conditions or surgical procedures match the selected filters.</div>
       ) : (
         <ul className="divide-y divide-gray-200 max-h-[70vh] overflow-y-auto">
           {filteredConditions.map((condition) => (

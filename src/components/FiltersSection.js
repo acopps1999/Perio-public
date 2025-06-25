@@ -22,7 +22,7 @@ function FiltersSection({
         {/* Category Filter */}
         <div>
           <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
-            Condition Category
+            Condition & Procedure Category
           </label>
           <Select.Root value={categoryFilter} onValueChange={setCategoryFilter}>
             <Select.Trigger id="category-filter" className="w-full flex justify-between items-center px-3 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -74,10 +74,10 @@ function FiltersSection({
           </Select.Root>
         </div>
 
-        {/* Patient Type Filter */}
+        {/* Treatment Modifier Filter */}
         <div>
           <label htmlFor="patient-filter" className="block text-sm font-medium text-gray-700 mb-1">
-            Patient Type
+            Treatment Modifier
           </label>
           <Select.Root value={patientTypeFilter} onValueChange={setPatientTypeFilter}>
             <Select.Trigger id="patient-filter" className="w-full flex justify-between items-center px-3 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -94,7 +94,7 @@ function FiltersSection({
                       className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                     >
                       <Select.ItemText>
-                        {pt.name === 'All' ? 'All Patient Types' : `${pt.name}: ${pt.description}`}
+                        {pt.name === 'All' ? 'All Treatment Modifiers' : `${pt.name}: ${pt.description}`}
                       </Select.ItemText>
                     </Select.Item>
                   ))}
@@ -107,7 +107,7 @@ function FiltersSection({
         {/* Search */}
         <div>
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-            Search Condition
+            Search Conditions & Procedures
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -119,7 +119,7 @@ function FiltersSection({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search conditions..."
+              placeholder="Search conditions & procedures..."
             />
             {searchQuery && (
               <button
