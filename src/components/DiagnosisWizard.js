@@ -258,7 +258,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
       case 4:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Step 4: Select Patient Type</h2>
+            <h2 className="text-xl font-semibold">Step 4: Select Treatment Modifier</h2>
             <p className="text-gray-600">What type of patient is being treated?</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               {patientTypes.map((pt) => (
@@ -336,7 +336,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               <ul className="mt-2 text-blue-700 space-y-1">
                 <li><span className="font-medium">Condition:</span> {selectedCondition.name}</li>
                 <li><span className="font-medium">Treating Specialist:</span> {selectedDDS}</li>
-                <li><span className="font-medium">Patient Type:</span> Type {selectedPatientType} - {patientTypeDesc[selectedPatientType]}</li>
+                <li><span className="font-medium">Treatment Modifier:</span> Type {selectedPatientType} - {patientTypeDesc[selectedPatientType]}</li>
                 <li><span className="font-medium">Treatment Phase:</span> {selectedPhase}</li>
               </ul>
             </div>

@@ -34,7 +34,7 @@ function ConditionDetails({
   const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
 
   const getPatientTypeDescription = (name) => {
-    if (name === 'All') return 'All Patient Types';
+    if (name === 'All') return 'All Treatment Modifiers';
     const pt = patientTypes.find(p => p.name === name);
     return pt ? `${pt.name}: ${pt.description}` : name;
   };
@@ -42,7 +42,7 @@ function ConditionDetails({
   if (!selectedCondition) {
     return (
       <div className="lg:col-span-3 bg-white shadow rounded-lg p-8 text-center text-gray-500">
-        Select a condition to view details
+        Select a condition or surgical procedure to view details
       </div>
     );
   }
@@ -51,7 +51,6 @@ function ConditionDetails({
   const handleProductCardSelect = (product) => {
     // Set the selected product to display its details
     const cleanProductName = product.replace(' (Type 3/4 Only)', '');
-    console.log('Selecting product:', cleanProductName, 'from original:', product);
     setSelectedProduct(cleanProductName);
     // Show the additional information section
     handleShowAdditionalInfo();
@@ -158,7 +157,7 @@ function ConditionDetails({
             </button>
           </div>
           
-          {/* Patient Type Filter for Products */}
+          {/* Treatment Modifier Filter for Products */}
           <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex-shrink-0">
@@ -169,7 +168,7 @@ function ConditionDetails({
                   <Select.Trigger className="flex justify-between items-center px-3 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c]">
                     <div className="flex items-center">
                       <Filter size={16} className="mr-2 text-[#15396c]" />
-                      <Select.Value placeholder="Select Patient Type" />
+                      <Select.Value placeholder="Select Treatment Modifier" />
                     </div>
                     <Select.Icon><ChevronDown size={18} /></Select.Icon>
                   </Select.Trigger>
@@ -273,7 +272,6 @@ function ConditionDetails({
                     {filteredProducts.map((product) => {
                       const cleanProductName = product.replace(' (Type 3/4 Only)', '');
                       const isSelected = selectedProduct === cleanProductName;
-                      console.log('Rendering product:', product, 'clean:', cleanProductName, 'selected:', selectedProduct, 'isSelected:', isSelected);
                       
                       return (
                       <div 
@@ -328,11 +326,8 @@ function ConditionDetails({
                     })}
                   </div>
                 ) : activePatientType !== 'All' ? (
-                  <div className="text-gray-500 bg-gray-50 p-4 rounded-md border">
-                    <div>
-                      <strong>No products recommended</strong> for {phase} phase with patient Type {activePatientType}.
-                      <p className="mt-2">Based on clinical guidelines, no product is necessary for this specific case.</p>
-                    </div>
+                  <div className="p-8 text-center text-gray-500">
+                    <strong>No products recommended</strong> for {phase} phase with Treatment Modifier {activePatientType}.
                   </div>
                 ) : (
                   <div className="text-gray-500">No products recommended for this phase.</div>
@@ -435,15 +430,15 @@ function ConditionDetails({
               )}
             </div>
             
-            {/* Research Articles */}
-            {selectedProductDetails.researchArticles && selectedProductDetails.researchArticles.length > 0 && (
+            {/* Key Pitch Points */}
+            {selectedProductDetails.pitchPoints && (
               <div 
                 className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-teal-200 border-teal-300 hover:bg-gray-50"
                 onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
               >
                 <div className="flex justify-between items-center">
                   <div className="font-medium text-black">
-                    Research Articles
+                    Key Pitch Points
                   </div>
                   <div className="text-teal-600">
                     {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -451,11 +446,7 @@ function ConditionDetails({
                 </div>
                 {expandedSections.pitchPoints && (
                   <div className="text-gray-700 mt-2 whitespace-pre-line">
-                    <ul className="list-disc pl-5 space-y-1">
-                      {selectedProductDetails.researchArticles.map((article, index) => (
-                        <li key={index}>{article.title || 'Untitled research article'}</li>
-                      ))}
-                    </ul>
+                    {selectedProductDetails.pitchPoints || 'Key pitch points not available.'}
                   </div>
                 )}
               </div>

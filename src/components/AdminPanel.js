@@ -76,7 +76,7 @@ function AdminPanel({ onSaveChangesSuccess, onClose }) {
                       : "text-black hover:bg-gray-200 hover:text-gray-700"
                   )}
                 >
-                  Conditions
+                  Conditions & Surgical Procedures
                 </Tabs.Trigger>
                 <Tabs.Trigger
                   value="products"

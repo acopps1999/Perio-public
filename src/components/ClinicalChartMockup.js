@@ -13,7 +13,7 @@ import { supabase } from '../supabaseClient'; // Import supabase client
 
 function ClinicalChartMockup() {
   // Authentication
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, registerAutoLogoutCallback } = useAuth();
   
   // State management
   const [conditions, setConditions] = useState([]);
@@ -192,27 +192,27 @@ useEffect(() => {
   }, [selectedCondition, activeTab, activePatientType]);
 
   // Handle condition selection
-  const handleConditionSelect = (condition) => {
+  const handleConditionSelect = useCallback((condition) => {
     setSelectedCondition(condition);
     setActiveTab(condition.phases[0]);
     setActivePatientType('All'); // Reset patient type filter when changing condition
     setShowAdditionalInfo(false); // Hide additional info when selecting a new condition
-  };
+  }, []);
 
   // Handle tab change
-  const handleTabChange = (tab) => {
+  const handleTabChange = useCallback((tab) => {
     setActiveTab(tab);
     // The main useEffect will handle re-filtering products automatically.
-  };
+  }, []);
 
   // Handle patient type selection for product filtering
-  const handlePatientTypeSelect = (type) => {
+  const handlePatientTypeSelect = useCallback((type) => {
     setActivePatientType(type);
     // The main useEffect will handle re-filtering products automatically.
-  };
+  }, []);
 
   // Handle product selection for modal
-  const handleProductSelect = (product) => {
+  const handleProductSelect = useCallback((product) => {
     // Don't open the modal, just show additional info
     setShowAdditionalInfo(true);
     
@@ -221,18 +221,18 @@ useEffect(() => {
       name: product,
       details: selectedCondition.productDetails[product.replace(' (Type 3/4 Only)', '')]
     });
-  };
+  }, [selectedCondition]);
 
   // Simple handler to show additional info
-  const handleShowAdditionalInfo = () => {
+  const handleShowAdditionalInfo = useCallback(() => {
     setShowAdditionalInfo(true);
-  };
+  }, []);
 
   // Handle opening research modal for a specific product
-  const handleOpenResearch = (product) => {
+  const handleOpenResearch = useCallback((product) => {
     setSelectedResearchProduct(product);
     setResearchModalOpen(true);
-  };
+  }, []);
   
   // Get research articles for a specific product in the current condition
   const getProductResearch = (productName) => {
@@ -278,14 +278,14 @@ useEffect(() => {
   };
 
   // Determine if a phase has products for the selected condition
-  const hasProductsForPhase = (phase) => {
+  const hasProductsForPhase = useCallback((phase) => {
     if (!selectedCondition || !selectedCondition.patientSpecificConfig || !selectedCondition.patientSpecificConfig[phase]) {
       return false;
     }
     // Check if any patient type within the phase has at least one product
     const phaseConfig = selectedCondition.patientSpecificConfig[phase];
     return Object.values(phaseConfig).some(products => Array.isArray(products) && products.length > 0);
-  };
+  }, [selectedCondition]);
 
   // Toggle diagnosis wizard
   const toggleWizard = () => {
@@ -319,6 +319,24 @@ useEffect(() => {
     await loadChartData(true); // Force refresh after admin saves
   };
 
+  // Register auto-logout callback to close admin panel
+  useEffect(() => {
+    if (registerAutoLogoutCallback) {
+      registerAutoLogoutCallback(() => {
+        console.log('Auto-logout callback: Closing admin panel');
+        setAdminOpen(false);
+      });
+    }
+  }, [registerAutoLogoutCallback]);
+
+  // Close admin panel when user is no longer authenticated (backup safety)
+  useEffect(() => {
+    if (!isAuthenticated && adminOpen) {
+      console.log('User logged out: Closing admin panel');
+      setAdminOpen(false);
+    }
+  }, [isAuthenticated, adminOpen]);
+
   return (
     
     <div className="min-h-screen bg-gray-50">
@@ -328,10 +346,10 @@ useEffect(() => {
           <div className="flex space-x-3">
             <button
               onClick={toggleWizard}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2"
             >
               <Stethoscope size={18} className="mr-2" />
-              Diagnosis Wizard
+              Therapeutic Wizard
             </button>
             <button
               onClick={toggleAdmin}

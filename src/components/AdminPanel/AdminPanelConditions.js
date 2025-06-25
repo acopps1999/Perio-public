@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { Plus, Edit, Trash2, X, ChevronDown, Info, User, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Info, User, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../../supabaseClient';
 
@@ -46,6 +46,9 @@ function AdminPanelConditions({
   setCompetitiveAdvantageData,
   setIsEditing
 }) {
+
+// State for tracking expanded product sections
+const [expandedProducts, setExpandedProducts] = useState({});
 
 // Return early if no data
 if (editedConditions.length === 0) {
@@ -293,12 +296,12 @@ const getPhasesForProduct = (condition, productName) => {
   return productPhases;
 };
 
-// Render patient type filter and product configuration UI
+// Render treatment modifier filter and product configuration UI
 const renderPatientTypeProductConfig = (phase) => {
   return (
     <div className="mt-4 border rounded-lg p-4 bg-gray-50">
       <div className="flex justify-between items-center mb-4">
-        <h4 className="font-medium">Patient-Specific Product Configuration</h4>
+        <h4 className="font-medium">Treatment Modifier-Specific Product Configuration</h4>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Filter by:</span>
           <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelect}>
@@ -315,7 +318,7 @@ const renderPatientTypeProductConfig = (phase) => {
                       value="All"
                       className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                     >
-                    <Select.ItemText>All Patient Types</Select.ItemText>
+                    <Select.ItemText>All Treatment Modifiers</Select.ItemText>
                   </Select.Item>
                   {patientTypes.map((type) => (
                     <Select.Item
@@ -338,13 +341,13 @@ const renderPatientTypeProductConfig = (phase) => {
           <Info size={15} className="mr-1 flex-shrink-0 text-[#15396c]" />
           <span>
             Configuring products specifically for <strong>{activePatientType}</strong>.
-            Products added here will only be recommended for this patient type.
+            Products added here will only be recommended for this treatment modifier.
           </span>
         </div>
       )}
       
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'all' ? 'All Patient Types' : `${activePatientType}`}</span>
+        <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'all' ? 'All Treatment Modifiers' : `${activePatientType}`}</span>
         <select
           onChange={(e) => {
             if (e.target.value) {
@@ -388,7 +391,7 @@ const renderPatientTypeProductConfig = (phase) => {
         </ul>
       ) : (
         <div className="p-4 text-center text-gray-500 bg-gray-100 rounded-md">
-          No products configured for {activePatientType === 'all' ? 'All Patient Types' : `Type ${activePatientType}`}.
+          No products configured for {activePatientType === 'all' ? 'All Treatment Modifiers' : `Treatment Modifier ${activePatientType}`}.
         </div>
       )}
     </div>
@@ -401,7 +404,7 @@ return (
       {/* Conditions List */}
       <div className="w-1/3 border-r p-4" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-medium">All Conditions</h3>
+          <h3 className="font-medium">All Conditions & Surgical Procedures</h3>
           <button
             onClick={handleAddCondition}
             className="p-1 text-[#15396c] hover:text-[#15396c]/80 inline-flex items-center text-sm"
@@ -462,7 +465,7 @@ return (
               {/* Condition Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Condition Name
+                  Condition & Surgical Procedure Name
                 </label>
                 <input
                   type="text"
@@ -491,10 +494,10 @@ return (
               </div>
             </div>
             
-            {/* Patient Type */}
+            {/* Treatment Modifier */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Patient Type
+                Treatment Modifier
               </label>
               <input
                 type="text"
@@ -605,7 +608,7 @@ return (
               </div>
             </div>
             
-            {/* Products by Phase with Patient Type Filtering */}
+            {/* Products by Phase with Treatment Modifier Filtering */}
             <div className="mt-6">
               <h3 className="font-medium text-lg mb-3">Products by Phase</h3>
               
@@ -862,280 +865,297 @@ return (
                     {recommendedProducts.map((productName) => {
                       // Get product details from the condition's productDetails object
                       const productDetails = selectedCondition.productDetails?.[productName] || {};
-                    return (
-                    <div key={productName} className="border rounded-md p-4 bg-gray-50">
-                      <h4 className="font-medium text-md mb-3">{productName}</h4>
+                      const isExpanded = expandedProducts[productName] || false;
                       
-                      <div className="space-y-3">
-                        {/* Usage Instructions with Phase Tabs */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Usage Instructions
-                          </label>
-                          
-                          {(() => {
-                            // Get only the phases where this product is recommended
-                            const recommendedPhases = getPhasesForProduct(selectedCondition, productName);
-                            
-                            if (recommendedPhases.length > 0) {
-                              return (
-                                <div className="border rounded-md">
-                                  <Tabs.Root defaultValue={recommendedPhases[0]} className="w-full">
-                                    <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
-                                      {recommendedPhases.map((phase, index) => {
-                                        // Different opacity levels of the selected condition color for each phase
-                                        const getPhaseColor = (phaseIndex) => {
-                                          const colors = [
-                                            'bg-[#15396c]/40', // First phase - 40% opacity
-                                            'bg-[#15396c]/60', // Second phase - 60% opacity  
-                                            'bg-[#15396c]/80'  // Third phase - 80% opacity
-                                          ];
-                                          return colors[phaseIndex] || 'bg-[#15396c]/40';
-                                        };
-                                        
-                                        return (
-                                          <Tabs.Trigger
-                                            key={phase}
-                                            value={phase}
-                                            className={clsx(
-                                              "flex-1 px-4 py-2 text-sm font-medium text-center focus:outline-none transition-all duration-200 text-white",
-                                              getPhaseColor(index),
-                                              "data-[state=active]:shadow-[inset_0_0_0_4px_#15396c]",
-                                              "data-[state=inactive]:hover:shadow-[inset_0_0_0_2px_rgba(156,163,175,0.5)]"
-                                            )}
-                                          >
-                                            {phase}
-                                          </Tabs.Trigger>
-                                        );
-                                      })}
-                                    </Tabs.List>
-                                    
-                                    {recommendedPhases.map((phase) => (
-                                      <Tabs.Content key={phase} value={phase} className="p-4">
-                                        <textarea
-                                          value={
-                                            productDetails.usage && 
-                                            typeof productDetails.usage === 'object' ?
-                                            productDetails.usage[phase] || '' :
-                                            productDetails.usage || ''
-                                          }
-                                          onChange={(e) => updateProductDetail(
-                                            selectedCondition.name,
-                                            productName,
-                                            'usage',
-                                            e.target.value,
-                                            phase
-                                          )}
-                                          rows={3}
-                                          placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
-                                        />
-                                      </Tabs.Content>
-                                    ))}
-                                  </Tabs.Root>
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="border rounded-md p-4 bg-gray-50 text-gray-500 italic">
-                                  This product is not recommended for any phases. Add it to a phase in the "Products by Phase" section above to add usage instructions.
-                                </div>
-                              );
-                            }
-                          })()}
-                        </div>
-                        
-                        {/* Scientific Rationale */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Scientific Rationale
-                          </label>
-                          <textarea
-                            value={productDetails.rationale || ''}
-                            onChange={(e) => updateProductDetail(
-                              selectedCondition.name,
-                              productName,
-                              'rationale',
-                              e.target.value
-                            )}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
-                          />
-                        </div>
-                        
-                        {/* Clinical Evidence */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Clinical Evidence
-                          </label>
-                          <textarea
-                            value={productDetails.clinicalEvidence || ''}
-                            onChange={(e) => updateProductDetail(
-                              selectedCondition.name,
-                              productName,
-                              'clinicalEvidence',
-                              e.target.value
-                            )}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
-                          />
-                        </div>
-                        
-                        {/* Handling Objections */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Handling Objections
-                          </label>
-                          <textarea
-                            value={productDetails.handlingObjections || ''}
-                            onChange={(e) => updateProductDetail(
-                              selectedCondition.name,
-                              productName,
-                              'handlingObjections',
-                              e.target.value
-                            )}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter objection handling information. Line breaks will be preserved in the display."
-                          />
-                        </div>
-                        
-                        {/* Key Pitch Points */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Key Pitch Points
-                          </label>
-                          <textarea
-                            value={productDetails.pitchPoints || ''}
-                            onChange={(e) => updateProductDetail(
-                              selectedCondition.name,
-                              productName,
-                              'pitchPoints',
-                              e.target.value
-                            )}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter key pitch points. Line breaks will be preserved in the display."
-                          />
-                        </div>
-                        
-                        {/* Research Articles Section */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Supporting Research Articles
-                          </label>
-                          
-                          {productDetails.researchArticles && 
-                            productDetails.researchArticles.map((article, index) => (
-                            <div key={index} className="flex space-x-2 mb-2">
-                              <div className="flex-grow space-y-2">
-                                <input
-                                  type="text"
-                                  placeholder="Article title"
-                                  value={article.title || ''}
-                                  onChange={(e) => {
-                                    const updatedArticles = [...productDetails.researchArticles];
-                                    updatedArticles[index].title = e.target.value;
-                                    updateProductDetail(
-                                      selectedCondition.name, 
-                                      productName, 
-                                      'researchArticles', 
-                                      updatedArticles
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <input
-                                  type="text"
-                                  placeholder="Author/Source"
-                                  value={article.author || ''}
-                                  onChange={(e) => {
-                                    const updatedArticles = [...productDetails.researchArticles];
-                                    updatedArticles[index].author = e.target.value;
-                                    updateProductDetail(
-                                      selectedCondition.name, 
-                                      productName, 
-                                      'researchArticles', 
-                                      updatedArticles
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <textarea
-                                  placeholder="Abstract (optional)"
-                                  value={article.abstract || ''}
-                                  onChange={(e) => {
-                                    const updatedArticles = [...productDetails.researchArticles];
-                                    updatedArticles[index].abstract = e.target.value;
-                                    updateProductDetail(
-                                      selectedCondition.name, 
-                                      productName, 
-                                      'researchArticles', 
-                                      updatedArticles
-                                    );
-                                  }}
-                                  rows={3}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                                
-                                <input
-                                  type="text"
-                                  placeholder="URL (optional)"
-                                  value={article.url || ''}
-                                  onChange={(e) => {
-                                    const updatedArticles = [...productDetails.researchArticles];
-                                    updatedArticles[index].url = e.target.value;
-                                    updateProductDetail(
-                                      selectedCondition.name, 
-                                      productName, 
-                                      'researchArticles', 
-                                      updatedArticles
-                                    );
-                                  }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                />
-                              </div>
-                              
-                              <button
-                                onClick={() => {
-                                  const updatedArticles = [...productDetails.researchArticles];
-                                  updatedArticles.splice(index, 1);
-                                  updateProductDetail(
-                                    selectedCondition.name, 
-                                    productName, 
-                                    'researchArticles', 
-                                    updatedArticles
-                                  );
-                                }}
-                                className="p-2 border border-red-300 rounded-md text-red-500 hover:bg-red-50 self-start"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                          
-                          <button
-                            onClick={() => {
-                              const currentArticles = productDetails.researchArticles || [];
-                              const updatedArticles = [...currentArticles, { title: '', author: '', url: '' }];
-                              updateProductDetail(
-                                selectedCondition.name, 
-                                productName, 
-                                'researchArticles', 
-                                updatedArticles
-                              );
-                            }}
-                            className="mt-2 px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 hover:bg-indigo-50 text-sm flex items-center"
-                          >
-                            <Plus size={16} className="mr-1" />
-                            Add Research Article
-                          </button>
+                    return (
+                    <div key={productName} className="border rounded-md bg-gray-50">
+                      {/* Collapsible Header */}
+                      <div 
+                        className="p-4 cursor-pointer hover:bg-gray-100 transition-colors flex justify-between items-center"
+                        onClick={() => setExpandedProducts(prev => ({
+                          ...prev,
+                          [productName]: !prev[productName]
+                        }))}
+                      >
+                        <h4 className="font-medium text-md">{productName}</h4>
+                        <div className="text-gray-600">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </div>
                       </div>
+                      
+                      {/* Collapsible Content */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 space-y-3 border-t bg-white">
+                          {/* Usage Instructions with Phase Tabs */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Usage Instructions
+                            </label>
+                            
+                            {(() => {
+                              // Get only the phases where this product is recommended
+                              const recommendedPhases = getPhasesForProduct(selectedCondition, productName);
+                              
+                              if (recommendedPhases.length > 0) {
+                                return (
+                                  <div className="border rounded-md">
+                                    <Tabs.Root defaultValue={recommendedPhases[0]} className="w-full">
+                                      <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
+                                        {recommendedPhases.map((phase, index) => {
+                                          // Different opacity levels of the selected condition color for each phase
+                                          const getPhaseColor = (phaseIndex) => {
+                                            const colors = [
+                                              'bg-[#15396c]/40', // First phase - 40% opacity
+                                              'bg-[#15396c]/60', // Second phase - 60% opacity  
+                                              'bg-[#15396c]/80'  // Third phase - 80% opacity
+                                            ];
+                                            return colors[phaseIndex] || 'bg-[#15396c]/40';
+                                          };
+                                          
+                                          return (
+                                            <Tabs.Trigger
+                                              key={phase}
+                                              value={phase}
+                                              className={clsx(
+                                                "flex-1 px-4 py-2 text-sm font-medium text-center focus:outline-none transition-all duration-200 text-white",
+                                                getPhaseColor(index),
+                                                "data-[state=active]:shadow-[inset_0_0_0_4px_#15396c]",
+                                                "data-[state=inactive]:hover:shadow-[inset_0_0_0_2px_rgba(156,163,175,0.5)]"
+                                              )}
+                                            >
+                                              {phase}
+                                            </Tabs.Trigger>
+                                          );
+                                        })}
+                                      </Tabs.List>
+                                      
+                                      {recommendedPhases.map((phase) => (
+                                        <Tabs.Content key={phase} value={phase} className="p-4">
+                                          <textarea
+                                            value={
+                                              productDetails.usage && 
+                                              typeof productDetails.usage === 'object' ?
+                                              productDetails.usage[phase] || '' :
+                                              productDetails.usage || ''
+                                            }
+                                            onChange={(e) => updateProductDetail(
+                                              selectedCondition.name,
+                                              productName,
+                                              'usage',
+                                              e.target.value,
+                                              phase
+                                            )}
+                                            rows={3}
+                                            placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                                          />
+                                        </Tabs.Content>
+                                      ))}
+                                    </Tabs.Root>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="border rounded-md p-4 bg-gray-50 text-gray-500 italic">
+                                    This product is not recommended for any phases. Add it to a phase in the "Products by Phase" section above to add usage instructions.
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                          
+                          {/* Scientific Rationale */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Scientific Rationale
+                            </label>
+                            <textarea
+                              value={productDetails.rationale || ''}
+                              onChange={(e) => updateProductDetail(
+                                selectedCondition.name,
+                                productName,
+                                'rationale',
+                                e.target.value
+                              )}
+                              rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
+                            />
+                          </div>
+                          
+                          {/* Clinical Evidence */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Clinical Evidence
+                            </label>
+                            <textarea
+                              value={productDetails.clinicalEvidence || ''}
+                              onChange={(e) => updateProductDetail(
+                                selectedCondition.name,
+                                productName,
+                                'clinicalEvidence',
+                                e.target.value
+                              )}
+                              rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
+                            />
+                          </div>
+                          
+                          {/* Handling Objections */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Handling Objections
+                            </label>
+                            <textarea
+                              value={productDetails.handlingObjections || ''}
+                              onChange={(e) => updateProductDetail(
+                                selectedCondition.name,
+                                productName,
+                                'handlingObjections',
+                                e.target.value
+                              )}
+                              rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter objection handling information. Line breaks will be preserved in the display."
+                            />
+                          </div>
+                          
+                          {/* Key Pitch Points */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Key Pitch Points
+                            </label>
+                            <textarea
+                              value={productDetails.pitchPoints || ''}
+                              onChange={(e) => updateProductDetail(
+                                selectedCondition.name,
+                                productName,
+                                'pitchPoints',
+                                e.target.value
+                              )}
+                              rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter key pitch points. Line breaks will be preserved in the display."
+                            />
+                          </div>
+                          
+                          {/* Research Articles Section */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Supporting Research Articles
+                            </label>
+                            
+                            {productDetails.researchArticles && 
+                              productDetails.researchArticles.map((article, index) => (
+                              <div key={index} className="flex space-x-2 mb-2">
+                                <div className="flex-grow space-y-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Article title"
+                                    value={article.title || ''}
+                                    onChange={(e) => {
+                                      const updatedArticles = [...productDetails.researchArticles];
+                                      updatedArticles[index].title = e.target.value;
+                                      updateProductDetail(
+                                        selectedCondition.name, 
+                                        productName, 
+                                        'researchArticles', 
+                                        updatedArticles
+                                      );
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                  
+                                  <input
+                                    type="text"
+                                    placeholder="Author/Source"
+                                    value={article.author || ''}
+                                    onChange={(e) => {
+                                      const updatedArticles = [...productDetails.researchArticles];
+                                      updatedArticles[index].author = e.target.value;
+                                      updateProductDetail(
+                                        selectedCondition.name, 
+                                        productName, 
+                                        'researchArticles', 
+                                        updatedArticles
+                                      );
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                  
+                                  <textarea
+                                    placeholder="Abstract (optional)"
+                                    value={article.abstract || ''}
+                                    onChange={(e) => {
+                                      const updatedArticles = [...productDetails.researchArticles];
+                                      updatedArticles[index].abstract = e.target.value;
+                                      updateProductDetail(
+                                        selectedCondition.name, 
+                                        productName, 
+                                        'researchArticles', 
+                                        updatedArticles
+                                      );
+                                    }}
+                                    rows={3}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                  
+                                  <input
+                                    type="text"
+                                    placeholder="URL (optional)"
+                                    value={article.url || ''}
+                                    onChange={(e) => {
+                                      const updatedArticles = [...productDetails.researchArticles];
+                                      updatedArticles[index].url = e.target.value;
+                                      updateProductDetail(
+                                        selectedCondition.name, 
+                                        productName, 
+                                        'researchArticles', 
+                                        updatedArticles
+                                      );
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                </div>
+                                
+                                <button
+                                  onClick={() => {
+                                    const updatedArticles = [...productDetails.researchArticles];
+                                    updatedArticles.splice(index, 1);
+                                    updateProductDetail(
+                                      selectedCondition.name, 
+                                      productName, 
+                                      'researchArticles', 
+                                      updatedArticles
+                                    );
+                                  }}
+                                  className="p-2 border border-red-300 rounded-md text-red-500 hover:bg-red-50 self-start"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            ))}
+                            
+                            <button
+                              onClick={() => {
+                                const currentArticles = productDetails.researchArticles || [];
+                                const updatedArticles = [...currentArticles, { title: '', author: '', url: '' }];
+                                updateProductDetail(
+                                  selectedCondition.name, 
+                                  productName, 
+                                  'researchArticles', 
+                                  updatedArticles
+                                );
+                              }}
+                              className="mt-2 px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 hover:bg-indigo-50 text-sm flex items-center"
+                            >
+                              <Plus size={16} className="mr-1" />
+                              Add Research Article
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     );
                   })}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminUser, setAdminUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [onAutoLogoutCallback, setOnAutoLogoutCallback] = useState(null);
 
   // Check if user is already logged in on app start
   useEffect(() => {
@@ -41,6 +42,12 @@ export const AuthProvider = ({ children }) => {
     // Function to perform logout
     const performLogout = () => {
       console.log('SECURITY: Auto-logout triggered - 10 minutes of inactivity');
+      
+      // Call the callback before logout (if set) to close admin panels
+      if (onAutoLogoutCallback) {
+        onAutoLogoutCallback();
+      }
+      
       setIsAuthenticated(false);
       setAdminUser(null);
       localStorage.removeItem('admin_authenticated');
@@ -77,7 +84,7 @@ export const AuthProvider = ({ children }) => {
         document.removeEventListener(event, resetInactivityTimer, true);
       });
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, onAutoLogoutCallback]);
 
   const login = async (email, password) => {
     try {
@@ -131,12 +138,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('admin_user');
   };
 
+  // Function to register auto-logout callback
+  const registerAutoLogoutCallback = useCallback((callback) => {
+    setOnAutoLogoutCallback(() => callback);
+  }, []);
+
   const value = {
     isAuthenticated,
     adminUser,
     loading,
     login,
-    logout
+    logout,
+    registerAutoLogoutCallback
   };
 
   return (
