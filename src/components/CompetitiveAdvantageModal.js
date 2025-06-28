@@ -38,7 +38,11 @@ function CompetitiveAdvantageModal({
             <div
               key={index}
               onClick={() => handleItemSelect(item, type)}
-              className="p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#15396c] cursor-pointer transition-all duration-200"
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                selectedItem && selectedItem.name === item.name
+                  ? 'border-[#15396c] bg-[#15396c]/5'
+                  : 'border-gray-200 hover:bg-gray-50 hover:border-[#15396c]'
+              }`}
             >
               <div className="font-medium text-gray-900">{item.name}</div>
               <div className="text-sm text-gray-500 mt-1">
@@ -97,10 +101,15 @@ function CompetitiveAdvantageModal({
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg z-50 w-full max-w-6xl max-h-[90vh] overflow-hidden">
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex justify-between items-center p-6 border-b bg-gray-50">
-              <Dialog.Title className="text-xl font-semibold text-gray-900">
-                Competitive Advantage - {selectedProduct}
-              </Dialog.Title>
+            <div className="flex justify-between items-start p-6 border-b bg-gray-50">
+              <div>
+                <Dialog.Title className="text-xl font-semibold text-gray-900">
+                  Competitive Advantage - {selectedProduct}
+                </Dialog.Title>
+                <Dialog.Description className="text-sm text-gray-600 mt-1">
+                  Compare our product advantages against competitors and review active ingredient benefits.
+                </Dialog.Description>
+              </div>
               <Dialog.Close className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </Dialog.Close>

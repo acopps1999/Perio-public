@@ -18,6 +18,7 @@ import {
 
 function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const [activeTab, setActiveTab] = useState('conditions');
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false); // Prevent duplicate loading
   const [initialConditions, setInitialConditions] = useState([]); // For diffing
   const [editedConditions, setEditedConditions] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState(null);
@@ -55,6 +56,12 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   // Initialize data
   const loadInitialData = useCallback(async (forceRefresh = false) => {
+    // Prevent duplicate loading unless explicitly forced
+    if (hasLoadedInitialData && !forceRefresh) {
+      console.log("PERFORMANCE_ADMIN: AdminPanel data already loaded, skipping duplicate load.");
+      return;
+    }
+    
     console.log("PERFORMANCE_ADMIN: AdminPanel loading data...");
     
     // Load conditions from Supabase (use cache when possible)
@@ -91,8 +98,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     }
     
     setIsEditing(false); // Reset editing state after a full load
+    setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
     console.log("PERFORMANCE_ADMIN: AdminPanel data fetch completed.");
-  }, []);
+  }, [hasLoadedInitialData]);
 
   useEffect(() => {
     loadInitialData();
@@ -104,32 +112,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       initializePatientSpecificProducts(selectedCondition);
     }
   }, [selectedCondition]);
-
-  // Load products from Supabase
-  useEffect(() => {
-    const loadSupabaseProducts = async () => {
-      const result = await loadProductsFromSupabase();
-      if (result.success) {
-        // Merge Supabase products with existing products from conditions
-        setAllProducts(prev => {
-          const existingProducts = new Set(prev);
-          const supabaseProducts = result.data || [];
-          const mergedProducts = [...existingProducts];
-          
-          // Add any new products from Supabase that aren't already in the list
-          supabaseProducts.forEach(product => {
-            if (!existingProducts.has(product)) {
-              mergedProducts.push(product);
-            }
-          });
-          
-          return mergedProducts;
-        });
-      }
-    };
-    
-    loadSupabaseProducts();
-  }, []);
 
   // Initialize patient-specific products for a condition
   const initializePatientSpecificProducts = (condition) => {
@@ -294,31 +276,26 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         console.log(`PERFORMANCE_SAVE: All operations successful in ${Math.round(saveEndTime - saveStartTime)}ms`);
         console.log('PERFORMANCE_SAVE: Reloading data and notifying parent...');
         
-        // Invalidate cache and reload data in parallel
+        // Invalidate cache and notify parent to reload
         invalidateConditionsCache();
-        await Promise.all([
-          loadInitialData(true), // Force refresh for admin panel state
-          Promise.resolve(onSaveChangesSuccess()) // Notifies the parent to reload its own data
-        ]);
+        
+        // Only notify parent to reload - AdminPanel will get fresh data when parent refreshes
+        console.log('PERFORMANCE_SAVE: Notifying parent to reload data...');
+        await Promise.resolve(onSaveChangesSuccess());
         
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       } else {
         console.error('PERFORMANCE_SAVE: One or more operations failed.', finalError);
-        // Attempt to reload to reflect DB state even on partial failure
-        await Promise.all([
-          loadInitialData(true),
-          Promise.resolve(onSaveChangesSuccess())
-        ]);
+        // Reload AdminPanel data to reflect current DB state on partial failure
+        await loadInitialData(true);
       }
 
     } catch (error) {
       console.error('PERFORMANCE_SAVE: Critical error during save process:', error);
       overallSuccess = false;
-      await Promise.all([
-        loadInitialData(true),
-        Promise.resolve(onSaveChangesSuccess())
-      ]);
+      // Reload AdminPanel data to reflect current DB state on error
+      await loadInitialData(true);
     } finally {
       setIsSaving(false);
       const totalTime = performance.now() - saveStartTime;
@@ -670,7 +647,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       name: '',
       category: categories[0] || '',
       phases: defaultPhases, 
-      dds: [],
+      dds: ['General Dentist'], // Default DDS to prevent validation errors
       patientType: 'Types 1 to 4', // Default value
       products: defaultProducts, 
       productDetails: {},

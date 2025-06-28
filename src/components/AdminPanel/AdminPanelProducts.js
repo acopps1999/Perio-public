@@ -26,12 +26,20 @@ return (
     
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {allProducts.map((product) => {
-        // Count how many conditions use this product
-        const conditionCount = editedConditions.filter(c => 
-          Object.values(c.products || {}).some(products => 
-            products.includes(product) || products.includes(`${product} (Type 3/4 Only)`)
-          )
-        ).length;
+        // Count how many conditions use this product in their patientSpecificConfig
+        const conditionCount = editedConditions.filter(condition => {
+          if (!condition.patientSpecificConfig) return false;
+          
+          // Check all phases and patient types for this product
+          return Object.values(condition.patientSpecificConfig).some(phaseConfig => 
+            Object.values(phaseConfig).some(patientTypeProducts => 
+              Array.isArray(patientTypeProducts) && (
+                patientTypeProducts.includes(product) || 
+                patientTypeProducts.includes(`${product} (Type 3/4 Only)`)
+              )
+            )
+          );
+        }).length;
         
         return (
         <div key={product} className="border rounded-lg p-4 hover:bg-gray-50 group">

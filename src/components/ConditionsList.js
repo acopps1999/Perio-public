@@ -40,7 +40,7 @@ function ConditionsList({
                 "text-xs mt-1",
                 selectedCondition && selectedCondition.name === condition.name ? "text-gray-300" : "text-gray-400"
               )}>
-                {condition.dds.join(', ')} | {condition.patientType}
+                <span className="hidden">{condition.dds.join(', ')} | </span>{condition.patientType}
               </div>
             </li>
           ))}

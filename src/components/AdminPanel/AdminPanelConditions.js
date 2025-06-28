@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Info, User, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Target, ChevronDown, ChevronUp, ChevronRight, Info, User, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../../supabaseClient';
+import CompetitiveAdvantageModal from '../CompetitiveAdvantageModal';
+import { useDynamicTextarea, createDynamicTextareaProps } from './useDynamicTextarea';
+import DynamicTextarea from './DynamicTextarea';
 
 // AdminPanelConditions Component
 function AdminPanelConditions({
@@ -49,6 +52,14 @@ function AdminPanelConditions({
 
 // State for tracking expanded product sections
 const [expandedProducts, setExpandedProducts] = useState({});
+
+// Reset states when competitive advantage modal closes
+const resetCompetitiveAdvantageState = () => {
+  setExpandedProducts({});
+  setCompetitiveAdvantageModalOpen(false);
+  setSelectedProductForAdvantage(null);
+  setCompetitiveAdvantageData({ competitors: [], activeIngredients: [] });
+};
 
 // Return early if no data
 if (editedConditions.length === 0) {
@@ -508,8 +519,8 @@ return (
               <p className="mt-1 text-xs text-gray-500">Format: "Types 1 to 4" or "Types 3 to 4"</p>
             </div>
             
-            {/* DDS Types */}
-            <div>
+            {/* DDS Types - Hidden */}
+            <div className="hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 DDS Types
               </label>
@@ -752,7 +763,9 @@ return (
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         />
                         
-                        <textarea
+                        <DynamicTextarea
+                          initialRows={3}
+                          maxRows={8}
                           placeholder="Abstract (optional)"
                           value={article.abstract || ''}
                           onChange={(e) => {
@@ -768,7 +781,6 @@ return (
                               updatedResearch
                             );
                           }}
-                          rows={3}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                         />
                         
@@ -931,7 +943,9 @@ return (
                                       
                                       {recommendedPhases.map((phase) => (
                                         <Tabs.Content key={phase} value={phase} className="p-4">
-                                          <textarea
+                                          <DynamicTextarea
+                                            initialRows={3}
+                                            maxRows={12}
                                             value={
                                               productDetails.usage && 
                                               typeof productDetails.usage === 'object' ?
@@ -945,7 +959,6 @@ return (
                                               e.target.value,
                                               phase
                                             )}
-                                            rows={3}
                                             placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
                                           />
@@ -969,7 +982,9 @@ return (
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Scientific Rationale
                             </label>
-                            <textarea
+                            <DynamicTextarea
+                              initialRows={2}
+                              maxRows={8}
                               value={productDetails.rationale || ''}
                               onChange={(e) => updateProductDetail(
                                 selectedCondition.name,
@@ -977,7 +992,6 @@ return (
                                 'rationale',
                                 e.target.value
                               )}
-                              rows={2}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
                             />
@@ -988,7 +1002,9 @@ return (
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Clinical Evidence
                             </label>
-                            <textarea
+                            <DynamicTextarea
+                              initialRows={2}
+                              maxRows={8}
                               value={productDetails.clinicalEvidence || ''}
                               onChange={(e) => updateProductDetail(
                                 selectedCondition.name,
@@ -996,7 +1012,6 @@ return (
                                 'clinicalEvidence',
                                 e.target.value
                               )}
-                              rows={2}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
                             />
@@ -1007,7 +1022,9 @@ return (
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Handling Objections
                             </label>
-                            <textarea
+                            <DynamicTextarea
+                              initialRows={2}
+                              maxRows={8}
                               value={productDetails.handlingObjections || ''}
                               onChange={(e) => updateProductDetail(
                                 selectedCondition.name,
@@ -1015,7 +1032,6 @@ return (
                                 'handlingObjections',
                                 e.target.value
                               )}
-                              rows={2}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               placeholder="Enter objection handling information. Line breaks will be preserved in the display."
                             />
@@ -1026,7 +1042,9 @@ return (
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Key Pitch Points
                             </label>
-                            <textarea
+                            <DynamicTextarea
+                              initialRows={2}
+                              maxRows={8}
                               value={productDetails.pitchPoints || ''}
                               onChange={(e) => updateProductDetail(
                                 selectedCondition.name,
@@ -1034,7 +1052,6 @@ return (
                                 'pitchPoints',
                                 e.target.value
                               )}
-                              rows={2}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               placeholder="Enter key pitch points. Line breaks will be preserved in the display."
                             />
@@ -1084,7 +1101,9 @@ return (
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                   />
                                   
-                                  <textarea
+                                  <DynamicTextarea
+                                    initialRows={3}
+                                    maxRows={8}
                                     placeholder="Abstract (optional)"
                                     value={article.abstract || ''}
                                     onChange={(e) => {
@@ -1097,7 +1116,6 @@ return (
                                         updatedArticles
                                       );
                                     }}
-                                    rows={3}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                   />
                                   
