@@ -55,8 +55,8 @@ function AdminPanelCategories({
           </div>
         </div>
         
-        {/* DDS Types */}
-        <div>
+        {/* DDS Types - Hidden */}
+        <div className="hidden">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium">DDS Types</h3>
             <button

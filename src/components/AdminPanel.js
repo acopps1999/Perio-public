@@ -98,7 +98,7 @@ function AdminPanel({ onSaveChangesSuccess, onClose }) {
                       : "text-black hover:bg-gray-200 hover:text-gray-700"
                   )}
                 >
-                  Categories & DDS Types
+                  Categories
                 </Tabs.Trigger>
               </Tabs.List>
 
@@ -120,7 +120,7 @@ function AdminPanel({ onSaveChangesSuccess, onClose }) {
                 <AdminPanelProducts {...coreProps} />
               </Tabs.Content>
 
-              {/* Categories & DDS Types Tab */}
+              {/* Categories Tab */}
               <Tabs.Content value="categories">
                 <AdminPanelCategories {...coreProps} />
               </Tabs.Content>

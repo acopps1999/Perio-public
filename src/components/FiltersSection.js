@@ -18,7 +18,7 @@ function FiltersSection({
   return (
     <div className="bg-white shadow rounded-lg p-4 mb-6">
       <h2 className="text-lg font-medium mb-4">Filters</h2>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Category Filter */}
         <div>
           <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -46,8 +46,8 @@ function FiltersSection({
             </Select.Portal>
           </Select.Root>
         </div>
-        {/* DDS Type Filter */}
-        <div>
+        {/* DDS Type Filter - Hidden */}
+        <div className="hidden">
           <label htmlFor="dds-filter" className="block text-sm font-medium text-gray-700 mb-1">
             DDS Type
           </label>

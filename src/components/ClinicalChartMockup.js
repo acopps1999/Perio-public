@@ -7,6 +7,7 @@ import FiltersSection from './FiltersSection';
 import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
+import FeedbackWidget from './FeedbackWidget';
 import { useAuth } from '../contexts/AuthContext';
 import { loadConditionsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
 import { supabase } from '../supabaseClient'; // Import supabase client
@@ -342,7 +343,7 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Clinical Chart Tool for Dental Sales Reps</h1>
+          <img src="/prism-logo.png" alt="PRISM - Clinical Chart Tool for Dental Sales Reps" className="h-16 w-48" />
           <div className="flex space-x-3">
             <button
               onClick={toggleWizard}
@@ -446,6 +447,9 @@ useEffect(() => {
           onClose={toggleAdmin}
         />
       )}
+      
+      {/* Feedback Widget - always visible */}
+      <FeedbackWidget />
     </div>
   );
 }

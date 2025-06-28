@@ -138,9 +138,9 @@ function ConditionDetails({
         <h2 className="text-xl font-semibold">{selectedCondition.name}</h2>
         <div className="text-sm text-gray-500 mt-1">
           <span className="mr-2">{selectedCondition.category}</span>
-          <span className="mr-2">|</span>
-          <span>{selectedCondition.dds.join(', ')}</span>
-          <span className="mr-2">|</span>
+          <span className="mr-2 hidden">|</span>
+          <span className="hidden">{selectedCondition.dds.join(', ')}</span>
+          <span className="mr-2 hidden">|</span>
           <span>{selectedCondition.patientType}</span>
         </div>
         
@@ -150,7 +150,7 @@ function ConditionDetails({
             <h3 className="text-lg font-semibold text-gray-800">Recommended Products</h3>
             <button
               onClick={() => handleOpenResearch()} // Pass no product to open general research
-              className="py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center text-sm"
+              className="py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center text-sm hidden"
             >
               <BookOpen size={16} className="mr-2" />
               View Published Research

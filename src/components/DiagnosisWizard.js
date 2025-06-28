@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, BookOpen } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, BookOpen, ChevronDown, Target } from 'lucide-react';
+import clsx from 'clsx';
+import { supabase } from '../supabaseClient';
+import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
 
 function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const [step, setStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedCondition, setSelectedCondition] = useState(null);
-  const [selectedDDS, setSelectedDDS] = useState('');
   const [selectedPatientType, setSelectedPatientType] = useState('');
   const [selectedPhase, setSelectedPhase] = useState('');
   const [filteredConditions, setFilteredConditions] = useState([]);
   const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [activeResearchTab, setActiveResearchTab] = useState('');
   const [showResearch, setShowResearch] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({
+    scientificRationale: false,
+    clinicalEvidence: false,
+    handlingObjections: false,
+    pitchPoints: false
+  });
+  const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
+  const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
 
   // Extract unique categories from conditions
   const categories = [...new Set(conditions.map(condition => condition.category))];
@@ -28,48 +39,48 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   // Clear subsequent selections when a change is made
   useEffect(() => {
     setSelectedCondition(null);
-    setSelectedDDS('');
     setSelectedPatientType('');
     setSelectedPhase('');
   }, [selectedCategory]);
 
   useEffect(() => {
-    setSelectedDDS('');
     setSelectedPatientType('');
     setSelectedPhase('');
   }, [selectedCondition]);
 
   useEffect(() => {
-    setSelectedPatientType('');
-    setSelectedPhase('');
-  }, [selectedDDS]);
-
-  useEffect(() => {
     setSelectedPhase('');
   }, [selectedPatientType]);
 
-  // Set recommended products based on selections
+  // Set recommended products based on selections using patient-specific configuration
   useEffect(() => {
-    if (selectedCondition && selectedPhase) {
-      const products = selectedCondition.products[selectedPhase] || [];
-      
-      // Filter products based on patient type if needed
-      let filteredProducts = [...products];
-      
-      // This logic needs to be updated based on the name, not an id
-      const selectedPtObject = patientTypes.find(pt => pt.id === selectedPatientType);
-      
-      // For Type 3/4 Only products
-      if (selectedPtObject && (selectedPtObject.name === 'Type 1' || selectedPtObject.name === 'Type 2')) {
-        filteredProducts = filteredProducts.filter(product => !product.includes('Type 3/4 Only'));
+    if (selectedCondition && selectedPhase && selectedPatientType) {
+      let productsToShow = [];
+      const config = selectedCondition.patientSpecificConfig;
+
+      if (config && config[selectedPhase]) {
+        const phaseConfig = config[selectedPhase];
+        
+        // Get the patient type name from the selected patient type ID
+        const selectedPtObject = patientTypes.find(pt => pt.id === selectedPatientType);
+        const patientTypeName = selectedPtObject ? selectedPtObject.name : null;
+        
+        if (patientTypeName) {
+          // Get products for the specific patient type by NAME
+          productsToShow = phaseConfig[patientTypeName] || [];
+        }
       }
       
+      // Ensure unique products and set them
+      const filteredProducts = [...new Set(productsToShow)];
       setRecommendedProducts(filteredProducts);
       
       // Set first product as active research tab if products exist
       if (filteredProducts.length > 0) {
         setActiveResearchTab(filteredProducts[0].replace(' (Type 3/4 Only)', ''));
       }
+    } else {
+      setRecommendedProducts([]);
     }
   }, [selectedCondition, selectedPhase, selectedPatientType, patientTypes]);
 
@@ -90,9 +101,8 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     switch (step) {
       case 1: return selectedCategory !== '';
       case 2: return selectedCondition !== null;
-      case 3: return selectedDDS !== '';
-      case 4: return selectedPatientType !== '';
-      case 5: return selectedPhase !== '';
+      case 3: return selectedPatientType !== '';
+      case 4: return selectedPhase !== '';
       default: return true;
     }
   };
@@ -102,17 +112,145 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     setStep(1);
     setSelectedCategory('');
     setSelectedCondition(null);
-    setSelectedDDS('');
     setSelectedPatientType('');
     setSelectedPhase('');
     setRecommendedProducts([]);
     setShowResearch(false);
+    setSelectedProduct(null);
+    setExpandedSections({
+      scientificRationale: false,
+      clinicalEvidence: false,
+      handlingObjections: false,
+      pitchPoints: false
+    });
+    setCompetitiveAdvantageModalOpen(false);
+    setCompetitiveAdvantageData(null);
   };
 
   // Handle condition selection
   const handleConditionSelect = (condition) => {
     setSelectedCondition(condition);
-    setStep(3); // Move to next step
+    setStep(3); // Move to patient type selection step
+  };
+
+  // Handle product selection
+  const handleProductSelect = (product) => {
+    const cleanProductName = product.replace(' (Type 3/4 Only)', '');
+    setSelectedProduct(selectedProduct === cleanProductName ? null : cleanProductName);
+    // Reset expanded sections when selecting a new product
+    setExpandedSections({
+      scientificRationale: false,
+      clinicalEvidence: false,
+      handlingObjections: false,
+      pitchPoints: false
+    });
+  };
+
+  // Get product details
+  const getProductDetails = (productName) => {
+    if (!selectedCondition || !productName) return null;
+    return selectedCondition.productDetails[productName] || null;
+  };
+
+  // Handle opening competitive advantage modal
+  const handleOpenCompetitiveAdvantage = async () => {
+    if (selectedProduct) {
+      await loadCompetitiveAdvantageData(selectedProduct);
+      setCompetitiveAdvantageModalOpen(true);
+    }
+  };
+
+  // Load competitive advantage data from Supabase
+  const loadCompetitiveAdvantageData = async (productName) => {
+    try {
+      console.log('Loading competitive advantage data for product:', productName);
+      
+      // Fetch competitors data from Supabase
+      const { data: competitorsData, error: competitorsError } = await supabase
+        .from('competitive_advantage_competitors')
+        .select('competitor_name, advantages')
+        .eq('product_name', productName);
+
+      if (competitorsError) {
+        console.error('Error fetching competitors data:', competitorsError);
+      }
+
+      // Fetch active ingredients data from Supabase
+      const { data: ingredientsData, error: ingredientsError } = await supabase
+        .from('competitive_advantage_active_ingredients')
+        .select('ingredient_name, advantages')
+        .eq('product_name', productName);
+
+      if (ingredientsError) {
+        console.error('Error fetching active ingredients data:', ingredientsError);
+      }
+
+      // Transform the data to match the expected format
+      const competitors = (competitorsData || []).map(comp => ({
+        name: comp.competitor_name,
+        description: '', // No description field in current schema
+        advantages: comp.advantages || 'No competitive advantages listed.'
+      }));
+
+      const activeIngredients = (ingredientsData || []).map(ing => ({
+        name: ing.ingredient_name,
+        concentration: '', // No concentration field in current schema
+        advantages: ing.advantages || 'No benefits listed for this ingredient.'
+      }));
+
+      console.log('Fetched competitors:', competitors);
+      console.log('Fetched active ingredients:', activeIngredients);
+
+      // Set the competitive advantage data
+      const competitiveData = {
+        productName: productName,
+        competitors: competitors,
+        activeIngredients: activeIngredients,
+        keyDifferentiators: [], // Not in current schema
+        clinicalSuperiority: [] // Not in current schema
+      };
+
+      setCompetitiveAdvantageData(competitiveData);
+
+      // If no data found, fall back to mock data
+      if (competitors.length === 0 && activeIngredients.length === 0) {
+        console.log('No competitive advantage data found, using mock data');
+        const mockData = {
+          productName: productName,
+          competitors: [
+            {
+              name: "Competitor Product A",
+              description: "Standard antimicrobial rinse",
+              advantages: "• Our product has longer-lasting effects\n• Better patient compliance due to improved taste\n• Lower concentration needed for same efficacy"
+            },
+            {
+              name: "Competitor Product B", 
+              description: "Traditional chlorhexidine solution",
+              advantages: "• No staining side effects\n• Better tissue tolerance\n• More convenient application method"
+            }
+          ],
+          activeIngredients: [
+            {
+              name: "Primary Active Ingredient",
+              concentration: "1.5%",
+              advantages: "• Proven antimicrobial efficacy\n• Anti-inflammatory properties\n• Enhanced tissue healing"
+            }
+          ]
+        };
+        
+        setCompetitiveAdvantageData(mockData);
+      }
+    } catch (error) {
+      console.error('Error loading competitive advantage data:', error);
+      // Set empty data on error
+      setCompetitiveAdvantageData({
+        productName: productName,
+        competitors: [],
+        activeIngredients: [],
+        keyDifferentiators: [],
+        clinicalSuperiority: []
+      });
+    }
   };
 
   // Patient types description
@@ -178,8 +316,8 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               {categories.map((category) => (
                 <button
                   key={category}
-                  className={`p-4 border rounded-lg text-left hover:bg-blue-50 transition-colors ${
-                    selectedCategory === category ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                  className={`p-4 border rounded-lg text-left hover:bg-[#15396c]/10 transition-colors ${
+                    selectedCategory === category ? 'border-[#15396c] bg-[#15396c]/10' : 'border-gray-300'
                   }`}
                   onClick={() => setSelectedCategory(category)}
                 >
@@ -205,13 +343,13 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               {filteredConditions.map((condition) => (
                 <button
                   key={condition.name}
-                  className="w-full p-4 text-left hover:bg-blue-50 transition-colors flex justify-between items-center"
+                  className="w-full p-4 text-left hover:bg-[#15396c]/10 transition-colors flex justify-between items-center"
                   onClick={() => handleConditionSelect(condition)}
                 >
                   <div>
                     <div className="font-medium">{condition.name}</div>
                     <div className="text-sm text-gray-500 mt-1">
-                      {condition.dds.join(', ')}
+                      {condition.category}
                     </div>
                   </div>
                   <ChevronRight size={20} className="text-gray-400" />
@@ -224,52 +362,18 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
       case 3:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Step 3: Select Dentist Type</h2>
-            <p className="text-gray-600">What type of dental professional is treating the patient?</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {selectedCondition.dds.map((dds) => (
-                <button
-                  key={dds}
-                  className={`p-4 border rounded-lg text-left hover:bg-blue-50 transition-colors ${
-                    selectedDDS === dds ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                  }`}
-                  onClick={() => {
-                    setSelectedDDS(dds);
-                    setStep(4);
-                  }}
-                >
-                  <div className="font-medium text-lg">{dds}</div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {dds === 'General Dentist' && 'Provides comprehensive dental care'}
-                    {dds === 'Periodontist' && 'Specializes in gum disease and implants'}
-                    {dds === 'Oral Surgeon' && 'Specializes in surgical procedures'}
-                    {dds === 'Prosthodontist' && 'Specializes in dental prosthetics'}
-                    {dds === 'Hygienist' && 'Focuses on preventive oral care'}
-                    {dds === 'Oral Medicine Specialist' && 'Diagnoses and manages oral conditions'}
-                    {dds === 'Oral Pathologist' && 'Diagnoses diseases affecting the oral cavity'}
-                    {dds === 'Oncologist' && 'Treats cancer-related conditions'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      
-      case 4:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Step 4: Select Treatment Modifier</h2>
+            <h2 className="text-xl font-semibold">Step 3: Select Treatment Modifier</h2>
             <p className="text-gray-600">What type of patient is being treated?</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               {patientTypes.map((pt) => (
                 <button
                   key={pt.id}
-                  className={`p-4 border rounded-lg text-left hover:bg-blue-50 transition-colors ${
-                    selectedPatientType === pt.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                  className={`p-4 border rounded-lg text-left hover:bg-[#15396c]/10 transition-colors ${
+                    selectedPatientType === pt.id ? 'border-[#15396c] bg-[#15396c]/10' : 'border-gray-300'
                   }`}
                   onClick={() => {
                     setSelectedPatientType(pt.id);
-                    setStep(5);
+                    setStep(4);
                   }}
                 >
                   <div className="font-medium text-lg">{pt.name}</div>
@@ -280,21 +384,21 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
           </div>
         );
       
-      case 5:
+      case 4:
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Step 5: Select Treatment Phase</h2>
+            <h2 className="text-xl font-semibold">Step 4: Select Treatment Phase</h2>
             <p className="text-gray-600">What phase of treatment is the patient in?</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               {selectedCondition.phases.map((phase) => (
                 <button
                   key={phase}
-                  className={`p-4 border rounded-lg text-left hover:bg-blue-50 transition-colors ${
-                    selectedPhase === phase ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                  className={`p-4 border rounded-lg text-left hover:bg-[#15396c]/10 transition-colors ${
+                    selectedPhase === phase ? 'border-[#15396c] bg-[#15396c]/10' : 'border-gray-300'
                   }`}
                   onClick={() => {
                     setSelectedPhase(phase);
-                    setStep(6);
+                    setStep(5);
                   }}
                 >
                   <div className="font-medium text-lg">{phase} Phase</div>
@@ -321,21 +425,20 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
           </div>
         );
       
-      case 6:
+      case 5:
         return (
           <div className="space-y-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h2 className="text-xl font-semibold text-green-800">Diagnosis Complete</h2>
-              <div className="text-green-700 mt-1">
+            <div className="bg-[#15396c]/10 border border-[#15396c]/30 rounded-lg p-4">
+              <h2 className="text-xl font-semibold text-[#15396c]">Diagnosis Complete</h2>
+              <div className="text-[#15396c]/80 mt-1">
                 Based on your selections, here are the recommended products:
               </div>
             </div>
             
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-medium text-blue-800">Patient Profile</h3>
-              <ul className="mt-2 text-blue-700 space-y-1">
+            <div className="bg-[#15396c]/5 border border-[#15396c]/20 rounded-lg p-4">
+              <h3 className="font-medium text-[#15396c]">Patient Profile</h3>
+              <ul className="mt-2 text-[#15396c]/80 space-y-1">
                 <li><span className="font-medium">Condition:</span> {selectedCondition.name}</li>
-                <li><span className="font-medium">Treating Specialist:</span> {selectedDDS}</li>
                 <li><span className="font-medium">Treatment Modifier:</span> Type {selectedPatientType} - {patientTypeDesc[selectedPatientType]}</li>
                 <li><span className="font-medium">Treatment Phase:</span> {selectedPhase}</li>
               </ul>
@@ -346,48 +449,184 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               <div className="space-y-4">
                 {recommendedProducts.map((product) => {
                   const cleanProductName = product.replace(' (Type 3/4 Only)', '');
-                  const productDetails = selectedCondition.productDetails[cleanProductName];
+                  const isSelected = selectedProduct === cleanProductName;
                   
                   return (
-                    <div key={product} className="bg-white border rounded-lg p-4 shadow-sm">
-                      <h4 className="text-lg font-medium">{product}</h4>
-                      {productDetails && (
-                        <div className="mt-3 space-y-3">
-                          <div className="bg-gray-50 p-3 rounded">
-                            <div className="font-medium text-gray-700">Usage Instructions:</div>
-                            <div className="text-gray-700 mt-1">{productDetails.usage}</div>
-                          </div>
-                          
-                          <div className="bg-blue-50 p-3 rounded">
-                            <div className="font-medium text-blue-700">Clinical Rationale:</div>
-                            <div className="text-blue-700 mt-1">{productDetails.rationale}</div>
-                          </div>
-                          
-                          <div className="bg-purple-50 p-3 rounded">
-                            <div className="font-medium text-purple-700">Competitive Advantage:</div>
-                            <div className="text-purple-700 mt-1">{productDetails.competitive}</div>
-                          </div>
-                          
-                          <div className="bg-amber-50 p-3 rounded">
-                            <div className="font-medium text-amber-700">Handling Objections:</div>
-                            <div className="text-amber-700 mt-1">{productDetails.handlingObjections}</div>
-                          </div>
-                          
-                          <button
-                            className="mt-2 inline-flex items-center text-blue-600 hover:text-blue-800"
-                            onClick={() => {
-                              setActiveResearchTab(cleanProductName);
-                              setShowResearch(true);
-                            }}
-                          >
-                            <BookOpen size={16} className="mr-1" />
-                            View supporting research
-                          </button>
+                    <div 
+                      key={product}
+                      className={clsx(
+                        "border-2 rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-200",
+                        isSelected
+                          ? "border-[#15396c] !bg-[#15396c]" 
+                          : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      )}
+                      onClick={() => handleProductSelect(product)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <h4 className={clsx(
+                          "text-lg font-semibold",
+                          isSelected ? "!text-white" : "text-black"
+                        )}>
+                          {product}
+                        </h4>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveResearchTab(cleanProductName);
+                            setShowResearch(true);
+                          }}
+                          className={clsx(
+                            "text-sm flex items-center transition-colors",
+                            isSelected
+                              ? "!text-white hover:!text-gray-200"
+                              : "text-[#15396c] hover:text-[#15396c]/80"
+                          )}
+                        >
+                          <BookOpen size={14} className="mr-1" />
+                          <span>Research</span>
+                        </button>
+                      </div>
+                      {product.includes('(Type 3/4 Only)') && (
+                        <div className="mt-2">
+                          <span className={clsx(
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                            isSelected
+                              ? "bg-white text-[#15396c]"
+                              : "bg-amber-100 text-amber-800"
+                          )}>
+                            Recommended for Type 3/4 patients only
+                          </span>
                         </div>
                       )}
                     </div>
                   );
                 })}
+                
+                {/* Additional Information Section */}
+                {selectedProduct && (
+                  <div className="mt-6 space-y-2">
+                    <h3 className="text-lg font-medium text-gray-700 mb-3">
+                      Additional Information: {selectedProduct}
+                    </h3>
+                    
+                    {(() => {
+                      const selectedProductDetails = getProductDetails(selectedProduct);
+                      if (!selectedProductDetails) {
+                        return (
+                          <div className="text-gray-500 p-4 border rounded bg-gray-50">
+                            No additional details available for this product.
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {/* Usage Instructions */}
+                          <div className="p-3 rounded-md mb-2 bg-gray-200 border-2 border-gray-300">
+                            <div className="font-medium text-black">Usage Instructions</div>
+                            <div className="text-gray-700 mt-2 whitespace-pre-line">
+                              {typeof selectedProductDetails.usage === 'object' && selectedProductDetails.usage !== null
+                                ? (selectedProductDetails.usage[selectedPhase] 
+                                    ? selectedProductDetails.usage[selectedPhase]
+                                    : `No specific instructions for ${selectedPhase} phase.`)
+                                : (selectedProductDetails.usage || 'No usage instructions available.')}
+                            </div>
+                          </div>
+                          
+                          {/* Scientific Rationale */}
+                          <div 
+                            className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-slate-200 border-slate-300 hover:bg-gray-50"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="font-medium text-black">Scientific Rationale</div>
+                              <div className="text-slate-600">
+                                {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                              </div>
+                            </div>
+                            {expandedSections.scientificRationale && (
+                              <div className="text-gray-700 mt-2 whitespace-pre-line">
+                                {selectedProductDetails.rationale || 'Scientific rationale not available.'}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Clinical Evidence */}
+                          <div 
+                            className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-[#15396c]/20 border-[#15396c]/30 hover:bg-gray-50"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="font-medium text-black">Clinical Evidence</div>
+                              <div className="text-[#15396c]">
+                                {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                              </div>
+                            </div>
+                            {expandedSections.clinicalEvidence && (
+                              <div className="text-gray-700 mt-2 whitespace-pre-line">
+                                {selectedProductDetails.clinicalEvidence || 'Clinical evidence not available.'}
+                              </div>
+                            )}
+                          </div>
+                          
+                                                     {/* Competitive Advantage */}
+                           <div className="p-3 rounded-md mb-2 border-2 bg-purple-200 border-purple-300">
+                             <div className="flex justify-between items-center">
+                               <div className="font-medium text-black">
+                                 Competitive Advantage
+                               </div>
+                               <button
+                                 onClick={handleOpenCompetitiveAdvantage}
+                                 className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm flex items-center"
+                               >
+                                 <Target size={14} className="mr-1" />
+                                 View Details
+                               </button>
+                             </div>
+                           </div>
+                           
+                           {/* Handling Objections */}
+                           <div 
+                             className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-amber-200 border-amber-300 hover:bg-gray-50"
+                             onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
+                           >
+                             <div className="flex justify-between items-center">
+                               <div className="font-medium text-black">Handling Objections</div>
+                               <div className="text-amber-600">
+                                 {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                               </div>
+                             </div>
+                             {expandedSections.handlingObjections && (
+                               <div className="text-gray-700 mt-2 whitespace-pre-line">
+                                 {selectedProductDetails.handlingObjections || 'Objection handling information not available.'}
+                               </div>
+                             )}
+                           </div>
+                          
+                          {/* Key Pitch Points */}
+                          {selectedProductDetails.pitchPoints && (
+                            <div 
+                              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-teal-200 border-teal-300 hover:bg-gray-50"
+                              onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div className="font-medium text-black">Key Pitch Points</div>
+                                <div className="text-teal-600">
+                                  {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                </div>
+                              </div>
+                              {expandedSections.pitchPoints && (
+                                <div className="text-gray-700 mt-2 whitespace-pre-line">
+                                  {selectedProductDetails.pitchPoints || 'Key pitch points not available.'}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-gray-500 p-4 border rounded bg-gray-50">
@@ -425,7 +664,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
             <div className="space-y-6">
               {research.map((item, index) => (
                 <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                  <h4 className="font-medium text-lg text-blue-600 hover:underline cursor-pointer">
+                  <h4 className="font-medium text-lg text-[#15396c] hover:underline cursor-pointer">
                     {item.title}
                   </h4>
                   <p className="text-gray-600 mt-1">{item.author}</p>
@@ -435,7 +674,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                     ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
                   </p>
                   <div className="mt-3">
-                    <button className="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center">
+                    <button className="text-[#15396c] hover:text-[#15396c]/80 text-sm inline-flex items-center">
                       <span>Download PDF</span>
                     </button>
                   </div>
@@ -446,7 +685,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
           
           <div className="p-4 border-t text-right">
             <button 
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-[#15396c] text-white rounded hover:bg-[#15396c]/90"
               onClick={() => setShowResearch(false)}
             >
               Close
@@ -462,7 +701,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         {/* Wizard Header */}
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-bold">Diagnosis Wizard</h2>
+          <h2 className="text-xl font-bold">Therapeutic Wizard</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X size={20} />
           </button>
@@ -471,23 +710,23 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
         {/* Progress Indicator */}
         <div className="px-6 pt-4">
           <div className="flex items-center">
-            {[1, 2, 3, 4, 5, 6].map((stepNumber) => (
+            {[1, 2, 3, 4, 5].map((stepNumber) => (
               <React.Fragment key={stepNumber}>
                 <div 
                   className={`flex items-center justify-center rounded-full w-8 h-8 ${
                     stepNumber === step 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-[#15396c] text-white' 
                       : stepNumber < step 
-                        ? 'bg-green-600 text-white' 
+                        ? 'bg-[#15396c] text-white' 
                         : 'bg-gray-200 text-gray-700'
                   }`}
                 >
                   {stepNumber < step ? <Check size={16} /> : stepNumber}
                 </div>
-                {stepNumber < 6 && (
+                {stepNumber < 5 && (
                   <div 
                     className={`flex-1 h-1 mx-2 ${
-                      stepNumber < step ? 'bg-green-600' : 'bg-gray-200'
+                      stepNumber < step ? 'bg-[#15396c]' : 'bg-gray-200'
                     }`}
                   ></div>
                 )}
@@ -522,13 +761,13 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               Reset
             </button>
             
-            {step < 6 && (
+            {step < 5 && (
               <button
                 onClick={handleNext}
                 disabled={!canProceed()}
                 className={`px-4 py-2 rounded inline-flex items-center ${
                   canProceed() 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    ? 'bg-[#15396c] text-white hover:bg-[#15396c]/90' 
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -537,10 +776,10 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               </button>
             )}
             
-            {step === 6 && (
+            {step === 5 && (
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-4 py-2 bg-[#15396c] text-white rounded hover:bg-[#15396c]/90"
               >
                 Complete
               </button>
@@ -551,6 +790,14 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
       
       {/* Research Modal */}
       {renderResearchModal()}
+      
+      {/* Competitive Advantage Modal */}
+      <CompetitiveAdvantageModal
+        isOpen={competitiveAdvantageModalOpen}
+        onClose={() => setCompetitiveAdvantageModalOpen(false)}
+        selectedProduct={selectedProduct}
+        competitiveAdvantageData={competitiveAdvantageData}
+      />
     </div>
   );
 }

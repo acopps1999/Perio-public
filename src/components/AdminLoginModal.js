@@ -48,10 +48,14 @@ function AdminLoginModal({ isOpen, onClose, onSuccess }) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-white rounded-lg shadow-xl p-6 z-50">
-          <Dialog.Title className="text-lg font-semibold mb-4 flex items-center">
+          <Dialog.Title className="text-lg font-semibold mb-2 flex items-center">
             <Lock size={20} className="mr-2 text-gray-600" />
             Admin Login
           </Dialog.Title>
+          
+          <Dialog.Description className="text-sm text-gray-600 mb-4">
+            Sign in with your administrator credentials to access the knowledge base management system.
+          </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
