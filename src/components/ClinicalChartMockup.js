@@ -9,7 +9,9 @@ import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import FeedbackWidget from './FeedbackWidget';
 import PrismTitleSection from './PrismTitleSection';
+import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { loadConditionsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
 import { supabase } from '../supabaseClient'; // Import supabase client
 import useResponsive from '../hooks/useResponsive';
@@ -17,6 +19,9 @@ import useResponsive from '../hooks/useResponsive';
 function ClinicalChartMockup() {
   // Authentication
   const { isAuthenticated, logout, registerAutoLogoutCallback } = useAuth();
+  
+  // Theme
+  const { isDarkMode } = useTheme();
   
   // Responsive design
   const { 
@@ -299,17 +304,17 @@ useEffect(() => {
       { 
         title: `Clinical application of ${cleanProductName} in ${selectedCondition.name}`, 
         author: "Smith et al., Journal of Dental Research, 2023",
-        abstract: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in odio ac nunc efficitur vestibulum."
+        abstract: "Background: This randomized controlled trial evaluated the clinical efficacy of ${cleanProductName} in patients with ${selectedCondition.name}.\n\nMethods: A total of 120 patients were randomly assigned to either treatment with ${cleanProductName} (n=60) or standard therapy (n=60). Clinical parameters including bleeding on probing, probing depth, and clinical attachment level were assessed at baseline, 3, and 6 months.\n\nResults: Significant improvements were observed in all clinical parameters with ${cleanProductName} compared to controls (p<0.05). The treatment group showed 34% greater reduction in bleeding on probing and 28% improvement in clinical attachment levels.\n\nConclusions: ${cleanProductName} demonstrates superior clinical outcomes when used as an adjunct to conventional periodontal therapy, offering enhanced healing and improved patient outcomes."
       },
       { 
         title: `Efficacy of ${cleanProductName} in dental practice`, 
         author: "Johnson et al., Periodontology Today, 2022",
-        abstract: "Maecenas vel ante vel leo dictum eleifend. Suspendisse potenti."
+        abstract: "Objective: To assess the real-world effectiveness of ${cleanProductName} in clinical dental practice settings.\n\nStudy Design: This multicenter observational study followed 250 patients across 15 dental practices over 12 months. Patient-reported outcomes and clinical assessments were recorded at regular intervals.\n\nResults: Treatment with ${cleanProductName} resulted in significant improvements in tissue healing time (mean reduction of 3.2 days, p<0.001) and patient comfort scores (7.8 vs 5.4 on 10-point scale, p<0.01) compared to historical controls.\n\nClinical Significance: These findings support the integration of ${cleanProductName} into routine clinical protocols for enhanced patient care and outcomes."
       },
       { 
         title: `Comparative study of ${cleanProductName} vs standard treatments`, 
         author: "Williams et al., Oral Surgery Journal, 2023",
-        abstract: "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae."
+        abstract: "Purpose: To compare the therapeutic efficacy and safety profile of ${cleanProductName} against conventional treatment modalities.\n\nMaterials and Methods: This double-blind, randomized controlled trial included 180 patients divided into three groups: ${cleanProductName} (n=60), standard treatment A (n=60), and standard treatment B (n=60). Primary outcomes included healing time, complication rates, and patient satisfaction.\n\nResults: ${cleanProductName} demonstrated statistically significant advantages in healing time (p<0.001), with mean recovery reduced by 2.1 days compared to standard treatments. Complication rates were lower (8.3% vs 15.7%, p<0.05) and patient satisfaction scores were higher (8.9/10 vs 7.2/10, p<0.001).\n\nConclusion: ${cleanProductName} offers superior clinical outcomes with improved safety profile compared to conventional therapeutic approaches."
       }
     ];
   };
@@ -390,6 +395,7 @@ useEffect(() => {
         {isDesktop && (
           <div className="absolute top-0 right-0 h-full flex items-center pr-6 z-20">
             <div className="flex space-x-3">
+              <ThemeToggle className="shadow-lg backdrop-blur-sm" />
               <button
                 onClick={toggleWizard}
                 className="inline-flex items-center px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 shadow-lg backdrop-blur-sm"
@@ -433,8 +439,11 @@ useEffect(() => {
             
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
-              <div className="absolute top-full left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30">
+              <div className={`absolute top-full left-0 right-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} shadow-lg z-30`}>
                 <div className="flex flex-col p-4 space-y-3">
+                  <div className="flex justify-center mb-2">
+                    <ThemeToggle />
+                  </div>
                   <button
                     onClick={() => {
                       toggleWizard();

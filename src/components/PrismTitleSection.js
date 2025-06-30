@@ -1,6 +1,8 @@
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const PrismTitleSection = ({ className = "" }) => {
+  const { isDarkMode } = useTheme();
   // CSS keyframes and styles as a style object
   const prismHeroStyles = {
     position: 'relative',
@@ -231,7 +233,7 @@ const PrismTitleSection = ({ className = "" }) => {
 
           .prism-app-background {
             position: relative;
-            background: #0d1421;
+            background: ${isDarkMode ? '#0d1421' : '#ffffff'};
             overflow: hidden;
           }
 
@@ -242,7 +244,7 @@ const PrismTitleSection = ({ className = "" }) => {
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: 
+            background: ${isDarkMode ? `
               conic-gradient(from 0deg at 30% 40%, 
                 transparent 0deg, 
                 rgba(255, 255, 255, 0.15) 15deg, 
@@ -277,7 +279,42 @@ const PrismTitleSection = ({ className = "" }) => {
                 rgba(200, 220, 255, 0.24) 0%, 
                 rgba(200, 220, 255, 0.08) 25%, 
                 transparent 50%
-              );
+              )` : `
+              conic-gradient(from 0deg at 30% 40%, 
+                transparent 0deg, 
+                rgba(100, 120, 200, 0.08) 15deg, 
+                transparent 30deg,
+                rgba(150, 170, 220, 0.06) 45deg,
+                transparent 60deg,
+                rgba(100, 120, 200, 0.12) 75deg,
+                transparent 90deg
+              ),
+              conic-gradient(from 120deg at 70% 60%, 
+                transparent 0deg, 
+                rgba(120, 140, 220, 0.1) 20deg, 
+                transparent 40deg,
+                rgba(100, 120, 200, 0.06) 60deg,
+                transparent 80deg,
+                rgba(140, 160, 230, 0.08) 100deg,
+                transparent 120deg
+              ),
+              conic-gradient(from 240deg at 20% 80%, 
+                transparent 0deg, 
+                rgba(100, 120, 200, 0.14) 25deg, 
+                transparent 50deg,
+                rgba(110, 130, 210, 0.08) 75deg,
+                transparent 100deg
+              ),
+              radial-gradient(ellipse at 60% 20%, 
+                rgba(100, 120, 200, 0.15) 0%, 
+                rgba(100, 120, 200, 0.06) 20%, 
+                transparent 40%
+              ),
+              radial-gradient(ellipse at 15% 70%, 
+                rgba(140, 160, 230, 0.12) 0%, 
+                rgba(140, 160, 230, 0.04) 25%, 
+                transparent 50%
+              )`};
             animation: prismaticRotation1 12s linear infinite;
             z-index: -2;
             pointer-events: none;
@@ -290,7 +327,7 @@ const PrismTitleSection = ({ className = "" }) => {
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: 
+            background: ${isDarkMode ? `
               conic-gradient(from 60deg at 80% 30%, 
                 transparent 0deg, 
                 rgba(255, 255, 255, 0.2) 10deg, 
@@ -325,7 +362,42 @@ const PrismTitleSection = ({ className = "" }) => {
                 rgba(255, 255, 255, 0.2) 0%, 
                 rgba(255, 255, 255, 0.04) 30%, 
                 transparent 60%
-              );
+              )` : `
+              conic-gradient(from 60deg at 80% 30%, 
+                transparent 0deg, 
+                rgba(100, 120, 200, 0.1) 10deg, 
+                transparent 20deg,
+                rgba(120, 140, 220, 0.08) 30deg,
+                transparent 40deg,
+                rgba(100, 120, 200, 0.06) 50deg,
+                transparent 60deg
+              ),
+              conic-gradient(from 180deg at 25% 50%, 
+                transparent 0deg, 
+                rgba(140, 160, 230, 0.12) 30deg, 
+                transparent 60deg,
+                rgba(100, 120, 200, 0.08) 90deg,
+                transparent 120deg
+              ),
+              linear-gradient(45deg, 
+                transparent 0%, 
+                rgba(100, 120, 200, 0.04) 25%, 
+                transparent 50%, 
+                rgba(130, 150, 210, 0.06) 75%, 
+                transparent 100%
+              ),
+              linear-gradient(-30deg, 
+                transparent 0%, 
+                rgba(100, 120, 200, 0.08) 20%, 
+                transparent 40%, 
+                rgba(120, 140, 220, 0.04) 60%, 
+                transparent 80%
+              ),
+              radial-gradient(ellipse at 45% 85%, 
+                rgba(100, 120, 200, 0.1) 0%, 
+                rgba(100, 120, 200, 0.02) 30%, 
+                transparent 60%
+              )`};
             animation: prismaticRotation2 16s linear infinite reverse;
             z-index: -1;
             pointer-events: none;

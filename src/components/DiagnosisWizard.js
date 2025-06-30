@@ -260,47 +260,75 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     '4': 'High-Risk Systematic Burden'
   };
 
-  // Mock research data
-  const researchData = {
-    "AO ProVantage Gel": [
-      { title: "Antioxidant Effects on Tissue Healing Post-Surgery", author: "Smith et al., Journal of Dental Research, 2023" },
-      { title: "Clinical Efficacy of Antioxidant Therapy in Periodontal Surgery", author: "Johnson et al., Periodontology Today, 2022" },
-      { title: "Free Radical Scavenging Properties of Antioxidants in Oral Care", author: "Williams et al., Oral Surgery Journal, 2023" },
-      { title: "Comparative Study of Antioxidant Gels in Post-Surgical Recovery", author: "Davis et al., International Dental Journal, 2021" },
-      { title: "Patient Outcomes with Antioxidant Treatment in Implant Procedures", author: "Martinez et al., Implant Dentistry, 2022" }
-    ],
-    "Synvaza": [
-      { title: "Wound Healing Properties of Chitosan-Based Formulations", author: "Brown et al., Advanced Dental Materials, 2023" },
-      { title: "Efficacy of Synvaza in Post-Extraction Socket Healing", author: "Taylor et al., Journal of Oral Surgery, 2022" },
-      { title: "Comparative Analysis of Wound Healing Rinses in Dental Surgery", author: "Roberts et al., Clinical Dentistry Reviews, 2021" },
-      { title: "Patient-Reported Outcomes with Synvaza After Implant Surgery", author: "Garcia et al., Implant Dentistry, 2023" },
-      { title: "Reduction in Post-Surgical Complications with Synvaza", author: "White et al., Journal of Dental Medicine, 2022" }
-    ],
-    "Mint-X Rinse": [
-      { title: "Antibacterial Efficacy of Mint-X in Periodontal Patients", author: "Lee et al., Journal of Clinical Periodontology, 2023" },
-      { title: "Comparative Study of Rinses in Post-Extraction Care", author: "Wilson et al., Dental Medicine Today, 2022" },
-      { title: "Patient Compliance with Mint-Based Rinses vs Chlorhexidine", author: "Thomas et al., Preventive Dentistry, 2021" },
-      { title: "Effects of Mint-X on Oral Microbiome in Surgical Patients", author: "Anderson et al., Oral Microbiology Journal, 2023" },
-      { title: "Long-term Outcomes with Mint-X Maintenance Therapy", author: "Miller et al., Dental Hygiene Journal, 2022" }
-    ]
-  };
+  // State for research data
+  const [researchArticles, setResearchArticles] = useState([]);
+  const [isLoadingResearch, setIsLoadingResearch] = useState(false);
 
-  // Create generic research data for all products
-  const getResearchData = (productName) => {
+  // Fetch research data from Supabase
+  const getResearchData = async (productName) => {
     const cleanProductName = productName.replace(' (Type 3/4 Only)', '');
     
-    if (researchData[cleanProductName]) {
-      return researchData[cleanProductName];
+    try {
+      setIsLoadingResearch(true);
+      console.log('Fetching research articles for product:', cleanProductName);
+      
+      // Get the product ID first
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('name', cleanProductName)
+        .single();
+
+      if (productError || !productData) {
+        console.log('Product not found or error:', productError);
+        return [];
+      }
+
+      // Get research articles by product_id from condition_product_research_articles
+      const { data: researchData, error: researchError } = await supabase
+        .from('condition_product_research_articles')
+        .select(`
+          id,
+          title,
+          author,
+          abstract,
+          url,
+          created_at,
+          updated_at
+        `)
+        .eq('product_id', productData.id)
+        .order('created_at', { ascending: false });
+
+      if (researchError) {
+        console.error('Error fetching research articles:', researchError);
+        return [];
+      }
+
+      console.log('Fetched research articles:', researchData);
+      
+      // Remove duplicates based on title and author combination
+      const uniqueArticles = [];
+      const seen = new Set();
+      
+      (researchData || []).forEach(article => {
+        // Create a unique key based on title and author
+        const key = `${(article.title || '').trim().toLowerCase()}|${(article.author || '').trim().toLowerCase()}`;
+        
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueArticles.push(article);
+        }
+      });
+      
+      console.log(`Removed ${(researchData || []).length - uniqueArticles.length} duplicate articles. Showing ${uniqueArticles.length} unique articles.`);
+      return uniqueArticles;
+      
+    } catch (error) {
+      console.error('Error in getResearchData:', error);
+      return [];
+    } finally {
+      setIsLoadingResearch(false);
     }
-    
-    // Generate placeholder research if not defined
-    return [
-      { title: `Clinical Efficacy of ${cleanProductName} in Dental Practice`, author: "Johnson et al., Dental Research Journal, 2023" },
-      { title: `${cleanProductName} Applications in Modern Dentistry`, author: "Smith et al., Journal of Clinical Dentistry, 2022" },
-      { title: `Patient Outcomes with ${cleanProductName}: A Retrospective Study`, author: "Williams et al., Oral Health Today, 2023" },
-      { title: `Comparative Analysis of ${cleanProductName} vs Standard Treatments`, author: "Brown et al., International Dental Journal, 2021" },
-      { title: `Long-term Benefits of ${cleanProductName} in Dental Care`, author: "Davis et al., Preventive Dentistry, 2022" }
-    ];
   };
 
   // Render wizard content based on current step
@@ -449,10 +477,12 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                           {product}
                         </h4>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             setActiveResearchTab(cleanProductName);
                             setShowResearch(true);
+                            const articles = await getResearchData(cleanProductName);
+                            setResearchArticles(articles);
                           }}
                           className={clsx(
                             "text-sm flex items-center transition-colors",
@@ -604,15 +634,16 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const renderResearchModal = () => {
     if (!showResearch) return null;
     
-    const research = getResearchData(activeResearchTab);
-    
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
           <div className="flex justify-between items-center p-4 border-b">
             <h3 className="text-xl font-semibold">Research Supporting {activeResearchTab}</h3>
             <button 
-              onClick={() => setShowResearch(false)}
+              onClick={() => {
+                setShowResearch(false);
+                setResearchArticles([]);
+              }}
               className="text-gray-500 hover:text-gray-700"
             >
               <X size={20} />
@@ -620,32 +651,84 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
           </div>
           
           <div className="overflow-y-auto p-6 flex-grow">
-            <div className="space-y-6">
-              {research.map((item, index) => (
-                <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                  <h4 className="font-medium text-lg text-[#15396c] hover:underline cursor-pointer">
-                    {item.title}
-                  </h4>
-                  <p className="text-gray-600 mt-1">{item.author}</p>
-                  <p className="mt-3 text-gray-700">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in odio ac nunc efficitur 
-                    vestibulum. Maecenas vel ante vel leo dictum eleifend. Suspendisse potenti. Vestibulum ante 
-                    ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
-                  </p>
-                  <div className="mt-3">
-                    <button className="text-[#15396c] hover:text-[#15396c]/80 text-sm inline-flex items-center">
-                      <span>Download PDF</span>
-                    </button>
-                  </div>
+            {isLoadingResearch ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#15396c] mx-auto mb-4"></div>
+                  <p className="text-gray-600 text-lg">Loading research articles...</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : researchArticles.length > 0 ? (
+              <div className="space-y-6">
+                {researchArticles.map((article, index) => (
+                  <div key={article.id || index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <h4 className="font-medium text-lg text-[#15396c] hover:underline cursor-pointer">
+                      {article.title}
+                    </h4>
+                    
+                    <div className="text-gray-600 mt-1 space-y-1">
+                      {article.author && <p><strong>Authors:</strong> {article.author}</p>}
+                      {article.created_at && (
+                        <p><strong>Added:</strong> {new Date(article.created_at).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                    
+                    {article.abstract ? (
+                      <div className="mt-3">
+                        <h5 className="font-medium text-gray-800 mb-2">Abstract:</h5>
+                        <div className="bg-gray-50 border-l-4 border-[#15396c] p-4 rounded-r-md">
+                          <div className="text-gray-700 leading-relaxed text-justify">
+                            {article.abstract.split('\n').map((paragraph, index) => (
+                              <p key={index} className={index > 0 ? "mt-3" : ""}>
+                                {paragraph.trim()}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-gray-500 italic">
+                        Abstract not available for this article.
+                      </p>
+                    )}
+                    
+                    {article.url && (
+                      <div className="mt-3">
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#15396c] hover:text-[#15396c]/80 text-sm inline-flex items-center bg-blue-50 px-3 py-1 rounded-md"
+                        >
+                          <span>View Full Article</span>
+                          <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-500 mb-4">
+                  <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
+                  <h4 className="text-lg font-medium mb-2">No Research Articles Found</h4>
+                  <p>No research articles are currently available for {activeResearchTab}.</p>
+                  <p className="text-sm mt-2">Research articles can be added through the Admin Panel.</p>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="p-4 border-t text-right">
             <button 
               className="px-4 py-2 bg-[#15396c] text-white rounded hover:bg-[#15396c]/90"
-              onClick={() => setShowResearch(false)}
+              onClick={() => {
+                setShowResearch(false);
+                setResearchArticles([]);
+              }}
             >
               Close
             </button>

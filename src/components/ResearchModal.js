@@ -55,7 +55,19 @@ function ResearchModal({
             )}
           </h3>
           {article.author && <p className="text-gray-600 mt-1 pl-6">{article.author}</p>}
-          {article.abstract && <div className="mt-3 pl-6"><p className="text-gray-700">{article.abstract}</p></div>}
+          {article.abstract && (
+            <div className="mt-3 pl-6">
+              <div className="bg-gray-50 border-l-4 border-indigo-600 p-4 rounded-r-md">
+                <div className="text-gray-700 leading-relaxed text-justify">
+                  {article.abstract.split('\n').map((paragraph, index) => (
+                    <p key={index} className={index > 0 ? "mt-3" : ""}>
+                      {paragraph.trim()}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {article.url && (
             <div className="mt-3 pl-6">
               <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 text-sm inline-flex items-center">
@@ -103,7 +115,19 @@ function ResearchModal({
                 )}
               </h4>
               {article.author && <p className="text-gray-600 mt-1 pl-6">{article.author}</p>}
-              {article.abstract && <div className="mt-3 pl-6"><p className="text-gray-700">{article.abstract}</p></div>}
+              {article.abstract && (
+                <div className="mt-3 pl-6">
+                  <div className="bg-gray-50 border-l-4 border-indigo-600 p-4 rounded-r-md">
+                    <div className="text-gray-700 leading-relaxed text-justify">
+                      {article.abstract.split('\n').map((paragraph, index) => (
+                        <p key={index} className={index > 0 ? "mt-3" : ""}>
+                          {paragraph.trim()}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               {article.url && (
                 <div className="mt-3 pl-6">
                   <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 text-sm inline-flex items-center">
