@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Stethoscope, Settings, LogOut } from 'lucide-react';
+import { Stethoscope, Settings, LogOut, Menu, X } from 'lucide-react';
 import DiagnosisWizard from './DiagnosisWizard';
 import AdminPanel from './AdminPanel';
 import AdminLoginModal from './AdminLoginModal';
@@ -8,13 +8,27 @@ import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import FeedbackWidget from './FeedbackWidget';
+import PrismTitleSection from './PrismTitleSection';
 import { useAuth } from '../contexts/AuthContext';
 import { loadConditionsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
 import { supabase } from '../supabaseClient'; // Import supabase client
+import useResponsive from '../hooks/useResponsive';
 
 function ClinicalChartMockup() {
   // Authentication
   const { isAuthenticated, logout, registerAutoLogoutCallback } = useAuth();
+  
+  // Responsive design
+  const { 
+    isMobile, 
+    isTablet, 
+    isDesktop, 
+    isTouchDevice,
+    getResponsiveValue,
+    getButtonSize,
+    getSpacing,
+    windowSize 
+  } = useResponsive();
   
   // State management
   const [conditions, setConditions] = useState([]);
@@ -40,6 +54,18 @@ function ClinicalChartMockup() {
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
+  // Mobile responsive navigation state
+  const [mobileView, setMobileView] = useState('list'); // 'list' or 'detail'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Reset mobile view and menu when screen becomes large
+  useEffect(() => {
+    if (isDesktop) {
+      setMobileView('list');
+      setMobileMenuOpen(false);
+    }
+  }, [isDesktop]);
+
   const loadChartData = useCallback(async (forceRefresh = false) => {
     console.log("CHART_LOAD: Starting chart data load...");
     setIsLoadingData(true);
@@ -198,6 +224,14 @@ useEffect(() => {
     setActiveTab(condition.phases[0]);
     setActivePatientType('All'); // Reset patient type filter when changing condition
     setShowAdditionalInfo(false); // Hide additional info when selecting a new condition
+    
+    // On mobile, navigate to detail view when condition is selected
+    setMobileView('detail');
+  }, []);
+
+  // Handle mobile back navigation
+  const handleMobileBack = useCallback(() => {
+    setMobileView('list');
   }, []);
 
   // Handle tab change
@@ -209,15 +243,17 @@ useEffect(() => {
   // Handle patient type selection for product filtering
   const handlePatientTypeSelect = useCallback((type) => {
     setActivePatientType(type);
+    setShowAdditionalInfo(false); // Hide additional info when changing patient type
     // The main useEffect will handle re-filtering products automatically.
   }, []);
 
-  // Handle product selection for modal
+  // Handle product selection for modal - this is not used by ConditionDetails
+  // ConditionDetails manages its own product selection internally
   const handleProductSelect = useCallback((product) => {
-    // Don't open the modal, just show additional info
-    setShowAdditionalInfo(true);
+    // This function is kept for compatibility but should not automatically show additional info
+    console.log('handleProductSelect called for:', product);
     
-    // Optional: store the selected product for highlighting or scrolling
+    // Store the selected product for potential future use
     setSelectedProduct({
       name: product,
       details: selectedCondition.productDetails[product.replace(' (Type 3/4 Only)', '')]
@@ -340,39 +376,105 @@ useEffect(() => {
 
   return (
     
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <img src="/prism-logo.png" alt="PRISM - Clinical Chart Tool for Dental Sales Reps" className="h-16 w-48" />
-          <div className="flex space-x-3">
-            <button
-              onClick={toggleWizard}
-              className="inline-flex items-center px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2"
-            >
-              <Stethoscope size={18} className="mr-2" />
-              Therapeutic Wizard
-            </button>
-            <button
-              onClick={toggleAdmin}
-              className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-            >
-              <Settings size={18} className="mr-2" />
-              Admin
-            </button>
-            {isAuthenticated && (
-                  <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                  >
-                <LogOut size={18} className="mr-2" />
-                Logout
-                  </button>
-                )}
-              </div>
+    <div 
+      className="min-h-screen prism-app-background" 
+      style={{ 
+        fontFamily: '"Inter", "Helvetica Neue", "Arial", "Segoe UI", sans-serif' 
+      }}
+    >
+      <header className="relative shadow-sm">
+        {/* Full-width PRISM background */}
+        <PrismTitleSection />
+        
+        {/* Desktop Navigation */}
+        {isDesktop && (
+          <div className="absolute top-0 right-0 h-full flex items-center pr-6 z-20">
+            <div className="flex space-x-3">
+              <button
+                onClick={toggleWizard}
+                className="inline-flex items-center px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+              >
+                <Stethoscope size={18} className="mr-2" />
+                Therapeutic Wizard
+              </button>
+              <button
+                onClick={toggleAdmin}
+                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+              >
+                <Settings size={18} className="mr-2" />
+                Admin
+              </button>
+              {isAuthenticated && (
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+                >
+                  <LogOut size={18} className="mr-2" />
+                  Logout
+                </button>
+              )}
             </div>
+          </div>
+        )}
+        
+        {/* Mobile Navigation */}
+        {(isMobile || isTablet) && (
+          <>
+            {/* Mobile Menu Button */}
+            <div className="absolute top-0 right-0 h-full flex items-center pr-4 z-20">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="inline-flex items-center p-3 bg-white text-[#15396c] rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
+            
+            {/* Mobile Menu Dropdown */}
+            {mobileMenuOpen && (
+              <div className="absolute top-full left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30">
+                <div className="flex flex-col p-4 space-y-3">
+                  <button
+                    onClick={() => {
+                      toggleWizard();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 w-full justify-center text-lg font-medium`}
+                  >
+                    <Stethoscope size={20} className="mr-3" />
+                    Therapeutic Wizard
+                  </button>
+                  <button
+                    onClick={() => {
+                      toggleAdmin();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 w-full justify-center text-lg font-medium`}
+                  >
+                    <Settings size={20} className="mr-3" />
+                    Admin Panel
+                  </button>
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 w-full justify-center text-lg font-medium`}
+                    >
+                      <LogOut size={20} className="mr-3" />
+                      Logout
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </header>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto ${getResponsiveValue('px-3', 'px-4 sm:px-6', 'px-4 sm:px-6 lg:px-8')} ${getResponsiveValue('py-4', 'py-6', 'py-8')}`}>
         {isLoadingData ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-center">
@@ -395,26 +497,48 @@ useEffect(() => {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
             />
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-              <ConditionsList
-                filteredConditions={filteredConditions}
-                selectedCondition={selectedCondition}
-                handleConditionSelect={handleConditionSelect}
-              />
-              <ConditionDetails
-                selectedCondition={selectedCondition}
-                activeTab={activeTab}
-                handleTabChange={handleTabChange}
-                filteredProducts={filteredProducts}
-                patientTypes={patientTypes}
-                activePatientType={activePatientType}
-                handlePatientTypeSelect={handlePatientTypeSelect}
-                handleProductSelect={handleProductSelect}
-                handleShowAdditionalInfo={handleShowAdditionalInfo}
-                handleOpenResearch={handleOpenResearch}
-                hasProductsForPhase={hasProductsForPhase}
-                showAdditionalInfo={showAdditionalInfo}
-              />
+            {/* Responsive layout */}
+            <div className={`${getResponsiveValue('block', 'md:grid md:grid-cols-3 md:gap-4', 'lg:grid lg:grid-cols-4 lg:gap-6')}`}>
+              {/* Conditions List - Responsive visibility and sizing */}
+              <div className={`${
+                isMobile 
+                  ? (mobileView === 'list' ? 'block' : 'hidden')
+                  : isTablet 
+                    ? 'md:block md:col-span-1'
+                    : 'lg:block lg:col-span-1'
+              } ${getResponsiveValue('mb-4', 'mb-0', 'mb-0')}`}>
+                <ConditionsList
+                  filteredConditions={filteredConditions}
+                  selectedCondition={selectedCondition}
+                  handleConditionSelect={handleConditionSelect}
+                />
+              </div>
+              
+              {/* Condition Details - Responsive visibility and sizing */}
+              <div className={`${
+                isMobile 
+                  ? (mobileView === 'detail' ? 'block' : 'hidden')
+                  : isTablet 
+                    ? 'md:block md:col-span-2'
+                    : 'lg:block lg:col-span-3'
+              }`}>
+                <ConditionDetails
+                  selectedCondition={selectedCondition}
+                  activeTab={activeTab}
+                  handleTabChange={handleTabChange}
+                  filteredProducts={filteredProducts}
+                  patientTypes={patientTypes}
+                  activePatientType={activePatientType}
+                  handlePatientTypeSelect={handlePatientTypeSelect}
+                  handleProductSelect={handleProductSelect}
+                  handleShowAdditionalInfo={handleShowAdditionalInfo}
+                  handleOpenResearch={handleOpenResearch}
+                  hasProductsForPhase={hasProductsForPhase}
+                  showAdditionalInfo={showAdditionalInfo}
+                  onMobileBack={handleMobileBack}
+                  mobileView={mobileView}
+                />
+              </div>
             </div>
           </>
         )}

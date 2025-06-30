@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, BookOpen, ChevronDown, Target } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, BookOpen, ChevronDown, Target, Info, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../supabaseClient';
 import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
+import ProductDetailsModal from './ProductDetailsModal';
+import { getCategoryDescription } from '../utils/categoryDescriptions';
 
 function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const [step, setStep] = useState(1);
@@ -15,17 +17,16 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const [activeResearchTab, setActiveResearchTab] = useState('');
   const [showResearch, setShowResearch] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [expandedSections, setExpandedSections] = useState({
-    scientificRationale: false,
-    clinicalEvidence: false,
-    handlingObjections: false,
-    pitchPoints: false
-  });
   const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
   const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
+  
+  // Product details modal state
+  const [productDetailsModalOpen, setProductDetailsModalOpen] = useState(false);
+  const [currentModalSection, setCurrentModalSection] = useState(null);
 
   // Extract unique categories from conditions
-  const categories = [...new Set(conditions.map(condition => condition.category))];
+  const categories = [...new Set(conditions.map(condition => condition.category)
+    .filter(category => category && category.trim() !== '' && category !== 'All'))];
 
   // Handle category selection
   useEffect(() => {
@@ -57,12 +58,12 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     if (selectedCondition && selectedPhase && selectedPatientType) {
       let productsToShow = [];
       const config = selectedCondition.patientSpecificConfig;
-
+      
       if (config && config[selectedPhase]) {
         const phaseConfig = config[selectedPhase];
-        
+      
         // Get the patient type name from the selected patient type ID
-        const selectedPtObject = patientTypes.find(pt => pt.id === selectedPatientType);
+      const selectedPtObject = patientTypes.find(pt => pt.id === selectedPatientType);
         const patientTypeName = selectedPtObject ? selectedPtObject.name : null;
         
         if (patientTypeName) {
@@ -117,14 +118,10 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     setRecommendedProducts([]);
     setShowResearch(false);
     setSelectedProduct(null);
-    setExpandedSections({
-      scientificRationale: false,
-      clinicalEvidence: false,
-      handlingObjections: false,
-      pitchPoints: false
-    });
     setCompetitiveAdvantageModalOpen(false);
     setCompetitiveAdvantageData(null);
+    setProductDetailsModalOpen(false);
+    setCurrentModalSection(null);
   };
 
   // Handle condition selection
@@ -137,13 +134,15 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   const handleProductSelect = (product) => {
     const cleanProductName = product.replace(' (Type 3/4 Only)', '');
     setSelectedProduct(selectedProduct === cleanProductName ? null : cleanProductName);
-    // Reset expanded sections when selecting a new product
-    setExpandedSections({
-      scientificRationale: false,
-      clinicalEvidence: false,
-      handlingObjections: false,
-      pitchPoints: false
-    });
+    // Close any open modals when selecting a new product
+    setProductDetailsModalOpen(false);
+    setCurrentModalSection(null);
+  };
+
+  // Handle opening product details modal
+  const handleOpenProductDetailsModal = (sectionType) => {
+    setCurrentModalSection(sectionType);
+    setProductDetailsModalOpen(true);
   };
 
   // Get product details
@@ -255,10 +254,10 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
 
   // Patient types description
   const patientTypeDesc = {
-    '1': 'Healthy',
-    '2': 'Mild inflammation, moderate risk',
-    '3': 'Smoker, diabetic, immunocompromised',
-    '4': 'Periodontal disease, chronic illness, poor healing'
+    '1': 'Healthy Patient',
+    '2': 'Medically Controlled',
+    '3': 'Moderately Compromised',
+    '4': 'High-Risk Systematic Burden'
   };
 
   // Mock research data
@@ -323,10 +322,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                 >
                   <div className="font-medium text-lg">{category}</div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {category === 'Surgical' ? 
-                      'Procedures involving tissue manipulation or surgery' : 
-                      'Conditions affecting the oral soft tissues'
-                    }
+                    {getCategoryDescription(category)}
                   </div>
                 </button>
               ))}
@@ -402,23 +398,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                   }}
                 >
                   <div className="font-medium text-lg">{phase} Phase</div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {phase.includes('Prep') && 'Preparation before primary treatment'}
-                    {(phase === 'Acute' || phase === 'Active Treatment') && 'During or immediately after primary treatment'}
-                    {(phase === 'Maintenance' || phase === 'Long-term Management') && 'Ongoing care after primary treatment'}
-                    {phase === 'Diagnosis' && 'Initial assessment and diagnosis'}
-                    {phase === 'Early' && 'Initial stages of condition'}
-                    {phase === 'Established' && 'Fully developed condition'}
-                    {phase === 'Intervention' && 'Active intervention for the condition'}
-                    {phase === 'Monitoring' && 'Observation and monitoring phase'}
-                    {phase === 'Initial Therapy' && 'First-line treatment approach'}
-                    {phase === 'Surgical Phase' && 'Surgical intervention period'}
-                    {phase === 'Symptomatic Treatment' && 'Managing symptoms of condition'}
-                    {phase === 'Prevention' && 'Preventing recurrence or progression'}
-                    {phase === 'Pretreatment' && 'Before primary treatment begins'}
-                    {phase === 'During Treatment' && 'During active treatment period'}
-                    {phase === 'Post-Treatment' && 'After completing treatment'}
-                  </div>
                 </button>
               ))}
             </div>
@@ -521,109 +500,89 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                       
                       return (
                         <div className="space-y-2">
-                          {/* Usage Instructions */}
-                          <div className="p-3 rounded-md mb-2 bg-gray-200 border-2 border-gray-300">
-                            <div className="font-medium text-black">Usage Instructions</div>
-                            <div className="text-gray-700 mt-2 whitespace-pre-line">
-                              {typeof selectedProductDetails.usage === 'object' && selectedProductDetails.usage !== null
-                                ? (selectedProductDetails.usage[selectedPhase] 
-                                    ? selectedProductDetails.usage[selectedPhase]
-                                    : `No specific instructions for ${selectedPhase} phase.`)
-                                : (selectedProductDetails.usage || 'No usage instructions available.')}
+                          {/* Usage Instructions - Prominently displayed */}
+                          <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-l-6 border-[#15396c] p-4 mb-4 shadow-md rounded-r-md">
+                            <div className="flex items-start">
+                              <div className="flex-shrink-0">
+                                <Info className="h-5 w-5 text-[#15396c]" />
+                              </div>
+                              <div className="ml-3 flex-1">
+                                <h4 className="text-base font-semibold text-[#15396c] mb-2">
+                                  Usage Instructions for {selectedProduct} - {selectedPhase} Phase
+                                </h4>
+                                <div className="bg-white p-3 rounded-md border border-[#15396c]/20 shadow-sm">
+                                  <div className="text-sm text-gray-800 leading-relaxed">
+                                    {typeof selectedProductDetails.usage === 'object'
+                                      ? (selectedProductDetails.usage[selectedPhase] 
+                                          ? <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage[selectedPhase]}</div>
+                                          : <div className="text-gray-600 italic">No specific instructions for {selectedPhase} phase. See general usage below.</div>)
+                                      : <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage}</div>}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
-                          {/* Scientific Rationale */}
+                                                    {/* Scientific Rationale */}
                           <div 
-                            className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-slate-200 border-slate-300 hover:bg-gray-50"
-                            onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
+                            className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/10 border-[#15396c]/20 cursor-pointer hover:bg-[#15396c]/15 transition-colors"
+                            onClick={() => handleOpenProductDetailsModal('scientificRationale')}
                           >
                             <div className="flex justify-between items-center">
-                              <div className="font-medium text-black">Scientific Rationale</div>
-                              <div className="text-slate-600">
-                                {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                              </div>
+                              <div className="font-medium text-[#15396c]">Scientific Rationale</div>
+                              <Microscope size={18} className="text-[#15396c]/70" />
                             </div>
-                            {expandedSections.scientificRationale && (
-                              <div className="text-gray-700 mt-2 whitespace-pre-line">
-                                {selectedProductDetails.rationale || 'Scientific rationale not available.'}
-                              </div>
-                            )}
                           </div>
                           
                           {/* Clinical Evidence */}
                           <div 
-                            className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-[#15396c]/20 border-[#15396c]/30 hover:bg-gray-50"
-                            onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
+                            className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/25 border-[#15396c]/35 cursor-pointer hover:bg-[#15396c]/30 transition-colors"
+                            onClick={() => handleOpenProductDetailsModal('clinicalEvidence')}
                           >
                             <div className="flex justify-between items-center">
-                              <div className="font-medium text-black">Clinical Evidence</div>
-                              <div className="text-[#15396c]">
-                                {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                              </div>
+                              <div className="font-medium text-[#15396c]">Clinical Evidence</div>
+                              <FileText size={18} className="text-[#15396c]/70" />
                             </div>
-                            {expandedSections.clinicalEvidence && (
-                              <div className="text-gray-700 mt-2 whitespace-pre-line">
-                                {selectedProductDetails.clinicalEvidence || 'Clinical evidence not available.'}
-                              </div>
-                            )}
                           </div>
                           
-                                                     {/* Competitive Advantage */}
-                           <div className="p-3 rounded-md mb-2 border-2 bg-purple-200 border-purple-300">
-                             <div className="flex justify-between items-center">
-                               <div className="font-medium text-black">
-                                 Competitive Advantage
-                               </div>
-                               <button
-                                 onClick={handleOpenCompetitiveAdvantage}
-                                 className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm flex items-center"
-                               >
-                                 <Target size={14} className="mr-1" />
-                                 View Details
-                               </button>
-                             </div>
-                           </div>
-                           
-                           {/* Handling Objections */}
-                           <div 
-                             className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-amber-200 border-amber-300 hover:bg-gray-50"
-                             onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
-                           >
-                             <div className="flex justify-between items-center">
-                               <div className="font-medium text-black">Handling Objections</div>
-                               <div className="text-amber-600">
-                                 {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                               </div>
-                             </div>
-                             {expandedSections.handlingObjections && (
-                               <div className="text-gray-700 mt-2 whitespace-pre-line">
-                                 {selectedProductDetails.handlingObjections || 'Objection handling information not available.'}
-                               </div>
-                             )}
-                           </div>
+                          {/* Competitive Advantage */}
+                          <div 
+                            className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/40 border-[#15396c]/50 cursor-pointer hover:bg-[#15396c]/45 transition-colors"
+                            onClick={handleOpenCompetitiveAdvantage}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="font-medium text-[#15396c]">
+                                Competitive Advantage
+                              </div>
+                              <Target size={18} className="text-[#15396c]/70" />
+                            </div>
+                          </div>
+                          
+                          {/* Handling Objections */}
+                          <div 
+                            className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/55 border-[#15396c]/65 cursor-pointer hover:bg-[#15396c]/60 transition-colors"
+                            onClick={() => handleOpenProductDetailsModal('handlingObjections')}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="font-medium text-[#15396c]">Handling Objections</div>
+                              <MessageSquare size={18} className="text-[#15396c]/70" />
+                            </div>
+                          </div>
                           
                           {/* Key Pitch Points */}
                           {selectedProductDetails.pitchPoints && (
                             <div 
-                              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-teal-200 border-teal-300 hover:bg-gray-50"
-                              onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
+                              className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/70 border-[#15396c]/80 cursor-pointer hover:bg-[#15396c]/75 transition-colors"
+                              onClick={() => handleOpenProductDetailsModal('pitchPoints')}
                             >
                               <div className="flex justify-between items-center">
-                                <div className="font-medium text-black">Key Pitch Points</div>
-                                <div className="text-teal-600">
-                                  {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                </div>
+                                <div className="font-medium text-[#15396c]">Key Pitch Points</div>
+                                <Target size={18} className="text-[#15396c]/70" />
                               </div>
-                              {expandedSections.pitchPoints && (
-                                <div className="text-gray-700 mt-2 whitespace-pre-line">
-                                  {selectedProductDetails.pitchPoints || 'Key pitch points not available.'}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
-                      );
+                      )}
+                    </div>
+                  );
                     })()}
                   </div>
                 )}
@@ -791,6 +750,49 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
       {/* Research Modal */}
       {renderResearchModal()}
       
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        isOpen={productDetailsModalOpen}
+        onClose={() => setProductDetailsModalOpen(false)}
+        selectedProduct={selectedProduct}
+        sectionType={currentModalSection}
+        content={currentModalSection && selectedProduct ? 
+          (() => {
+            const selectedProductDetails = getProductDetails(selectedProduct);
+            if (!selectedProductDetails) return null;
+            
+            switch (currentModalSection) {
+              case 'scientificRationale':
+                return selectedProductDetails.rationale;
+              case 'clinicalEvidence':
+                return selectedProductDetails.clinicalEvidence;
+              case 'handlingObjections':
+                return selectedProductDetails.handlingObjections;
+              case 'pitchPoints':
+                return selectedProductDetails.pitchPoints;
+              default:
+                return null;
+            }
+          })() : null
+        }
+        title={currentModalSection ? 
+          (() => {
+            switch (currentModalSection) {
+              case 'scientificRationale':
+                return 'Scientific Rationale';
+              case 'clinicalEvidence':
+                return 'Clinical Evidence';
+              case 'handlingObjections':
+                return 'Handling Objections';
+              case 'pitchPoints':
+                return 'Key Pitch Points';
+              default:
+                return '';
+            }
+          })() : ''
+        }
+      />
+
       {/* Competitive Advantage Modal */}
       <CompetitiveAdvantageModal
         isOpen={competitiveAdvantageModalOpen}

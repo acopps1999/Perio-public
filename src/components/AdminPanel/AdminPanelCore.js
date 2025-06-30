@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
   loadConditionsFromSupabase,
@@ -13,12 +13,15 @@ import {
   updateConditionInSupabase,
   deleteConditionFromSupabase,
   getEntityIdMaps,
-  invalidateConditionsCache
+  invalidateConditionsCache,
+  verifyDataIntegrity
 } from './AdminPanelSupabase';
 
 function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const [activeTab, setActiveTab] = useState('conditions');
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false); // Prevent duplicate loading
+  const [isLoading, setIsLoading] = useState(true); // Track loading state for UI
+  const hasInitialized = useRef(false); // Prevent duplicate initialization on the same component instance
   const [initialConditions, setInitialConditions] = useState([]); // For diffing
   const [editedConditions, setEditedConditions] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState(null);
@@ -59,52 +62,78 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     // Prevent duplicate loading unless explicitly forced
     if (hasLoadedInitialData && !forceRefresh) {
       console.log("PERFORMANCE_ADMIN: AdminPanel data already loaded, skipping duplicate load.");
+      setIsLoading(false);
       return;
     }
     
     console.log("PERFORMANCE_ADMIN: AdminPanel loading data...");
+    setIsLoading(true);
     
-    // Load conditions from Supabase (use cache when possible)
-    const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
-    const deepClonedConditions = JSON.parse(JSON.stringify(supabaseConditions || []));
-    setInitialConditions(deepClonedConditions);
-    setEditedConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
-    
-    // Auto-select the first condition
-    if (supabaseConditions.length > 0) {
-        setSelectedCondition(supabaseConditions[0]);
-    } else {
-        setSelectedCondition(null);
-    }
+    try {
+      // Load conditions from Supabase (use cache when possible)
+      const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
+      const deepClonedConditions = JSON.parse(JSON.stringify(supabaseConditions || []));
+      setInitialConditions(deepClonedConditions);
+      setEditedConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
+      
+      // Auto-select the first condition
+      if (supabaseConditions.length > 0) {
+          setSelectedCondition(supabaseConditions[0]);
+      } else {
+          setSelectedCondition(null);
+      }
 
-    // Load categories, DDS types, and products directly into AdminPanel state
-    const supabaseCategories = await loadCategoriesFromSupabase();
-    const supabaseDdsTypes = await loadDdsTypesFromSupabase();
-    const productsResult = await loadProductsFromSupabase();
-    
-    setCategories(supabaseCategories.sort());
-    setDdsTypes(supabaseDdsTypes.sort());
-    if (productsResult.success) {
-      setAllProducts(productsResult.data.sort());
+      // Load categories, DDS types, and products directly into AdminPanel state
+      const supabaseCategories = await loadCategoriesFromSupabase();
+      const supabaseDdsTypes = await loadDdsTypesFromSupabase();
+      const productsResult = await loadProductsFromSupabase();
+      
+      setCategories(supabaseCategories.sort());
+      setDdsTypes(supabaseDdsTypes.sort());
+      if (productsResult.success) {
+        setAllProducts(productsResult.data.sort());
+      }
+      
+      // Load dynamic patient types
+      const { data: ptData, error: ptError } = await supabase.from('patient_types').select('id, name').order('name');
+      if (ptError) {
+        console.error("Failed to load patient types", ptError);
+        setPatientTypes([]);
+      } else {
+        setPatientTypes(ptData);
+      }
+      
+      setIsEditing(false); // Reset editing state after a full load
+      setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
+      setIsLoading(false); // Data loaded successfully
+      console.log("PERFORMANCE_ADMIN: AdminPanel data fetch completed.");
+    } catch (error) {
+      console.error("PERFORMANCE_ADMIN: Error loading data:", error);
+      setHasLoadedInitialData(true); // Still mark as loaded to prevent infinite retries
+      setIsLoading(false); // Stop loading even on error
     }
-    
-    // Load dynamic patient types
-    const { data: ptData, error: ptError } = await supabase.from('patient_types').select('id, name').order('name');
-    if (ptError) {
-      console.error("Failed to load patient types", ptError);
-      setPatientTypes([]);
-    } else {
-      setPatientTypes(ptData);
-    }
-    
-    setIsEditing(false); // Reset editing state after a full load
-    setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
-    console.log("PERFORMANCE_ADMIN: AdminPanel data fetch completed.");
-  }, [hasLoadedInitialData]);
+  }, []); // Remove hasLoadedInitialData dependency to prevent circular updates
 
   useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+    // Only load if this component instance hasn't initialized yet
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      loadInitialData();
+    }
+    
+    // Expose data integrity check for debugging (development only)
+    if (process.env.NODE_ENV === 'development') {
+      window.verifyDataIntegrity = verifyDataIntegrity;
+      console.log('DEBUG: Data integrity verification available via window.verifyDataIntegrity()');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (process.env.NODE_ENV === 'development') {
+        delete window.verifyDataIntegrity;
+      }
+    };
+  }, []); // Empty dependency array to run only on mount
 
   // Initialize patient-specific products when a condition is selected
   useEffect(() => {
@@ -181,6 +210,30 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       // Step 0: Apply the patient-specific product configurations from the UI state
       // back to the `editedConditions` array before we start the save process.
       applyPatientSpecificProductsToCondition();
+      
+      // Pre-save validation
+      const validationErrors = [];
+      
+      // Check for duplicate condition names in the edited list
+      const conditionNames = editedConditions.map(c => c.name.trim().toLowerCase());
+      const duplicateNames = conditionNames.filter((name, index) => conditionNames.indexOf(name) !== index);
+      if (duplicateNames.length > 0) {
+        validationErrors.push(`Duplicate condition names detected: ${[...new Set(duplicateNames)].join(', ')}`);
+      }
+      
+      // Check for empty condition names
+      const emptyNames = editedConditions.filter(c => !c.name || c.name.trim() === '');
+      if (emptyNames.length > 0) {
+        validationErrors.push(`${emptyNames.length} condition(s) have empty names`);
+      }
+      
+      if (validationErrors.length > 0) {
+        const errorMessage = `Cannot save due to validation errors:\n• ${validationErrors.join('\n• ')}`;
+        console.error('VALIDATION: Save blocked due to validation errors:', validationErrors);
+        alert(errorMessage);
+        setIsSaving(false);
+        return;
+      }
 
       // Step 1: Sync all lookup tables in parallel (Categories, DDS, Products, Phases)
       console.log('PERFORMANCE_SAVE: Syncing all lookup tables in parallel...');
@@ -210,14 +263,33 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       // Step 3: Process DELETED conditions
       const conditionsToDeleteCopy = [...conditionsToDelete];
       setConditionsToDelete([]); // Clear immediately
+      let totalDeletionStats = { totalRecordsDeleted: 0, conditionsDeleted: 0 };
+      
       for (const condIdToDelete of conditionsToDeleteCopy) {
         console.log(`SAVE_CHANGES: Deleting condition with ID: ${condIdToDelete}`);
         const deleteResult = await deleteConditionFromSupabase(condIdToDelete);
+        
         if (!deleteResult.success) {
             overallSuccess = false;
             finalError = deleteResult.error;
             console.error(`SAVE_CHANGES: Failed to delete condition ${condIdToDelete}:`, deleteResult.error);
+            if (deleteResult.warnings && deleteResult.warnings.length > 0) {
+              console.warn(`SAVE_CHANGES: Deletion warnings for condition ${condIdToDelete}:`, deleteResult.warnings);
+            }
+        } else {
+            totalDeletionStats.conditionsDeleted += 1;
+            totalDeletionStats.totalRecordsDeleted += deleteResult.totalRecordsDeleted || 0;
+            console.log(`SAVE_CHANGES: ✅ Successfully deleted condition "${deleteResult.data?.name || condIdToDelete}"`);
+            console.log(`SAVE_CHANGES: 📊 Deletion details:`, deleteResult.deletionStats);
+            
+            if (deleteResult.warnings && deleteResult.warnings.length > 0) {
+              console.warn(`SAVE_CHANGES: Deletion completed with warnings:`, deleteResult.warnings);
+            }
         }
+      }
+      
+      if (conditionsToDeleteCopy.length > 0) {
+        console.log(`SAVE_CHANGES: 🗑️ Deletion Summary: ${totalDeletionStats.conditionsDeleted} conditions deleted, ${totalDeletionStats.totalRecordsDeleted} total records removed from database`);
       }
 
       // Step 4: Determine ADDED and UPDATED conditions from the single source of truth: `editedConditions`
@@ -255,7 +327,16 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
          if (!addResult.success) {
           overallSuccess = false;
           finalError = addResult.error;
-          console.error(`SAVE_CHANGES: Failed to add condition ${condToAdd.name}:`, addResult.error);
+          
+          // Provide specific error handling for duplicate names
+          if (addResult.error?.code === 'DUPLICATE_NAME') {
+            console.error(`SAVE_CHANGES: ❌ Duplicate condition name "${condToAdd.name}": ${addResult.error.message}`);
+            alert(`Cannot save: ${addResult.error.message}`);
+          } else {
+            console.error(`SAVE_CHANGES: Failed to add condition ${condToAdd.name}:`, addResult.error);
+          }
+        } else {
+          console.log(`SAVE_CHANGES: ✅ Successfully added condition "${condToAdd.name}"`);
         }
       }
 
@@ -306,11 +387,26 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const applyPatientSpecificProductsToCondition = () => {
     if (!selectedCondition || !patientSpecificProducts) {
       console.log("APPLY_CONFIG: Skipping - no selected condition or patient specific products");
+      console.log("APPLY_CONFIG: selectedCondition exists:", !!selectedCondition);
+      console.log("APPLY_CONFIG: patientSpecificProducts exists:", !!patientSpecificProducts);
       return;
     }
     
     console.log("APPLY_CONFIG: Applying patient-specific products to condition:", selectedCondition.name);
     console.log("APPLY_CONFIG: Current patientSpecificProducts:", JSON.stringify(patientSpecificProducts, null, 2));
+    
+    // Check if patientSpecificProducts is empty
+    const hasAnyProducts = Object.keys(patientSpecificProducts).some(phase => 
+      Object.keys(patientSpecificProducts[phase] || {}).some(ptName => 
+        ptName !== 'all' && Array.isArray(patientSpecificProducts[phase][ptName]) && 
+        patientSpecificProducts[phase][ptName].length > 0
+      )
+    );
+    
+    if (!hasAnyProducts) {
+      console.warn("APPLY_CONFIG: ⚠️ Patient-specific products appear to be empty! This will clear all product recommendations.");
+      console.warn("APPLY_CONFIG: This might be due to UI state not being properly initialized.");
+    }
     
     // This helper updates the `editedConditions` array, which is the single source of truth.
     setEditedConditions(prevConditions =>
@@ -328,6 +424,26 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           });
           
           console.log("APPLY_CONFIG: Config to save:", JSON.stringify(configToSave, null, 2));
+          
+          // Safety check: If configToSave is completely empty but the original condition had data,
+          // preserve the original data instead of clearing it
+          const hasNewData = Object.keys(configToSave).some(phase => 
+            Object.keys(configToSave[phase] || {}).some(ptName => 
+              Array.isArray(configToSave[phase][ptName]) && configToSave[phase][ptName].length > 0
+            )
+          );
+          
+          const hadOriginalData = cond.patientSpecificConfig && Object.keys(cond.patientSpecificConfig).some(phase => 
+            Object.keys(cond.patientSpecificConfig[phase] || {}).some(ptName => 
+              Array.isArray(cond.patientSpecificConfig[phase][ptName]) && cond.patientSpecificConfig[phase][ptName].length > 0
+            )
+          );
+          
+          if (!hasNewData && hadOriginalData) {
+            console.warn("APPLY_CONFIG: ⚠️ Preventing accidental clearing of patient-specific config. Preserving original data.");
+            console.warn("APPLY_CONFIG: This might indicate a UI state synchronization issue.");
+            return cond; // Return unchanged condition
+          }
           
           // Return a new condition object with the updated config
           return { ...cond, patientSpecificConfig: configToSave };
@@ -934,6 +1050,8 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     // State
     activeTab,
     setActiveTab,
+    isLoading,
+    setIsLoading,
     initialConditions,
     editedConditions,
     setEditedConditions,
@@ -1011,6 +1129,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     handleSubmitNewItem,
     confirmDelete,
     handleDelete,
+    
+    // Developer utilities
+    verifyDataIntegrity,
     
     // Props from parent
     onSaveChangesSuccess,

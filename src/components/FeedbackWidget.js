@@ -345,7 +345,7 @@ function FeedbackWidget() {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 bg-[#15396c] hover:bg-[#15396c]/90 text-white rounded-full p-4 shadow-lg z-50 transition-all duration-200 hover:scale-105"
+          className="fixed bottom-6 right-6 bg-white hover:bg-gray-50 text-[#15396c] border border-gray-200 rounded-full p-4 shadow-lg z-50 transition-all duration-200 hover:scale-105"
           title="Send Feedback"
         >
           <MessageSquare size={24} />
