@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { MessageSquare, X, Send, Bug, Lightbulb, HelpCircle } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../supabaseClient';
 import { feedbackConfig, isEmailConfigured } from '../config/feedbackConfig';
 
 function FeedbackWidget() {
+  const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('bug');
   const [location, setLocation] = useState('');
@@ -345,7 +347,11 @@ function FeedbackWidget() {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 bg-white hover:bg-gray-50 text-[#15396c] border border-gray-200 rounded-full p-4 shadow-lg z-50 transition-all duration-200 hover:scale-105"
+          className={`fixed bottom-6 right-6 rounded-full p-4 shadow-lg z-50 transition-all duration-200 hover:scale-105 ${
+            isDarkMode 
+              ? 'bg-white hover:bg-gray-50 text-[#15396c] border border-gray-200' 
+              : 'bg-[#15396c] hover:bg-[#15396c]/90 text-white border border-[#15396c]'
+          }`}
           title="Send Feedback"
         >
           <MessageSquare size={24} />
@@ -354,9 +360,15 @@ function FeedbackWidget() {
 
       {/* Feedback Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
+        <div className={`fixed bottom-6 right-6 w-96 rounded-lg shadow-2xl z-50 ${
+          isDarkMode 
+            ? 'bg-gray-800 border border-gray-700' 
+            : 'bg-white border border-gray-200'
+        }`}>
           {/* Header */}
-          <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-[#15396c] text-white rounded-t-lg">
+          <div className={`flex justify-between items-center p-4 bg-[#15396c] text-white rounded-t-lg ${
+            isDarkMode ? 'border-b border-gray-700' : 'border-b border-gray-200'
+          }`}>
             <h3 className="font-semibold flex items-center">
               <MessageSquare size={20} className="mr-2" />
               Send Feedback
@@ -378,14 +390,14 @@ function FeedbackWidget() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <p className="text-gray-700 font-medium">Thank you for your feedback!</p>
-                <p className="text-gray-500 text-sm mt-1">We'll review it and get back to you.</p>
+                <p className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Thank you for your feedback!</p>
+                <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>We'll review it and get back to you.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Feedback Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Type of Feedback
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -399,7 +411,9 @@ function FeedbackWidget() {
                           className={`p-2 rounded-md border text-xs font-medium transition-all ${
                             feedbackType === type.value
                               ? 'border-[#15396c] bg-[#15396c]/5 text-[#15396c]'
-                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              : isDarkMode 
+                                ? 'border-gray-600 text-gray-300 hover:border-gray-500' 
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
                           }`}
                         >
                           <IconComponent size={16} className={`mx-auto mb-1 ${
@@ -414,7 +428,7 @@ function FeedbackWidget() {
 
                 {/* Location */}
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="location" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Where did this happen? <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -422,18 +436,22 @@ function FeedbackWidget() {
                     id="location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    }`}
                     placeholder="e.g., Admin Panel - Products tab, Main App - Gingivitis condition"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     We've pre-filled this based on your current location
                   </p>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="description" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     {feedbackType === 'bug' ? 'Describe the bug or error' : 
                      feedbackType === 'feature' ? 'Describe the feature request' : 
                      'What do you need help with?'} <span className="text-red-500">*</span>
@@ -443,7 +461,11 @@ function FeedbackWidget() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm resize-none"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm resize-none ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    }`}
                     placeholder={
                       feedbackType === 'bug' ? 'What happened? What did you expect to happen? Steps to reproduce...' :
                       feedbackType === 'feature' ? 'What feature would you like to see? How would it help your workflow?' :
