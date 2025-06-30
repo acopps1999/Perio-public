@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { ChevronDown, ChevronRight, Info, Filter, BookOpen, Target } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Filter, BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
+import ProductDetailsModal from './ProductDetailsModal';
 
 function ConditionDetails({
   selectedCondition,
@@ -18,20 +19,17 @@ function ConditionDetails({
   handleOpenResearch, // Handler to open research modal (general or for a specific product)
   hasProductsForPhase, // Function to check if a phase has any products
   showAdditionalInfo,
+  onMobileBack, // Handler for mobile back navigation
+  mobileView, // Current mobile view state
 }) {
 
-  const [expandedSections, setExpandedSections] = useState({
-    pitchPoints: false,
-    competitiveAdvantage: false,
-    handlingObjections: false,
-    scientificRationale: false,
-    clinicalEvidence: false,
-    productUsage: false
-  });
-  
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
   const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
+  
+  // Product details modal state
+  const [productDetailsModalOpen, setProductDetailsModalOpen] = useState(false);
+  const [currentModalSection, setCurrentModalSection] = useState(null);
 
   const getPatientTypeDescription = (name) => {
     if (name === 'All') return 'All Treatment Modifiers';
@@ -62,6 +60,12 @@ function ConditionDetails({
     handleTabChange(tab); // Call the original tab change handler
   };
   
+  // Handle patient type change and clear selected product
+  const handlePatientTypeSelectWithClear = (type) => {
+    setSelectedProduct(null); // Clear selected product when changing patient type
+    handlePatientTypeSelect(type); // Call the original patient type select handler
+  };
+  
   // Get the details for the selected product
   const getProductDetails = (productName) => {
     if (!productName) return null;
@@ -77,6 +81,12 @@ function ConditionDetails({
     
     // Load competitive advantage data from Supabase
     loadCompetitiveAdvantageData(selectedProduct);
+  };
+
+  // Handle opening product details modal
+  const handleOpenProductDetailsModal = (sectionType) => {
+    setCurrentModalSection(sectionType);
+    setProductDetailsModalOpen(true);
   };
 
   const loadCompetitiveAdvantageData = async (productName) => {
@@ -135,6 +145,17 @@ function ConditionDetails({
   return (
     <div className="lg:col-span-3 bg-white shadow rounded-lg overflow-hidden">
       <div className="p-4 border-b">
+        {/* Mobile back button */}
+        <div className="flex items-center mb-2 lg:hidden">
+          <button
+            onClick={onMobileBack}
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft size={20} className="mr-2" />
+            <span className="text-sm font-medium">Back to Conditions</span>
+          </button>
+        </div>
+        
         <h2 className="text-xl font-semibold">{selectedCondition.name}</h2>
         <div className="text-sm text-gray-500 mt-1">
           <span className="mr-2">{selectedCondition.category}</span>
@@ -164,7 +185,7 @@ function ConditionDetails({
                 <span className="text-sm font-medium text-gray-700">Show Recommendations For:</span>
               </div>
               <div className="flex-grow">
-                <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelect}>
+                <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelectWithClear}>
                   <Select.Trigger className="flex justify-between items-center px-3 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c]">
                     <div className="flex items-center">
                       <Filter size={16} className="mr-2 text-[#15396c]" />
@@ -225,9 +246,12 @@ function ConditionDetails({
                       "flex-1 px-4 py-3 text-sm font-medium text-center focus:outline-none transition-all duration-200 text-white",
                       getPhaseColor(phase, index),
                       activeTab === phase 
-                        ? "shadow-[inset_0_0_0_4px_#15396c]"
+                        ? "shadow-[inset_0_0_0_4px_#15396c] animate-pulse-border"
                         : "hover:shadow-[inset_0_0_0_2px_rgba(156,163,175,0.5)]"
                     )}
+                    style={activeTab === phase ? {
+                      animation: 'pulse-border 2s infinite'
+                    } : {}}
                   >
                     {phase} Phase
                     {hasProductsForPhase(phase) && selectedCondition.products && Array.isArray(selectedCondition.products[phase]) && (
@@ -302,7 +326,7 @@ function ConditionDetails({
                               "text-sm flex items-center transition-colors",
                               isSelected
                                 ? "!text-white hover:!text-gray-200" // Force white text with !important
-                                : "text-[#15396c] hover:text-blue-800"
+                                : "text-[#15396c] hover:text-[#15396c]/80"
                             )}
                           >
                             <BookOpen size={14} className="mr-1" />
@@ -348,57 +372,40 @@ function ConditionDetails({
             
             {/* Scientific Rationale */}
             <div 
-              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-slate-200 border-slate-300 hover:bg-gray-50"
-              onClick={() => setExpandedSections(prev => ({ ...prev, scientificRationale: !prev.scientificRationale }))}
+              className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/10 border-[#15396c]/20 cursor-pointer hover:bg-[#15396c]/15 transition-colors"
+              onClick={() => handleOpenProductDetailsModal('scientificRationale')}
             >
               <div className="flex justify-between items-center">
-                <div className="font-medium text-black">
+                <div className="font-medium text-[#15396c]">
                   Scientific Rationale
                 </div>
-                <div className="text-slate-600">
-                  {expandedSections.scientificRationale ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                </div>
+                <Microscope size={18} className="text-[#15396c]/70" />
               </div>
-              {expandedSections.scientificRationale && (
-                <div className="text-gray-700 mt-2 whitespace-pre-line">
-                  {selectedProductDetails.rationale || 'Scientific rationale not available.'}
-                </div>
-              )}
             </div>
             
             {/* Clinical Evidence */}
             <div 
-              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-blue-200 border-blue-300 hover:bg-gray-50"
-              onClick={() => setExpandedSections(prev => ({ ...prev, clinicalEvidence: !prev.clinicalEvidence }))}
+              className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/25 border-[#15396c]/35 cursor-pointer hover:bg-[#15396c]/30 transition-colors"
+              onClick={() => handleOpenProductDetailsModal('clinicalEvidence')}
             >
               <div className="flex justify-between items-center">
-                <div className="font-medium text-black">
+                <div className="font-medium text-[#15396c]">
                   Clinical Evidence
                 </div>
-                <div className="text-blue-600">
-                  {expandedSections.clinicalEvidence ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                </div>
+                <FileText size={18} className="text-[#15396c]/70" />
               </div>
-              {expandedSections.clinicalEvidence && (
-                <div className="text-gray-700 mt-2 whitespace-pre-line">
-                  {selectedProductDetails.clinicalEvidence || 'Clinical evidence not available.'}
-                </div>
-              )}
             </div>
             
             {/* Competitive Advantage */}
-            <div className="p-3 rounded-md mb-2 border-2 bg-purple-200 border-purple-300">
+            <div 
+              className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/40 border-[#15396c]/50 cursor-pointer hover:bg-[#15396c]/45 transition-colors"
+              onClick={handleOpenCompetitiveAdvantage}
+            >
               <div className="flex justify-between items-center">
-                <div className="font-medium text-black">
+                <div className="font-medium text-[#15396c]">
                   Competitive Advantage
                 </div>
-                <button
-                  onClick={handleOpenCompetitiveAdvantage}
-                  className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm flex items-center"
-                >
-                  <Target size={14} className="mr-1" />
-                  View Details
-                </button>
+                <Target size={18} className="text-[#15396c]/70" />
               </div>
             </div>
             
@@ -409,46 +416,72 @@ function ConditionDetails({
               selectedProduct={selectedProduct}
               competitiveAdvantageData={competitiveAdvantageData}
             />
+
+            {/* Product Details Modal */}
+            <ProductDetailsModal
+              isOpen={productDetailsModalOpen}
+              onClose={() => setProductDetailsModalOpen(false)}
+              selectedProduct={selectedProduct}
+              sectionType={currentModalSection}
+              content={currentModalSection && selectedProductDetails ? 
+                (() => {
+                  switch (currentModalSection) {
+                    case 'scientificRationale':
+                      return selectedProductDetails.rationale;
+                    case 'clinicalEvidence':
+                      return selectedProductDetails.clinicalEvidence;
+                    case 'handlingObjections':
+                      return selectedProductDetails.handlingObjections;
+                    case 'pitchPoints':
+                      return selectedProductDetails.pitchPoints;
+                    default:
+                      return null;
+                  }
+                })() : null
+              }
+              title={currentModalSection ? 
+                (() => {
+                  switch (currentModalSection) {
+                    case 'scientificRationale':
+                      return 'Scientific Rationale';
+                    case 'clinicalEvidence':
+                      return 'Clinical Evidence';
+                    case 'handlingObjections':
+                      return 'Handling Objections';
+                    case 'pitchPoints':
+                      return 'Key Pitch Points';
+                    default:
+                      return '';
+                  }
+                })() : ''
+              }
+            />
             
             {/* Handling Objections */}
             <div 
-              className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-amber-200 border-amber-300 hover:bg-gray-50"
-              onClick={() => setExpandedSections(prev => ({ ...prev, handlingObjections: !prev.handlingObjections }))}
+              className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/55 border-[#15396c]/65 cursor-pointer hover:bg-[#15396c]/60 transition-colors"
+              onClick={() => handleOpenProductDetailsModal('handlingObjections')}
             >
               <div className="flex justify-between items-center">
-                <div className="font-medium text-black">
+                <div className="font-medium text-[#15396c]">
                   Handling Objections
                 </div>
-                <div className="text-amber-600">
-                  {expandedSections.handlingObjections ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                </div>
+                <MessageSquare size={18} className="text-[#15396c]/70" />
               </div>
-              {expandedSections.handlingObjections && (
-                <div className="text-gray-700 mt-2 whitespace-pre-line">
-                  {selectedProductDetails.handlingObjections || 'Objection handling information not available.'}
-                </div>
-              )}
             </div>
             
             {/* Key Pitch Points */}
             {selectedProductDetails.pitchPoints && (
               <div 
-                className="p-3 rounded-md mb-2 cursor-pointer transition-colors border-2 bg-teal-200 border-teal-300 hover:bg-gray-50"
-                onClick={() => setExpandedSections(prev => ({ ...prev, pitchPoints: !prev.pitchPoints }))}
+                className="p-3 rounded-md mb-2 border-2 bg-[#15396c]/70 border-[#15396c]/80 cursor-pointer hover:bg-[#15396c]/75 transition-colors"
+                onClick={() => handleOpenProductDetailsModal('pitchPoints')}
               >
                 <div className="flex justify-between items-center">
-                  <div className="font-medium text-black">
+                  <div className="font-medium text-[#15396c]">
                     Key Pitch Points
                   </div>
-                  <div className="text-teal-600">
-                    {expandedSections.pitchPoints ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                  </div>
+                  <Target size={18} className="text-[#15396c]/70" />
                 </div>
-                {expandedSections.pitchPoints && (
-                  <div className="text-gray-700 mt-2 whitespace-pre-line">
-                    {selectedProductDetails.pitchPoints || 'Key pitch points not available.'}
-                  </div>
-                )}
               </div>
             )}
             
@@ -456,7 +489,7 @@ function ConditionDetails({
             <div className="mt-3 text-center">
               <button 
                 onClick={() => setSelectedProduct(null)}
-                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 underline"
+                className="px-3 py-1 text-sm text-[#15396c] hover:text-[#15396c]/80 underline"
               >
                 View overall condition information
               </button>

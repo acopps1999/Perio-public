@@ -312,7 +312,7 @@ const renderPatientTypeProductConfig = (phase) => {
   return (
     <div className="mt-4 border rounded-lg p-4 bg-gray-50">
       <div className="flex justify-between items-center mb-4">
-        <h4 className="font-medium">Treatment Modifier-Specific Product Configuration</h4>
+        <h4 className="font-medium">Treatment Modifier Product Recommendation</h4>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Filter by:</span>
           <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelect}>
@@ -1057,121 +1057,7 @@ return (
                             />
                           </div>
                           
-                          {/* Research Articles Section */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Supporting Research Articles
-                            </label>
-                            
-                            {productDetails.researchArticles && 
-                              productDetails.researchArticles.map((article, index) => (
-                              <div key={index} className="flex space-x-2 mb-2">
-                                <div className="flex-grow space-y-2">
-                                  <input
-                                    type="text"
-                                    placeholder="Article title"
-                                    value={article.title || ''}
-                                    onChange={(e) => {
-                                      const updatedArticles = [...productDetails.researchArticles];
-                                      updatedArticles[index].title = e.target.value;
-                                      updateProductDetail(
-                                        selectedCondition.name, 
-                                        productName, 
-                                        'researchArticles', 
-                                        updatedArticles
-                                      );
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                  />
-                                  
-                                  <input
-                                    type="text"
-                                    placeholder="Author/Source"
-                                    value={article.author || ''}
-                                    onChange={(e) => {
-                                      const updatedArticles = [...productDetails.researchArticles];
-                                      updatedArticles[index].author = e.target.value;
-                                      updateProductDetail(
-                                        selectedCondition.name, 
-                                        productName, 
-                                        'researchArticles', 
-                                        updatedArticles
-                                      );
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                  />
-                                  
-                                  <DynamicTextarea
-                                    initialRows={3}
-                                    maxRows={8}
-                                    placeholder="Abstract (optional)"
-                                    value={article.abstract || ''}
-                                    onChange={(e) => {
-                                      const updatedArticles = [...productDetails.researchArticles];
-                                      updatedArticles[index].abstract = e.target.value;
-                                      updateProductDetail(
-                                        selectedCondition.name, 
-                                        productName, 
-                                        'researchArticles', 
-                                        updatedArticles
-                                      );
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                  />
-                                  
-                                  <input
-                                    type="text"
-                                    placeholder="URL (optional)"
-                                    value={article.url || ''}
-                                    onChange={(e) => {
-                                      const updatedArticles = [...productDetails.researchArticles];
-                                      updatedArticles[index].url = e.target.value;
-                                      updateProductDetail(
-                                        selectedCondition.name, 
-                                        productName, 
-                                        'researchArticles', 
-                                        updatedArticles
-                                      );
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                  />
-                                </div>
-                                
-                                <button
-                                  onClick={() => {
-                                    const updatedArticles = [...productDetails.researchArticles];
-                                    updatedArticles.splice(index, 1);
-                                    updateProductDetail(
-                                      selectedCondition.name, 
-                                      productName, 
-                                      'researchArticles', 
-                                      updatedArticles
-                                    );
-                                  }}
-                                  className="p-2 border border-red-300 rounded-md text-red-500 hover:bg-red-50 self-start"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            ))}
-                            
-                            <button
-                              onClick={() => {
-                                const currentArticles = productDetails.researchArticles || [];
-                                const updatedArticles = [...currentArticles, { title: '', author: '', url: '' }];
-                                updateProductDetail(
-                                  selectedCondition.name, 
-                                  productName, 
-                                  'researchArticles', 
-                                  updatedArticles
-                                );
-                              }}
-                              className="mt-2 px-3 py-2 border border-indigo-300 rounded-md text-indigo-600 hover:bg-indigo-50 text-sm flex items-center"
-                            >
-                              <Plus size={16} className="mr-1" />
-                              Add Research Article
-                            </button>
-                          </div>
+
                         </div>
                       )}
                     </div>

@@ -540,6 +540,7 @@ const addCategoryToSupabase = async (categoryName) => {
   // Simple cache for conditions data
   let conditionsCache = null;
   let cacheTimestamp = null;
+  let isLoadingConditions = false; // Prevent concurrent loads
   const CACHE_DURATION = 30000; // 30 seconds cache
   
   // Cache invalidation helper
@@ -558,10 +559,25 @@ const addCategoryToSupabase = async (categoryName) => {
       return conditionsCache;
     }
     
+    // Prevent concurrent loads
+    if (isLoadingConditions && !forceRefresh) {
+      console.log('PERFORMANCE: Already loading conditions, waiting for existing load...');
+      // Wait for existing load to complete
+      while (isLoadingConditions) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      // Return cached result if available
+      if (conditionsCache) {
+        console.log('PERFORMANCE: Returning newly cached conditions data');
+        return conditionsCache;
+      }
+    }
+    
     console.log('PERFORMANCE: Starting optimized conditions load from Supabase...');
     console.log('PERFORMANCE: forceRefresh =', forceRefresh);
     console.log('PERFORMANCE: conditionsCache exists =', !!conditionsCache);
     console.log('PERFORMANCE: cacheTimestamp exists =', !!cacheTimestamp);
+    isLoadingConditions = true;
     const startTime = performance.now();
     
     try {
@@ -807,7 +823,7 @@ const addCategoryToSupabase = async (categoryName) => {
         conditions.push(condition);
       }
   
-      const endTime = performance.now();
+            const endTime = performance.now();
       console.log(`PERFORMANCE: Loaded ${conditions.length} conditions in ${Math.round(endTime - startTime)}ms`);
       
       // Cache the results
@@ -815,10 +831,12 @@ const addCategoryToSupabase = async (categoryName) => {
       cacheTimestamp = Date.now();
       
       return conditions;
-  
+
     } catch (error) {
       console.error('PERFORMANCE: Critical error in loadConditionsFromSupabase:', error);
       return [];
+    } finally {
+      isLoadingConditions = false; // Reset loading flag
     }
   };
   
@@ -865,10 +883,32 @@ const addCategoryToSupabase = async (categoryName) => {
     };
   };
   
-  const addConditionToSupabase = async (condition, entityIdMaps) => {
+    const addConditionToSupabase = async (condition, entityIdMaps) => {
     console.log('SUPABASE_CUD: Adding condition:', condition.name);
     const { categoryNameToId, productNameToId, phaseNameToId, ddsTypeNameToId, patientTypeNameToIdMap } = entityIdMaps;
-  
+
+    // Check if condition name already exists
+    const { data: existingCondition, error: checkError } = await supabase
+      .from('procedures')
+      .select('name')
+      .eq('name', condition.name)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('SUPABASE_CUD: Error checking for existing condition:', checkError);
+      return { success: false, error: checkError, data: null };
+    }
+
+    if (existingCondition) {
+      const duplicateError = {
+        code: 'DUPLICATE_NAME',
+        message: `A condition named "${condition.name}" already exists. Please choose a different name.`,
+        details: `Cannot create duplicate condition. Existing condition: "${existingCondition.name}"`
+      };
+      console.error('SUPABASE_CUD: Duplicate condition name detected:', duplicateError);
+      return { success: false, error: duplicateError, data: null };
+    }
+
     // 1. Insert into 'procedures'
     const categoryId = categoryNameToId[condition.category] || null;
     const { data: procedureData, error: procedureError } = await supabase
@@ -882,9 +922,20 @@ const addCategoryToSupabase = async (categoryName) => {
       }])
       .select()
       .single();
-  
+
     if (procedureError || !procedureData) {
       console.error('SUPABASE_CUD: Error adding procedure:', procedureError);
+      
+      // Provide better error message for constraint violations
+      if (procedureError?.code === '23505') {
+        const friendlyError = {
+          code: 'DUPLICATE_NAME',
+          message: `A condition named "${condition.name}" already exists. Please choose a different name.`,
+          details: procedureError.message
+        };
+        return { success: false, error: friendlyError, data: null };
+      }
+      
       return { success: false, error: procedureError, data: null };
     }
     const newProcedureId = procedureData.id;
@@ -1316,37 +1367,217 @@ const addCategoryToSupabase = async (categoryName) => {
     return { success: true, error: null, data: condition };
   };
   
-  const deleteConditionFromSupabase = async (conditionId) => {
-    console.log('SUPABASE_CUD: Deleting condition with db_id:', conditionId);
-    // Order of deletion matters if cascade is not set up or to be explicit.
-    // Start with tables that have foreign keys to 'procedures'.
-    const tablesToDeleteFrom = [
-      'phase_specific_usage', 
-      'condition_product_research_articles',
-      'procedure_phase_products', // Replaces patient_specific_configs
-      'product_details', // product_details references procedures
-      'procedure_phases',
-      'procedure_dentists',
-    ];
-  
-    for (const table of tablesToDeleteFrom) {
-      const { error } = await supabase.from(table).delete().eq('procedure_id', conditionId);
-      if (error) {
-        console.error(`SUPABASE_CUD: Error deleting from ${table} for procedure ${conditionId}:`, error);
-        // Potentially stop or collect errors
-      } else {
-        console.log(`SUPABASE_CUD: Deleted from ${table} for procedure ${conditionId}`);
+    // Verification function to check for orphaned data (useful for debugging)
+  const verifyDataIntegrity = async () => {
+    console.log('DATA_INTEGRITY: Starting orphaned data check...');
+    const orphanedData = {};
+    
+    try {
+      // First get all valid procedure IDs
+      const { data: procedures, error: procError } = await supabase
+        .from('procedures')
+        .select('id');
+      
+      if (procError) {
+        console.error('DATA_INTEGRITY: Error fetching procedures:', procError);
+        return { orphanedData: {}, isClean: false, error: procError };
       }
+
+      const validProcedureIds = new Set(procedures.map(p => p.id));
+      console.log(`DATA_INTEGRITY: Found ${validProcedureIds.size} valid procedures`);
+
+      // Check for orphaned records in each related table
+      const tables = [
+        'phase_specific_usage',
+        'condition_product_research_articles', 
+        'procedure_phase_products',
+        'product_details',
+        'procedure_phases',
+        'procedure_dentists'
+      ];
+
+      for (const table of tables) {
+        try {
+          // Get all procedure_ids from this table
+          const { data: tableRecords, error } = await supabase
+            .from(table)
+            .select('procedure_id');
+
+          if (error) {
+            console.error(`DATA_INTEGRITY: Error checking ${table}:`, error);
+            continue;
+          }
+
+          // Find orphaned procedure_ids
+          const orphanedIds = [];
+          const uniqueProcIds = [...new Set(tableRecords.map(r => r.procedure_id))];
+          
+          for (const procId of uniqueProcIds) {
+            if (!validProcedureIds.has(procId)) {
+              orphanedIds.push(procId);
+            }
+          }
+
+          if (orphanedIds.length > 0) {
+            orphanedData[table] = orphanedIds;
+            console.warn(`DATA_INTEGRITY: Found ${orphanedIds.length} orphaned procedure IDs in ${table}:`, orphanedIds);
+          } else {
+            console.log(`DATA_INTEGRITY: ✓ ${table} is clean (no orphaned data)`);
+          }
+        } catch (error) {
+          console.error(`DATA_INTEGRITY: Exception checking ${table}:`, error);
+        }
+      }
+
+      if (Object.keys(orphanedData).length === 0) {
+        console.log('DATA_INTEGRITY: ✅ No orphaned data found - database is clean!');
+      } else {
+        console.warn('DATA_INTEGRITY: ⚠️ Orphaned data detected:', orphanedData);
+      }
+
+      return { orphanedData, isClean: Object.keys(orphanedData).length === 0 };
+    } catch (error) {
+      console.error('DATA_INTEGRITY: Error during integrity check:', error);
+      return { orphanedData: {}, isClean: false, error };
     }
-  
-    // Finally, delete from 'procedures' table itself
-    const { error: procError } = await supabase.from('procedures').delete().eq('id', conditionId);
-    if (procError) {
-      console.error(`SUPABASE_CUD: Error deleting procedure ${conditionId} from procedures table:`, procError);
-      return { success: false, error: procError, data: null };
+  };
+
+  const deleteConditionFromSupabase = async (conditionId) => {
+    console.log('SUPABASE_CUD: Starting comprehensive deletion of condition with db_id:', conditionId);
+    
+    // Track deletion statistics for logging
+    const deletionStats = {};
+    let totalRecordsDeleted = 0;
+    const errors = [];
+    
+    try {
+      // First, get the condition name for logging
+      const { data: procedureData, error: fetchError } = await supabase
+        .from('procedures')
+        .select('name')
+        .eq('id', conditionId)
+        .single();
+      
+      const conditionName = procedureData?.name || `Unknown (ID: ${conditionId})`;
+      console.log(`SUPABASE_CUD: Deleting condition "${conditionName}" and all associated data...`);
+
+      // Order of deletion matters - start with tables that have foreign keys to 'procedures'
+      // Delete in reverse dependency order to avoid foreign key constraint violations
+      const tablesToDeleteFrom = [
+        'phase_specific_usage',           // Usage instructions for products in phases
+        'condition_product_research_articles', // Research articles
+        'procedure_phase_products',       // Product recommendations per phase/patient type  
+        'product_details',               // Product details and rationales
+        'procedure_phases',              // Phase associations
+        'procedure_dentists',            // DDS type associations
+      ];
+
+      // Perform cascading deletion with detailed logging
+      for (const table of tablesToDeleteFrom) {
+        try {
+          // First count how many records will be deleted
+          const { count, error: countError } = await supabase
+            .from(table)
+            .select('*', { count: 'exact', head: true })
+            .eq('procedure_id', conditionId);
+          
+          if (countError) {
+            console.warn(`SUPABASE_CUD: Could not count records in ${table} for procedure ${conditionId}:`, countError);
+          }
+
+          // Perform the deletion
+          const { data: deletedData, error: deleteError } = await supabase
+            .from(table)
+            .delete()
+            .eq('procedure_id', conditionId)
+            .select(); // Return deleted records for confirmation
+
+          if (deleteError) {
+            console.error(`SUPABASE_CUD: ERROR deleting from ${table} for procedure ${conditionId}:`, deleteError);
+            errors.push({ table, error: deleteError });
+          } else {
+            const deletedCount = deletedData?.length || count || 0;
+            deletionStats[table] = deletedCount;
+            totalRecordsDeleted += deletedCount;
+            console.log(`SUPABASE_CUD: ✓ Deleted ${deletedCount} records from ${table} for "${conditionName}"`);
+          }
+        } catch (error) {
+          console.error(`SUPABASE_CUD: Exception during deletion from ${table}:`, error);
+          errors.push({ table, error });
+        }
+      }
+
+      // Finally, delete from 'procedures' table itself
+      const { data: deletedProcedure, error: procError } = await supabase
+        .from('procedures')
+        .delete()
+        .eq('id', conditionId)
+        .select();
+
+      if (procError) {
+        console.error(`SUPABASE_CUD: ERROR deleting condition "${conditionName}" from procedures table:`, procError);
+        errors.push({ table: 'procedures', error: procError });
+        return { 
+          success: false, 
+          error: procError, 
+          data: null,
+          deletionStats,
+          totalRecordsDeleted,
+          errors
+        };
+      }
+
+      // Log successful completion
+      const procedureDeleted = deletedProcedure?.length > 0;
+      if (procedureDeleted) {
+        totalRecordsDeleted += 1;
+        deletionStats.procedures = 1;
+      }
+
+      console.log(`SUPABASE_CUD: ✅ Successfully deleted condition "${conditionName}"`);
+      console.log(`SUPABASE_CUD: 📊 Deletion Summary:`, {
+        conditionName,
+        conditionId,
+        totalRecordsDeleted,
+        deletionStats,
+        errorsEncountered: errors.length
+      });
+
+      // Invalidate cache after successful deletion
+      invalidateConditionsCache();
+      console.log('SUPABASE_CUD: Cache invalidated after condition deletion');
+
+      if (errors.length > 0) {
+        console.warn(`SUPABASE_CUD: ⚠️ Deletion completed with ${errors.length} warnings:`, errors);
+        return { 
+          success: true, 
+          error: null, 
+          data: { id: conditionId, name: conditionName },
+          deletionStats,
+          totalRecordsDeleted,
+          warnings: errors
+        };
+      }
+
+      return { 
+        success: true, 
+        error: null, 
+        data: { id: conditionId, name: conditionName },
+        deletionStats,
+        totalRecordsDeleted
+      };
+
+    } catch (error) {
+      console.error(`SUPABASE_CUD: CRITICAL ERROR during condition deletion for ID ${conditionId}:`, error);
+      return { 
+        success: false, 
+        error: error, 
+        data: null,
+        deletionStats,
+        totalRecordsDeleted,
+        errors: [...errors, { table: 'general', error }]
+      };
     }
-    console.log(`SUPABASE_CUD: Successfully deleted procedure ${conditionId} from procedures table.`);
-    return { success: true, error: null, data: { id: conditionId } };
   };
   
 
@@ -1373,5 +1604,6 @@ export {
   buildPatientTypeMaps,
   getEntityIdMaps,
   invalidateConditionsCache,
+  verifyDataIntegrity,
   CACHE_DURATION
 }; 
