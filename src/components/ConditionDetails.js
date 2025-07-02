@@ -21,6 +21,7 @@ function ConditionDetails({
   showAdditionalInfo,
   onMobileBack, // Handler for mobile back navigation
   mobileView, // Current mobile view state
+  getProductAvailability, // Function to check if a product is available
 }) {
 
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -296,6 +297,15 @@ function ConditionDetails({
                     {filteredProducts.map((product) => {
                       const cleanProductName = product.replace(' (Type 3/4 Only)', '');
                       const isSelected = selectedProduct === cleanProductName;
+                      const isAvailable = getProductAvailability ? getProductAvailability(product) : true;
+                      
+                      // Debug logging
+                      console.log('DEBUG ConditionDetails product card:', {
+                        product,
+                        cleanProductName,
+                        isAvailable,
+                        hasGetProductAvailability: !!getProductAvailability
+                      });
                       
                       return (
                       <div 
@@ -309,21 +319,35 @@ function ConditionDetails({
                         onClick={() => handleProductCardSelect(product)}
                       >
                         <div className="flex justify-between items-start">
-                          <h4 className={clsx(
-                            "text-lg font-semibold",
-                            isSelected
-                              ? "!text-white" // Force white text with !important
-                              : "text-black"
-                          )}>
-                            {product}
-                          </h4>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className={clsx(
+                                "text-lg font-semibold",
+                                isSelected
+                                  ? "!text-white" // Force white text with !important
+                                  : "text-black"
+                              )}>
+                                {product}
+                              </h4>
+                              {!isAvailable && (
+                                <span className={clsx(
+                                  "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                                  isSelected
+                                    ? "bg-white text-amber-600"
+                                    : "bg-amber-100 text-amber-800"
+                                )}>
+                                  Not Available
+                                </span>
+                              )}
+                            </div>
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent triggering the parent onClick
                               handleOpenResearch(product);
                             }}
                             className={clsx(
-                              "text-sm flex items-center transition-colors",
+                              "text-sm flex items-center transition-colors ml-4",
                               isSelected
                                 ? "!text-white hover:!text-gray-200" // Force white text with !important
                                 : "text-[#15396c] hover:text-[#15396c]/80"

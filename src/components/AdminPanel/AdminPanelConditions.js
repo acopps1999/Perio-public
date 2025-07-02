@@ -373,11 +373,11 @@ const renderPatientTypeProductConfig = (phase) => {
             .filter(product => {
               // Only show products that aren't already added for this patient type
               if (!patientSpecificProducts[phase]) return true;
-              return !patientSpecificProducts[phase][activePatientType]?.includes(product);
+              return !patientSpecificProducts[phase][activePatientType]?.includes(product.name);
             })
             .map((product) => (
-              <option key={product} value={product}>
-                {product}
+              <option key={product.name} value={product.name}>
+                {product.name}{!product.is_available ? ' (Not Available)' : ''}
               </option>
             ))}
         </select>

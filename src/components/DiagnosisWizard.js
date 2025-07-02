@@ -636,21 +636,24 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-          <div className="flex justify-between items-center p-4 border-b">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-[#15396c] text-white rounded-t-lg">
+            <div className="flex items-center">
+              <BookOpen size={24} className="mr-3 text-white" />
             <h3 className="text-xl font-semibold">Research Supporting {activeResearchTab}</h3>
+            </div>
             <button 
               onClick={() => {
                 setShowResearch(false);
                 setResearchArticles([]);
               }}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-white/80 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
           
-          <div className="overflow-y-auto p-6 flex-grow">
+          <div className="overflow-y-auto p-6 flex-grow bg-gray-50">
             {isLoadingResearch ? (
               <div className="flex justify-center items-center py-12">
                 <div className="text-center">
@@ -659,24 +662,50 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                 </div>
               </div>
             ) : researchArticles.length > 0 ? (
-              <div className="space-y-6">
+            <div className="space-y-6">
                 {researchArticles.map((article, index) => (
-                  <div key={article.id || index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                    <h4 className="font-medium text-lg text-[#15396c] hover:underline cursor-pointer">
-                      {article.title}
-                    </h4>
+                  <div key={article.id || index} className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <h4 className="font-semibold text-lg text-[#15396c] hover:text-[#15396c]/80 cursor-pointer flex-1 pr-4">
+                        {article.title}
+                  </h4>
+                      {article.url && (
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 inline-flex items-center px-3 py-1.5 bg-[#15396c] text-white text-xs font-medium rounded-md hover:bg-[#15396c]/90 transition-colors"
+                        >
+                          <span>View Article</span>
+                          <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
                     
-                    <div className="text-gray-600 mt-1 space-y-1">
-                      {article.author && <p><strong>Authors:</strong> {article.author}</p>}
+                    <div className="text-gray-600 text-sm mb-4 space-y-1 border-b border-gray-100 pb-3">
+                      {article.author && (
+                        <p className="flex items-center">
+                          <span className="font-medium text-gray-700 mr-2">Authors:</span>
+                          <span>{article.author}</span>
+                        </p>
+                      )}
                       {article.created_at && (
-                        <p><strong>Added:</strong> {new Date(article.created_at).toLocaleDateString()}</p>
+                        <p className="flex items-center">
+                          <span className="font-medium text-gray-700 mr-2">Added:</span>
+                          <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                        </p>
                       )}
                     </div>
                     
                     {article.abstract ? (
-                      <div className="mt-3">
-                        <h5 className="font-medium text-gray-800 mb-2">Abstract:</h5>
-                        <div className="bg-gray-50 border-l-4 border-[#15396c] p-4 rounded-r-md">
+                      <div className="mt-4">
+                        <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
+                          <FileText size={16} className="mr-2 text-[#15396c]" />
+                          Abstract
+                        </h5>
+                        <div className="bg-gradient-to-r from-[#15396c]/5 to-transparent border-l-4 border-[#15396c] p-4 rounded-r-md">
                           <div className="text-gray-700 leading-relaxed text-justify">
                             {article.abstract.split('\n').map((paragraph, index) => (
                               <p key={index} className={index > 0 ? "mt-3" : ""}>
@@ -687,49 +716,36 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
                         </div>
                       </div>
                     ) : (
-                      <p className="mt-3 text-gray-500 italic">
-                        Abstract not available for this article.
-                      </p>
-                    )}
-                    
-                    {article.url && (
-                      <div className="mt-3">
-                        <a
-                          href={article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#15396c] hover:text-[#15396c]/80 text-sm inline-flex items-center bg-blue-50 px-3 py-1 rounded-md"
-                        >
-                          <span>View Full Article</span>
-                          <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
+                      <div className="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-md">
+                        <p className="text-gray-500 italic text-center">
+                          Abstract not available for this article.
+                        </p>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="text-gray-500 mb-4">
-                  <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
-                  <h4 className="text-lg font-medium mb-2">No Research Articles Found</h4>
-                  <p>No research articles are currently available for {activeResearchTab}.</p>
-                  <p className="text-sm mt-2">Research articles can be added through the Admin Panel.</p>
+              <div className="text-center py-16">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 max-w-md mx-auto">
+                  <BookOpen size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h4 className="text-xl font-semibold text-gray-700 mb-3">No Research Articles Found</h4>
+                  <p className="text-gray-500 mb-2">No research articles are currently available for <span className="font-medium text-[#15396c]">{activeResearchTab}</span>.</p>
+                  <p className="text-sm text-gray-400">Research articles can be added through the Admin Panel.</p>
                 </div>
-              </div>
+            </div>
             )}
           </div>
           
-          <div className="p-4 border-t text-right">
+          <div className="p-6 border-t border-gray-200 bg-white text-right rounded-b-lg">
             <button 
-              className="px-4 py-2 bg-[#15396c] text-white rounded hover:bg-[#15396c]/90"
+              className="inline-flex items-center px-6 py-2.5 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 transition-colors font-medium"
               onClick={() => {
                 setShowResearch(false);
                 setResearchArticles([]);
               }}
             >
+              <X size={18} className="mr-2" />
               Close
             </button>
           </div>
