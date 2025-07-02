@@ -84,11 +84,11 @@ function DataImportExport({ onDataChange }) {
       if (exportOptions.research) {
         setExportStatus('Loading research articles...');
         const { data: research, error: resError } = await supabase
-          .from('research_articles')
+          .from('condition_product_research_articles')
           .select('*');
         
         if (resError) throw resError;
-        dataSet.research_articles = research;
+        dataSet.condition_product_research_articles = research;
       }
 
       // Load competitive advantage data
@@ -239,7 +239,6 @@ function DataImportExport({ onDataChange }) {
       'condition_product_research_articles',
       'competitive_advantage_competitors',
       'competitive_advantage_active_ingredients',
-      'research_articles',
       'procedures'
       // Keep: products, categories, phases, patient_types, dentists (will be synced)
     ];
@@ -331,11 +330,11 @@ function DataImportExport({ onDataChange }) {
       }
 
       // Import research articles
-      if (data.research_articles) {
+      if (data.condition_product_research_articles) {
         setExportStatus('Importing research articles...');
         const { error } = await supabase
-          .from('research_articles')
-          .upsert(data.research_articles);
+          .from('condition_product_research_articles')
+          .upsert(data.condition_product_research_articles);
         if (error) throw error;
       }
       

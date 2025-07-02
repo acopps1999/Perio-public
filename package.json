@@ -16,7 +16,8 @@
     "react-router-dom": "^7.6.2",
     "react-scripts": "5.0.1",
     "serve": "^14.2.4",
-    "tailwindcss": "^3.3.2"
+    "tailwindcss": "^3.3.2",
+    "uuid": "^11.1.0"
   },
   "scripts": {
     "start": "serve -s build -p ${PORT:-10000}",

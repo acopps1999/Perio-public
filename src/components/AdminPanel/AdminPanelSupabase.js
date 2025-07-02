@@ -231,7 +231,7 @@ const addCategoryToSupabase = async (categoryName) => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('name')
+        .select('id, name, is_available')
         .order('name');
       
       if (error) {
@@ -240,9 +240,33 @@ const addCategoryToSupabase = async (categoryName) => {
       }
       
       console.log('Products loaded from Supabase:', data);
-      return { success: true, data: data.map(p => p.name) };
+      return { success: true, data: data.map(p => ({ 
+        id: p.id,
+        name: p.name, 
+        is_available: p.is_available !== null ? p.is_available : true 
+      })) };
     } catch (error) {
       console.error('Error loading products from Supabase:', error);
+      return { success: false, error };
+    }
+  };
+  
+  const updateProductAvailabilityInSupabase = async (productId, isAvailable) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_available: isAvailable })
+        .eq('id', productId);
+      
+      if (error) {
+        console.error('Error updating product availability in Supabase:', error);
+        return { success: false, error };
+      }
+      
+      console.log('Product availability updated in Supabase:', { productId, isAvailable });
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating product availability in Supabase:', error);
       return { success: false, error };
     }
   };
@@ -1594,6 +1618,7 @@ export {
   addProductToSupabase,
   updateProductInSupabase,
   deleteProductFromSupabase,
+  updateProductAvailabilityInSupabase,
   loadProductsFromSupabase,
   syncProductsWithSupabase,
   loadConditionsFromSupabase,

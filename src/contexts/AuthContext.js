@@ -40,13 +40,16 @@ export const AuthProvider = ({ children }) => {
     let inactivityTimeout;
 
     // Function to perform logout
-    const performLogout = () => {
+    const performLogout = async () => {
       console.log('SECURITY: Auto-logout triggered - 10 minutes of inactivity');
       
       // Call the callback before logout (if set) to close admin panels
       if (onAutoLogoutCallback) {
         onAutoLogoutCallback();
       }
+      
+      // Sign out from Supabase Auth
+      await supabase.auth.signOut();
       
       setIsAuthenticated(false);
       setAdminUser(null);
@@ -91,36 +94,48 @@ export const AuthProvider = ({ children }) => {
       console.log('Attempting login with:', { email, password });
       console.log('Supabase client:', supabase);
       
-      // Test connection first
-      const { data: testData, error: testError } = await supabase
-        .from('admins')
-        .select('email')
-        .limit(1);
-      
-      console.log('Test connection to admins table:', { testData, testError });
-      
-      // Query the admins table to verify credentials
-      const { data, error } = await supabase
+      // Use Supabase Auth for authentication
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      console.log('Supabase auth response:', { authData, authError });
+
+      if (authError || !authData.user) {
+        console.error('Auth login failed:', authError);
+        throw new Error('Invalid credentials');
+      }
+
+      // Now verify the user is in the admins table
+      const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('*')
-        .eq('email', email)
-        .eq('Password', password) // Note: In production, passwords should be hashed
+        .eq('user_id', authData.user.id)
         .single();
 
-      console.log('Supabase response:', { data, error });
+      console.log('Admin verification response:', { adminData, adminError });
 
-      if (error || !data) {
-        console.error('Login failed:', error);
-        throw new Error('Invalid credentials');
+      if (adminError || !adminData) {
+        console.error('Admin verification failed:', adminError);
+        // Sign out the user since they're not an admin
+        await supabase.auth.signOut();
+        throw new Error('Access denied - admin privileges required');
       }
 
       // Set authentication state
       setIsAuthenticated(true);
-      setAdminUser(data);
+      setAdminUser({
+        ...adminData,
+        auth_user: authData.user
+      });
       
       // Save to localStorage for persistence
       localStorage.setItem('admin_authenticated', 'true');
-      localStorage.setItem('admin_user', JSON.stringify(data));
+      localStorage.setItem('admin_user', JSON.stringify({
+        ...adminData,
+        auth_user: authData.user
+      }));
 
       console.log('SECURITY: Admin logged in - auto-logout listeners activated');
       return { success: true };
@@ -130,8 +145,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log('SECURITY: Manual logout triggered');
+    
+    // Sign out from Supabase Auth
+    await supabase.auth.signOut();
+    
     setIsAuthenticated(false);
     setAdminUser(null);
     localStorage.removeItem('admin_authenticated');

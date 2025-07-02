@@ -5,6 +5,7 @@ import {
   loadCategoriesFromSupabase,
   loadDdsTypesFromSupabase,
   loadProductsFromSupabase,
+  updateProductAvailabilityInSupabase,
   syncCategoriesWithSupabase,
   syncDdsTypesWithSupabase,
   syncProductsWithSupabase,
@@ -91,7 +92,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       setCategories(supabaseCategories.sort());
       setDdsTypes(supabaseDdsTypes.sort());
       if (productsResult.success) {
-        setAllProducts(productsResult.data.sort());
+        setAllProducts(productsResult.data.sort((a, b) => a.name.localeCompare(b.name)));
       }
       
       // Load dynamic patient types
@@ -198,6 +199,31 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setShowAddModal(true);
   };
 
+  // Handle product availability toggle
+  const handleProductAvailabilityToggle = async (productId, isAvailable) => {
+    try {
+      const result = await updateProductAvailabilityInSupabase(productId, isAvailable);
+      
+      if (result.success) {
+        // Update local state immediately for UI feedback
+        setAllProducts(prev => 
+          prev.map(p => 
+            p.id === productId 
+              ? { ...p, is_available: isAvailable }
+              : p
+          ).sort((a, b) => a.name.localeCompare(b.name))
+        );
+        console.log('Product availability updated successfully');
+      } else {
+        console.error('Failed to update product availability:', result.error);
+        alert('Failed to update product availability. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating product availability:', error);
+      alert('Failed to update product availability. Please try again.');
+    }
+  };
+
   // Save all changes
   const handleSaveChanges = async () => {
     console.log('PERFORMANCE_SAVE: Starting optimized save to Supabase...');
@@ -242,7 +268,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       await Promise.all([
         syncCategoriesWithSupabase(categories),
         syncDdsTypesWithSupabase(ddsTypes),
-        syncProductsWithSupabase(allProducts, productRenames),
+        syncProductsWithSupabase(allProducts.map(p => p.name), productRenames),
         syncPhasesWithSupabase(allPhaseNames)
       ]);
       
@@ -819,7 +845,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           // Instead of immediate Supabase call, stage the rename
           setProductRenames(prev => [...prev, { oldName: editingProductId, newName: productName }]);
           // Update allProducts list locally for immediate UI feedback
-          setAllProducts(prev => prev.map(p => p === editingProductId ? productName : p).sort());
+          setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: productName } : p).sort((a, b) => a.name.localeCompare(b.name)));
           // Update editedConditions to reflect the rename
           setEditedConditions(prevConditions =>
             prevConditions.map(condition => {
@@ -857,8 +883,8 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       } else { // Adding new product
         console.log(`SUBMIT_NEW_ITEM: Staging addition of new product ${productName}`);
         // Instead of immediate Supabase call, add to local list
-        if (!allProducts.includes(productName)) {
-          setAllProducts(prev => [...prev, productName].sort());
+        if (!allProducts.some(p => p.name === productName)) {
+          setAllProducts(prev => [...prev, { name: productName, is_available: true }].sort((a, b) => a.name.localeCompare(b.name)));
         }
           success = true;
         }
@@ -905,7 +931,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
      if (modalType === 'product' && editingProductId && editingProductId !== itemName) {
         // If a product was renamed, update allProducts list locally for immediate UI feedback
         // The full reload from loadInitialData will solidify this.
-        setAllProducts(prev => prev.map(p => p === editingProductId ? itemName : p).sort());
+        setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: itemName } : p).sort((a, b) => a.name.localeCompare(b.name)));
         // Also update editedConditions to reflect the rename in product lists and details
         setEditedConditions(prevConditions =>
             prevConditions.map(condition => {
@@ -994,7 +1020,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       } else if (type === 'product') {
         console.log(`DELETE: Staging deletion of product "${item}".`);
         // Instead of immediate Supabase call, remove from local lists
-        setAllProducts(prev => prev.filter(p => p !== item));
+        setAllProducts(prev => prev.filter(p => p.name !== item));
         // Clean up from local productRenames if any involve this product
         setProductRenames(prevRenames => prevRenames.filter(r => r.oldName !== item && r.newName !== item));
         success = true;
@@ -1111,6 +1137,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     // Handlers
     loadInitialData,
     handleEditProduct,
+    handleProductAvailabilityToggle,
     handleSaveChanges,
     applyPatientSpecificProductsToCondition,
     getAllProductsForCondition,

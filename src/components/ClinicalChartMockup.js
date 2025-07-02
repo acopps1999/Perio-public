@@ -12,7 +12,7 @@ import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { loadConditionsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
+import { loadConditionsFromSupabase, loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
 import { supabase } from '../supabaseClient'; // Import supabase client
 import useResponsive from '../hooks/useResponsive';
 
@@ -37,6 +37,7 @@ function ClinicalChartMockup() {
   
   // State management
   const [conditions, setConditions] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState(['All']);
   const [ddsTypeOptions, setDdsTypeOptions] = useState(['All']);
   const [filteredConditions, setFilteredConditions] = useState([]);
@@ -84,15 +85,16 @@ function ClinicalChartMockup() {
         return prev;
       });
 
-      console.log("CHART_LOAD: Fetching conditions and patient types from Supabase...");
+      console.log("CHART_LOAD: Fetching conditions, products, and patient types from Supabase...");
       
       // Parallelize fetching - only force refresh when needed (e.g., after admin saves)
-      const [newConditions, dbPatientTypes] = await Promise.all([
+      const [newConditions, productsResult, dbPatientTypes] = await Promise.all([
           loadConditionsFromSupabase(forceRefresh),
+          loadProductsFromSupabase(),
           supabase.from('patient_types').select('id, name, description').order('name', { ascending: true })
       ]);
 
-      console.log("CHART_LOAD: Raw data received - Conditions:", newConditions?.length || 0, "Patient Types:", dbPatientTypes?.data?.length || 0);
+      console.log("CHART_LOAD: Raw data received - Conditions:", newConditions?.length || 0, "Products:", productsResult?.data?.length || 0, "Patient Types:", dbPatientTypes?.data?.length || 0);
       
       // Debug: Log first condition to see its structure
       if (newConditions && newConditions.length > 0) {
@@ -102,6 +104,11 @@ function ClinicalChartMockup() {
       if (dbPatientTypes.error) {
           console.error("CHART_LOAD: Error fetching patient types:", dbPatientTypes.error);
           return;
+      }
+
+      if (!productsResult.success) {
+          console.error("CHART_LOAD: Error fetching products:", productsResult.error);
+          // Continue without products for now
       }
 
       if (!newConditions || newConditions.length === 0) {
@@ -118,6 +125,11 @@ function ClinicalChartMockup() {
       setCategoryOptions(uniqueCategories);
       setDdsTypeOptions(allDdsTypes);
       setPatientTypes(dbPatientTypes.data || []); // Set the patient types from DB
+      
+      // Debug: Log products being set
+      const productsToSet = productsResult.success ? productsResult.data : [];
+      console.log('DEBUG loadChartData - Products being set:', productsToSet);
+      setAllProducts(productsToSet); // Set the products with availability info
 
       // After reload, try to re-select the same condition
       const reSelectedCondition = newConditions.find(c => c.db_id === currentSelectedId);
@@ -328,6 +340,20 @@ useEffect(() => {
     const phaseConfig = selectedCondition.patientSpecificConfig[phase];
     return Object.values(phaseConfig).some(products => Array.isArray(products) && products.length > 0);
   }, [selectedCondition]);
+
+  // Get product availability information by name
+  const getProductAvailability = useCallback((productName) => {
+    const cleanName = productName.replace(' (Type 3/4 Only)', '');
+    const product = allProducts.find(p => p.name === cleanName);
+    console.log('DEBUG getProductAvailability:', {
+      productName,
+      cleanName,
+      allProducts: allProducts.map(p => ({ name: p.name, is_available: p.is_available })),
+      foundProduct: product,
+      result: product ? product.is_available : true
+    });
+    return product ? product.is_available : true; // Default to available if not found
+  }, [allProducts]);
 
   // Toggle diagnosis wizard
   const toggleWizard = () => {
@@ -546,6 +572,7 @@ useEffect(() => {
                   showAdditionalInfo={showAdditionalInfo}
                   onMobileBack={handleMobileBack}
                   mobileView={mobileView}
+                  getProductAvailability={getProductAvailability}
                 />
               </div>
             </div>
