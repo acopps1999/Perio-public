@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
 import { MessageSquare, X, Send, Bug, Lightbulb, HelpCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { feedbackConfig, isEmailConfigured } from '../config/feedbackConfig';
 
 function FeedbackWidget() {
   const { isDarkMode } = useTheme();
+  const { isAuthenticated, loading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('bug');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Only show the widget if user is authenticated
+  if (loading || !isAuthenticated) {
+    return null;
+  }
 
   // Auto-capture context when widget opens
   const captureContext = () => {
