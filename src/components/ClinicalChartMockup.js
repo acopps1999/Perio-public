@@ -8,6 +8,7 @@ import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import FeedbackWidget from './FeedbackWidget';
+import DatabaseChatbot from './DatabaseChatbot';
 import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
@@ -610,6 +611,9 @@ useEffect(() => {
       
       {/* Feedback Widget - always visible */}
       <FeedbackWidget />
+      
+      {/* Database Chatbot - always visible for authenticated users */}
+      <DatabaseChatbot />
     </div>
   );
 }
