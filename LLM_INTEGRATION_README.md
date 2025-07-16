@@ -78,13 +78,15 @@ REACT_APP_ANTHROPIC_API_KEY=your_anthropic_key_here
 
 ### 2. Choose Your Provider
 
-In `src/services/llmService.js`, set your preferred provider:
+The system is now **production-ready by default** with OpenAI GPT-4o-mini.
+
+In `src/services/llmService.js`, the current configuration is:
 
 ```javascript
 const DEFAULT_CONFIG = {
-  provider: LLM_PROVIDERS.OLLAMA,        // Free local models
+  provider: LLM_PROVIDERS.OPENAI,       // Production default - reliable & fast
+  // provider: LLM_PROVIDERS.OLLAMA,      // Free local models
   // provider: LLM_PROVIDERS.HUGGINGFACE, // Free cloud API  
-  // provider: LLM_PROVIDERS.OPENAI,      // Paid, best quality
   // provider: LLM_PROVIDERS.ANTHROPIC,   // Paid alternative
 };
 

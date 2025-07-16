@@ -15,11 +15,14 @@ const LLM_PROVIDERS = {
 
 // Default configuration - you can modify these based on your preferences and API keys
 const DEFAULT_CONFIG = {
-  provider: LLM_PROVIDERS.OLLAMA, // Free local models - change to your preferred provider
+  provider: LLM_PROVIDERS.OPENAI, // Production recommended - reliable and high quality
   openai: {
     apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-    model: 'gpt-4-turbo-preview', // or 'gpt-3.5-turbo' for faster/cheaper queries
+    model: 'gpt-4o-mini', // Production optimized: fast, reliable, cost-effective
+    fallbackModel: 'gpt-3.5-turbo', // Fallback for rate limits
     baseUrl: 'https://api.openai.com/v1',
+    maxRetries: 3,
+    timeout: 30000, // 30 second timeout
   },
   anthropic: {
     apiKey: process.env.REACT_APP_ANTHROPIC_API_KEY,
@@ -91,7 +94,7 @@ export class LLMService {
   }
 
   /**
-   * Query OpenAI API
+   * Query OpenAI API with production-level retry logic
    * @private
    */
   async _queryOpenAI(prompt) {
@@ -99,36 +102,99 @@ export class LLMService {
       throw new Error('OpenAI API key not configured. Set REACT_APP_OPENAI_API_KEY environment variable.');
     }
 
-    const response = await fetch(`${this.config.openai.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.openai.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.config.openai.model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a SQL expert specializing in dental/periodontal databases. Generate safe, efficient SQL queries and provide clear explanations.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1, // Low temperature for consistent, accurate SQL generation
-        max_tokens: 1000,
-      }),
-    });
+    const maxRetries = this.config.openai.maxRetries || 3;
+    let lastError;
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🤖 OpenAI: Attempt ${attempt}/${maxRetries}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.config.openai.timeout);
+
+        const response = await fetch(`${this.config.openai.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.config.openai.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.config.openai.model,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a SQL expert specializing in dental/periodontal databases. Generate safe, efficient SQL queries and provide clear explanations. Always include LIMIT clauses for safety.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.1, // Low temperature for consistent, accurate SQL generation
+            max_tokens: 1000,
+            top_p: 0.9,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+          
+          // Handle rate limiting with exponential backoff
+          if (response.status === 429) {
+            const retryAfter = response.headers.get('retry-after') || Math.pow(2, attempt);
+            console.log(`🤖 OpenAI: Rate limited, waiting ${retryAfter}s before retry...`);
+            
+            if (attempt < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, parseInt(retryAfter) * 1000));
+              continue;
+            }
+          }
+          
+          // Try fallback model on certain errors
+          if (response.status === 400 && this.config.openai.fallbackModel && attempt === 1) {
+            console.log(`🤖 OpenAI: Trying fallback model: ${this.config.openai.fallbackModel}`);
+            this.config.openai.model = this.config.openai.fallbackModel;
+            continue;
+          }
+          
+          throw new Error(`OpenAI API error (${response.status}): ${error.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+          throw new Error('Invalid response format from OpenAI API');
+        }
+
+        console.log(`🤖 OpenAI: ✅ Success on attempt ${attempt}`);
+        return data.choices[0].message.content;
+
+      } catch (error) {
+        lastError = error;
+        console.log(`🤖 OpenAI: ❌ Attempt ${attempt} failed:`, error.message);
+        
+        // Don't retry on certain errors
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout - please try a simpler query');
+        }
+        
+        if (error.message.includes('API key') || error.message.includes('unauthorized')) {
+          throw error; // Don't retry auth errors
+        }
+        
+        // Wait before retrying (exponential backoff)
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5 seconds
+          console.log(`🤖 OpenAI: Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+    throw new Error(`OpenAI API failed after ${maxRetries} attempts. Last error: ${lastError?.message}`);
   }
 
   /**

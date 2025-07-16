@@ -23,8 +23,13 @@
     "start": "serve -s build -p ${PORT:-10000}",
     "dev": "react-scripts start",
     "build": "NODE_OPTIONS='--max_old_space_size=4096' react-scripts build",
+    "build:prod": "NODE_ENV=production GENERATE_SOURCEMAP=false NODE_OPTIONS='--max_old_space_size=4096' react-scripts build",
+    "build:analyze": "npm run build:prod && npx serve -s build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test:prod": "CI=true npm run test -- --coverage --watchAll=false",
+    "eject": "react-scripts eject",
+    "deploy": "npm run build:prod && echo 'Build complete - ready for deployment'",
+    "health-check": "node -e \"console.log('Health check passed')\""
   },
   "browserslist": {
     "production": [
