@@ -76,17 +76,17 @@ REACT_APP_OPENAI_API_KEY=sk-your_openai_key_here
 REACT_APP_ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-### 2. Choose Your Provider
+### 2. Provider Configuration
 
-The system is now **production-ready by default** with OpenAI GPT-4o-mini.
+The system is now **production-ready with 100% FREE models by default**.
 
 In `src/services/llmService.js`, the current configuration is:
 
 ```javascript
 const DEFAULT_CONFIG = {
-  provider: LLM_PROVIDERS.OPENAI,       // Production default - reliable & fast
-  // provider: LLM_PROVIDERS.OLLAMA,      // Free local models
-  // provider: LLM_PROVIDERS.HUGGINGFACE, // Free cloud API  
+  provider: LLM_PROVIDERS.OLLAMA,        // FREE production-ready models
+  // provider: LLM_PROVIDERS.HUGGINGFACE, // Free cloud API backup
+  // provider: LLM_PROVIDERS.OPENAI,      // Paid option for premium quality
   // provider: LLM_PROVIDERS.ANTHROPIC,   // Paid alternative
 };
 
@@ -102,14 +102,14 @@ The chatbot will appear as a blue database icon in the bottom-left corner (only 
 
 ### **For Ollama (Local):**
 
-| Model | Size | Best For | Performance | Setup Difficulty |
+| Model | Size | Best For | Performance | Production Ready |
 |-------|------|----------|-------------|------------------|
-| `codellama:7b` | 7GB | SQL generation, code | ⭐⭐⭐⭐ | Easy |
-| `mistral:7b` | 4GB | General queries | ⭐⭐⭐ | Easy |
-| `sqlcoder:7b` | 7GB | SQL-specific tasks | ⭐⭐⭐⭐⭐ | Easy |
-| `phi3:mini` | 2GB | Very lightweight | ⭐⭐ | Easy |
+| `sqlcoder:7b` | 7GB | **SQL-specific tasks** | ⭐⭐⭐⭐⭐ | ✅ **RECOMMENDED** |
+| `codellama:7b` | 7GB | SQL generation, code | ⭐⭐⭐⭐ | ✅ Good fallback |
+| `mistral:7b` | 4GB | General queries | ⭐⭐⭐ | ⚠️ Basic |
+| `phi3:mini` | 2GB | Very lightweight | ⭐⭐ | ❌ Development only |
 
-**Recommendation:** Start with `codellama:7b` for the best balance of performance and SQL capability.
+**Production Setup:** `sqlcoder:7b` (primary) + `codellama:7b` (fallback) = Production-grade reliability!
 
 ### **For Hugging Face (Free Cloud):**
 

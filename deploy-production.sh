@@ -16,17 +16,22 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Configuration for Free Production Setup
 REQUIRED_ENV_VARS=(
-    "REACT_APP_OPENAI_API_KEY"
     "REACT_APP_SUPABASE_URL" 
     "REACT_APP_SUPABASE_ANON_KEY"
 )
 
-OPTIONAL_ENV_VARS=(
-    "REACT_APP_ANTHROPIC_API_KEY"
+# Ollama should be running for free setup
+OLLAMA_REQUIRED_VARS=(
+    "REACT_APP_OLLAMA_MODEL"
     "REACT_APP_OLLAMA_BASE_URL"
+)
+
+OPTIONAL_ENV_VARS=(
     "REACT_APP_HUGGINGFACE_API_KEY"
+    "REACT_APP_OPENAI_API_KEY"
+    "REACT_APP_ANTHROPIC_API_KEY"
 )
 
 # Functions
@@ -47,12 +52,13 @@ print_error() {
 }
 
 check_environment() {
-    print_status "Checking environment variables..."
+    print_status "Checking environment variables for free production setup..."
     
     local missing_required=0
+    local missing_ollama=0
     local missing_optional=0
     
-    # Check required environment variables
+    # Check required environment variables (Supabase)
     for var in "${REQUIRED_ENV_VARS[@]}"; do
         if [[ -z "${!var}" ]]; then
             print_error "Required environment variable $var is not set"
@@ -62,10 +68,41 @@ check_environment() {
         fi
     done
     
+    # Check Ollama configuration
+    for var in "${OLLAMA_REQUIRED_VARS[@]}"; do
+        if [[ -z "${!var}" ]]; then
+            print_warning "Ollama variable $var is not set (using defaults)"
+        else
+            print_success "$var is configured"
+        fi
+    done
+    
+    # Check if Ollama is running
+    print_status "Checking if Ollama is accessible..."
+    OLLAMA_URL="${REACT_APP_OLLAMA_BASE_URL:-http://localhost:11434}"
+    if curl -s "$OLLAMA_URL/api/tags" > /dev/null 2>&1; then
+        print_success "Ollama is running and accessible at $OLLAMA_URL"
+        
+        # Check if required models are available
+        OLLAMA_MODEL="${REACT_APP_OLLAMA_MODEL:-sqlcoder:7b}"
+        if curl -s "$OLLAMA_URL/api/tags" | grep -q "$OLLAMA_MODEL"; then
+            print_success "Model $OLLAMA_MODEL is available"
+        else
+            print_error "Model $OLLAMA_MODEL is not available"
+            print_error "Please run: ollama pull $OLLAMA_MODEL"
+            missing_ollama=1
+        fi
+    else
+        print_error "Ollama is not running or not accessible at $OLLAMA_URL"
+        print_error "Please start Ollama with: ollama serve"
+        print_error "Or run the setup script: ./setup-free-llm.sh"
+        missing_ollama=1
+    fi
+    
     # Check optional environment variables
     for var in "${OPTIONAL_ENV_VARS[@]}"; do
         if [[ -z "${!var}" ]]; then
-            print_warning "Optional environment variable $var is not set"
+            print_warning "Optional variable $var is not set"
             missing_optional=1
         else
             print_success "$var is configured"
@@ -78,16 +115,23 @@ check_environment() {
         echo "Required variables:"
         printf '%s\n' "${REQUIRED_ENV_VARS[@]}"
         echo ""
-        echo "See PRODUCTION_SETUP.md for configuration instructions."
+        exit 1
+    fi
+    
+    if [[ $missing_ollama -eq 1 ]]; then
+        print_error "Ollama setup is incomplete."
+        echo ""
+        echo "To fix this, run: ./setup-free-llm.sh"
+        echo ""
         exit 1
     fi
     
     if [[ $missing_optional -eq 1 ]]; then
-        print_warning "Some optional LLM providers are not configured."
-        print_warning "The app will work with OpenAI only, but consider adding backups."
+        print_warning "This is a FREE production setup using local Ollama models."
+        print_warning "For backup reliability, consider adding a free Hugging Face token."
     fi
     
-    print_success "Environment check completed"
+    print_success "Environment check completed - Free production setup validated!"
 }
 
 check_dependencies() {
@@ -220,9 +264,10 @@ deployment_summary() {
     echo "📋 Deployment Summary:"
     echo "• Build size: $(du -sh build | cut -f1)"
     echo "• Node.js version: $(node --version)"
-    echo "• Environment: Production"
-    echo "• LLM Provider: OpenAI GPT-4o-mini"
+    echo "• Environment: Production (FREE)"
+    echo "• LLM Provider: Ollama (${REACT_APP_OLLAMA_MODEL:-sqlcoder:7b})"
     echo "• Database: Supabase"
+    echo "• Cost: $0 (100% Free)"
     echo ""
     echo "🚀 Next Steps:"
     echo "1. Deploy the 'build' folder to your hosting platform"

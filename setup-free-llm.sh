@@ -39,19 +39,32 @@ OLLAMA_PID=$!
 sleep 3
 
 echo ""
-echo "📥 Downloading recommended model for SQL generation..."
-echo "This will download ~7GB. Please be patient..."
+echo "📥 Downloading production-optimized models for SQL generation..."
+echo "This will download ~14GB total for best reliability. Please be patient..."
 
-# Download the best model for SQL
+# Download the best SQL-specific model first
+echo "🚀 Downloading SQLCoder (SQL specialist model)..."
+ollama pull sqlcoder:7b
+
+if [ $? -eq 0 ]; then
+    echo "✅ SQLCoder downloaded successfully!"
+else
+    echo "❌ Failed to download SQLCoder. Trying fallback..."
+fi
+
+# Download fallback model
+echo "🔄 Downloading CodeLlama (fallback model)..."
 ollama pull codellama:7b
 
 if [ $? -eq 0 ]; then
-    echo "✅ Model downloaded successfully!"
+    echo "✅ CodeLlama downloaded successfully!"
 else
-    echo "❌ Failed to download model. Please check your internet connection."
+    echo "❌ Failed to download CodeLlama. Please check your internet connection."
     kill $OLLAMA_PID 2>/dev/null
     exit 1
 fi
+
+echo "✅ Production models downloaded successfully!"
 
 echo ""
 echo "⚙️ Creating environment configuration..."
@@ -70,19 +83,21 @@ if [ -f "$ENV_FILE" ]; then
     mv "$ENV_FILE.tmp" "$ENV_FILE"
 fi
 
-# Add Ollama configuration
+# Add production-ready free LLM configuration
 cat >> "$ENV_FILE" << EOL
 
-# 🤖 Free LLM Configuration (Ollama)
-REACT_APP_OLLAMA_MODEL=codellama:7b
+# 🤖 Production-Ready Free LLM Configuration (Ollama)
+REACT_APP_OLLAMA_MODEL=sqlcoder:7b
+REACT_APP_OLLAMA_FALLBACK=codellama:7b
 REACT_APP_OLLAMA_BASE_URL=http://localhost:11434
 
-# Alternative free option (Hugging Face)
-# REACT_APP_HUGGINGFACE_API_KEY=your_free_hf_token_here
-# REACT_APP_HUGGINGFACE_MODEL=microsoft/DialoGPT-medium
+# Free backup option (Hugging Face - optional but recommended)
+# Get free token from: https://huggingface.co/settings/tokens
+# REACT_APP_HUGGINGFACE_API_KEY=hf_your_free_token_here
+# REACT_APP_HUGGINGFACE_MODEL=bigcode/starcoder
 
-# Paid options (uncomment if you prefer)
-# REACT_APP_OPENAI_API_KEY=your_openai_key_here
+# Paid options (for premium quality if budget allows)
+# REACT_APP_OPENAI_API_KEY=sk-your_openai_key_here
 # REACT_APP_ANTHROPIC_API_KEY=your_anthropic_key_here
 EOL
 

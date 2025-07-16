@@ -15,7 +15,7 @@ const LLM_PROVIDERS = {
 
 // Default configuration - you can modify these based on your preferences and API keys
 const DEFAULT_CONFIG = {
-  provider: LLM_PROVIDERS.OPENAI, // Production recommended - reliable and high quality
+  provider: LLM_PROVIDERS.OLLAMA, // Production-ready free option - reliable local models
   openai: {
     apiKey: process.env.REACT_APP_OPENAI_API_KEY,
     model: 'gpt-4o-mini', // Production optimized: fast, reliable, cost-effective
@@ -31,7 +31,10 @@ const DEFAULT_CONFIG = {
   },
   ollama: {
     baseUrl: process.env.REACT_APP_OLLAMA_BASE_URL || 'http://localhost:11434',
-    model: process.env.REACT_APP_OLLAMA_MODEL || 'codellama:7b', // Recommended: codellama, mistral, or sqlcoder
+    model: process.env.REACT_APP_OLLAMA_MODEL || 'sqlcoder:7b', // Production optimized for SQL
+    fallbackModel: process.env.REACT_APP_OLLAMA_FALLBACK || 'codellama:7b', // Fallback if main model fails
+    maxRetries: 3,
+    timeout: 45000, // Longer timeout for local models
   },
   huggingface: {
     apiKey: process.env.REACT_APP_HUGGINGFACE_API_KEY, // Free tier available
@@ -236,26 +239,38 @@ export class LLMService {
   }
 
   /**
-   * Query Ollama API (Local open source models)
+   * Query Ollama API with production-level retry logic (Local open source models)
    * @private
    */
   async _queryOllama(prompt) {
-    const response = await fetch(`${this.config.ollama.baseUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.config.ollama.model,
-        prompt: `You are a SQL expert specializing in dental/periodontal databases. Generate safe, efficient SQL queries and provide clear explanations.
+    const maxRetries = this.config.ollama.maxRetries || 3;
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🤖 Ollama: Attempt ${attempt}/${maxRetries}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.config.ollama.timeout);
+
+        const response = await fetch(`${this.config.ollama.baseUrl}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: this.config.ollama.model,
+            prompt: `You are a SQL expert specializing in dental/periodontal databases. Generate safe, efficient SQL queries and provide clear explanations.
 
 ${prompt}
 
-Remember to:
-1. Only generate SELECT queries
-2. Always include a LIMIT clause
-3. Use ILIKE for case-insensitive string matching
-4. Provide a brief explanation of what the query does
+IMPORTANT RULES:
+1. ONLY generate SELECT queries
+2. ALWAYS include a LIMIT clause (maximum 100)
+3. Use ILIKE for case-insensitive string matching in PostgreSQL
+4. Include proper JOIN syntax when needed
+5. Provide a brief explanation
 
 Response format:
 \`\`\`sql
@@ -263,21 +278,72 @@ Response format:
 \`\`\`
 
 Explanation: [brief explanation of what the query finds]`,
-        stream: false,
-        options: {
-          temperature: 0.1,
-          top_p: 0.9,
-        }
-      }),
-    });
+            stream: false,
+            options: {
+              temperature: 0.1,
+              top_p: 0.9,
+              num_predict: 500, // Limit response length
+            }
+          }),
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Ollama API error: ${response.status} ${errorText}`);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          
+          // Check if it's a model not found error
+          if (response.status === 404 && errorText.includes('model') && this.config.ollama.fallbackModel && attempt === 1) {
+            console.log(`🤖 Ollama: Model ${this.config.ollama.model} not found, trying fallback: ${this.config.ollama.fallbackModel}`);
+            this.config.ollama.model = this.config.ollama.fallbackModel;
+            continue;
+          }
+          
+          throw new Error(`Ollama API error: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.response) {
+          throw new Error('Empty response from Ollama API');
+        }
+
+        console.log(`🤖 Ollama: ✅ Success on attempt ${attempt}`);
+        return data.response;
+
+      } catch (error) {
+        lastError = error;
+        console.log(`🤖 Ollama: ❌ Attempt ${attempt} failed:`, error.message);
+        
+        // Don't retry on certain errors
+        if (error.name === 'AbortError') {
+          throw new Error('Ollama request timeout - the model may be loading or overloaded');
+        }
+        
+        if (error.message.includes('connection refused')) {
+          throw new Error('Ollama is not running. Please start Ollama with: ollama serve');
+        }
+        
+        // Wait before retrying (exponential backoff)
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds for local
+          console.log(`🤖 Ollama: Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
     }
 
-    const data = await response.json();
-    return data.response;
+    // If Ollama completely fails, try Hugging Face as backup if configured
+    if (this.config.huggingface.apiKey) {
+      console.log('🤖 Ollama: All attempts failed, trying Hugging Face backup...');
+      try {
+        return await this._queryHuggingFace(prompt);
+      } catch (hfError) {
+        console.log('🤖 HuggingFace: Backup also failed:', hfError.message);
+      }
+    }
+
+    throw new Error(`Ollama failed after ${maxRetries} attempts. Last error: ${lastError?.message}. Make sure Ollama is running with: ollama serve`);
   }
 
   /**
