@@ -6,7 +6,6 @@ CREATE TABLE public.admins (
   user_id uuid NOT NULL,
   email text NOT NULL UNIQUE,
   created_at timestamp with time zone DEFAULT now(),
-  Password text,
   CONSTRAINT admins_pkey PRIMARY KEY (id),
   CONSTRAINT admins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -56,6 +55,19 @@ CREATE TABLE public.dentists (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT dentists_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.feedback (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['bug'::character varying, 'feature'::character varying, 'question'::character varying]::text[])),
+  location text NOT NULL,
+  description text NOT NULL,
+  context jsonb,
+  submitted_at timestamp with time zone DEFAULT now(),
+  status character varying DEFAULT 'new'::character varying CHECK (status::text = ANY (ARRAY['new'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'closed'::character varying]::text[])),
+  admin_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT feedback_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.patient_types (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   name text NOT NULL UNIQUE,
@@ -73,8 +85,8 @@ CREATE TABLE public.phase_specific_usage (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT phase_specific_usage_pkey PRIMARY KEY (id),
-  CONSTRAINT phase_specific_usage_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
   CONSTRAINT phase_specific_usage_procedure_id_fkey FOREIGN KEY (procedure_id) REFERENCES public.procedures(id),
+  CONSTRAINT phase_specific_usage_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
   CONSTRAINT phase_specific_usage_phase_id_fkey FOREIGN KEY (phase_id) REFERENCES public.phases(id)
 );
 CREATE TABLE public.phases (
@@ -113,9 +125,9 @@ CREATE TABLE public.procedure_phase_products (
   updated_at timestamp with time zone DEFAULT now(),
   patient_type_id bigint,
   CONSTRAINT procedure_phase_products_pkey PRIMARY KEY (id),
+  CONSTRAINT procedure_phase_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
   CONSTRAINT procedure_phase_products_patient_type_id_fkey FOREIGN KEY (patient_type_id) REFERENCES public.patient_types(id),
   CONSTRAINT procedure_phase_products_phase_id_fkey FOREIGN KEY (phase_id) REFERENCES public.phases(id),
-  CONSTRAINT procedure_phase_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
   CONSTRAINT procedure_phase_products_procedure_id_fkey FOREIGN KEY (procedure_id) REFERENCES public.procedures(id)
 );
 CREATE TABLE public.procedure_phases (
@@ -163,18 +175,6 @@ CREATE TABLE public.products (
   name text NOT NULL UNIQUE,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  is_available boolean DEFAULT true,
   CONSTRAINT products_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.research_articles (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL,
-  procedure_name text,
-  product_name text,
-  title text,
-  author text,
-  abstract text,
-  url text,
-  is_condition_specific boolean,
-  updated_at timestamp with time zone,
-  CONSTRAINT research_articles_pkey PRIMARY KEY (id)
 );

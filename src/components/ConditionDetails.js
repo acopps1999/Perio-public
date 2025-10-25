@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { ChevronDown, ChevronRight, Info, Filter, BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
+import { ChevronDown, Info, Filter, BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
 import ProductDetailsModal from './ProductDetailsModal';

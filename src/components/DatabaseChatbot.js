@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Loader, Database, AlertCircle, Lightbulb, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Bot, Send, Loader, Database, Lightbulb, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { llmService } from '../services/llmService.js';
-import { queryExecutor } from '../services/queryExecutor.js';
+import SupabaseQueryService from '../services/supabaseQueryService.js';
 
 function DatabaseChatbot() {
   const { isDarkMode } = useTheme();
@@ -16,6 +15,12 @@ function DatabaseChatbot() {
   const [copiedStates, setCopiedStates] = useState({});
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  
+  // Initialize Supabase query service
+  const queryServiceRef = useRef(null);
+  if (!queryServiceRef.current) {
+    queryServiceRef.current = new SupabaseQueryService();
+  }
 
   // Sample questions to help users get started
   const sampleQuestions = [
@@ -27,11 +32,12 @@ function DatabaseChatbot() {
     "Which procedures are suitable for pediatric patients?"
   ];
 
-  // Only show if user is authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Declare functions before useEffect hooks that use them
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
+  // React hooks must be called before any conditional returns
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -48,9 +54,10 @@ function DatabaseChatbot() {
     }
   }, [isOpen, messages.length]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Only show if user is authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || isLoading) return;
@@ -67,48 +74,39 @@ function DatabaseChatbot() {
     setIsLoading(true);
 
     try {
-      // Generate SQL query using LLM
-      console.log('🤖 Starting LLM query generation...');
-      const llmResult = await llmService.generateSQL(currentMessage);
+      // Use Supabase query service for reliable database access
+      console.log('🗄️ Starting Supabase query processing...');
+      const queryResult = await queryServiceRef.current.processQuestion(currentMessage);
       
-      // Execute the query
-      console.log('🗄️ Executing generated query...');
-      const queryResult = await queryExecutor.executeQuery(llmResult.sql, {
-        originalQuery: currentMessage,
-        llmConfidence: llmResult.confidence
-      });
-
-      // Format the response
+      // Format the response from Supabase service
       const assistantMessage = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: formatAssistantResponse(queryResult, llmResult, currentMessage),
+        content: queryResult.answer,
         timestamp: new Date(),
-        sqlQuery: llmResult.sql,
-        explanation: llmResult.explanation,
-        confidence: llmResult.confidence,
-        executionTime: queryResult.executionTime,
-        resultCount: queryResult.success ? queryResult.data.length : 0,
-        rawData: queryResult.success ? queryResult.data : null,
-        error: queryResult.error
+        sqlQuery: 'Using Supabase Query Builder', // No raw SQL to show
+        explanation: queryResult.answer,
+        confidence: queryResult.confidence,
+        executionTime: 0,
+        resultCount: queryResult.resultCount || 0,
+        rawData: queryResult.data || null,
+        error: null,
+        method: 'supabase_query_builder'
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Generate follow-up suggestions
-      if (queryResult.success && queryResult.data.length > 0) {
-        const suggestions = llmService.generateFollowUpSuggestions(currentMessage, queryResult.data);
-        if (suggestions.length > 0) {
-          setTimeout(() => {
-            const suggestionMessage = {
-              id: Date.now() + 2,
-              type: 'suggestions',
-              content: suggestions,
-              timestamp: new Date()
-            };
-            setMessages(prev => [...prev, suggestionMessage]);
-          }, 1000);
-        }
+      // Generate follow-up suggestions from Supabase service
+      if (queryResult.suggestions && queryResult.suggestions.length > 0) {
+        setTimeout(() => {
+          const suggestionMessage = {
+            id: Date.now() + 2,
+            type: 'suggestions',
+            content: queryResult.suggestions,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, suggestionMessage]);
+        }, 1000);
       }
 
     } catch (error) {
@@ -126,28 +124,29 @@ function DatabaseChatbot() {
     }
   };
 
-  const formatAssistantResponse = (queryResult, llmResult, originalQuery) => {
-    if (!queryResult.success) {
-      return `❌ I couldn't execute the query: ${queryResult.error}\n\n💡 **Explanation:** ${llmResult.explanation}\n\nTry rephrasing your question or being more specific.`;
-    }
+  // Unused function - can be removed in future cleanup
+  // const formatAssistantResponse = (queryResult, llmResult, originalQuery) => {
+  //   if (!queryResult.success) {
+  //     return `❌ I couldn't execute the query: ${queryResult.error}\n\n💡 **Explanation:** ${llmResult.explanation}\n\nTry rephrasing your question or being more specific.`;
+  //   }
 
-    const data = queryResult.data;
-    if (data.length === 0) {
-      return `🔍 No results found for "${originalQuery}".\n\n💡 **What I searched for:** ${llmResult.explanation}\n\n**Suggestions:**\n• Try different search terms\n• Check spelling of procedure or product names\n• Ask a more general question`;
-    }
+  //   const data = queryResult.data;
+  //   if (data.length === 0) {
+  //     return `🔍 No results found for "${originalQuery}".\n\n💡 **What I searched for:** ${llmResult.explanation}\n\n**Suggestions:**\n//• Try different search terms\n//• Check spelling of procedure or product names\n//• Ask a more general question`;
+  //   }
 
-    let response = `✅ Found ${data.length} result${data.length > 1 ? 's' : ''} for "${originalQuery}"\n\n`;
-    response += `💡 **What I found:** ${llmResult.explanation}\n\n`;
+  //   let response = `✅ Found ${data.length} result${data.length > 1 ? 's' : ''} for "${originalQuery}"\n\n`;
+  //   response += `💡 **What I found:** ${llmResult.explanation}\n\n`;
 
-    // Format the data based on the type of results
-    response += formatResultData(data, originalQuery);
+  //   // Format the data based on the type of results
+  //   response += formatResultData(data, originalQuery);
 
-    if (data.length >= 10) {
-      response += `\n\n📋 **Note:** Showing first ${data.length} results. For more specific results, try narrowing your search.`;
-    }
+  //   if (data.length >= 10) {
+  //     response += `\n\n📋 **Note:** Showing first ${data.length} results. For more specific results, try narrowing your search.`;
+  //   }
 
-    return response;
-  };
+  //   return response;
+  // };
 
   const formatResultData = (data, originalQuery) => {
     if (data.length === 0) return '';

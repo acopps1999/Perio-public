@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, BookOpen, ChevronDown, Target, Info, Microscope, FileText, MessageSquare } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, BookOpen, Target, Info, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../supabaseClient';
 import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';

@@ -1,191 +1,238 @@
 /**
  * Database Context System for LLM Integration
- * Provides comprehensive schema information and context for intelligent querying
+ * Optimized for minimal token usage and maximum efficiency
  */
 
-export const DATABASE_SCHEMA_CONTEXT = {
-  // Core business entities and their purposes
-  entities: {
-    procedures: {
-      description: "Dental/periodontal procedures and surgical treatments",
-      columns: ["id", "name", "category", "pitch_points", "category_id", "patient_type"],
-      relationships: ["categories", "phases", "products", "patient_types", "dentists"],
-      sampleQueries: [
-        "Find all procedures in a specific category",
-        "Get procedures suitable for a patient type",
-        "List procedures with their pitch points"
-      ]
-    },
-    products: {
-      description: "Medical/dental products used in procedures",
-      columns: ["id", "name"],
-      relationships: ["procedures", "phases", "product_details", "research_articles"],
-      sampleQueries: [
-        "Find products used in a specific procedure",
-        "Get product details and clinical evidence",
-        "Find products for a specific phase of treatment"
-      ]
-    },
-    categories: {
-      description: "Categories of dental procedures",
-      columns: ["id", "name"],
-      relationships: ["procedures"],
-      sampleQueries: [
-        "List all procedure categories",
-        "Find procedures in a category"
-      ]
-    },
-    phases: {
-      description: "Treatment phases (pre-operative, operative, post-operative, etc.)",
-      columns: ["id", "name"],
-      relationships: ["procedures", "products"],
-      sampleQueries: [
-        "Find products for pre-operative phase",
-        "Get all phases for a procedure"
-      ]
-    },
-    patient_types: {
-      description: "Types of patients (adult, pediatric, geriatric, etc.)",
-      columns: ["id", "name", "description"],
-      relationships: ["procedures"],
-      sampleQueries: [
-        "Find procedures for pediatric patients",
-        "Get patient type descriptions"
-      ]
-    },
-    research_articles: {
-      description: "Scientific research articles supporting procedures and products",
-      columns: ["id", "procedure_name", "product_name", "title", "author", "abstract", "url"],
-      sampleQueries: [
-        "Find research for a specific procedure",
-        "Get articles about a product",
-        "Search abstracts for keywords"
-      ]
-    },
-    product_details: {
-      description: "Detailed information about products including clinical evidence and objection handling",
-      columns: ["id", "product_id", "objection_handling", "clinical_evidence", "pitch_points", "scientific_rationale"],
-      sampleQueries: [
-        "Get clinical evidence for a product",
-        "Find objection handling for a product",
-        "Get scientific rationale for product use"
-      ]
-    }
+// Compressed schema - only essential information
+export const COMPRESSED_SCHEMA = {
+  tables: {
+    procedures: "id,name,category,pitch_points,category_id,patient_type",
+    products: "id,name", 
+    categories: "id,name",
+    phases: "id,name",
+    patient_types: "id,name,description",
+    research_articles: "id,procedure_name,product_name,title,author,abstract,url",
+    product_details: "id,product_id,clinical_evidence,procedure_name,product_name",
+    procedure_phase_products: "procedure_id,phase_id,product_id,patient_type_id"
   },
-
-  // Key relationships that the LLM should understand
   relationships: {
-    "procedures_to_products": {
-      description: "Products can be used in multiple procedures, procedures can use multiple products",
-      via: "procedure_phase_products",
-      context: "Includes specific phases and patient types"
-    },
-    "procedures_to_phases": {
-      description: "Procedures have multiple phases of treatment",
-      via: "procedure_phases",
-      context: "Each phase may have specific products and instructions"
-    },
-    "procedures_to_categories": {
-      description: "Procedures belong to categories (direct foreign key)",
-      via: "category_id",
-      context: "Helps organize and classify procedures"
-    },
-    "products_to_research": {
-      description: "Research articles support product use in procedures",
-      via: "condition_product_research_articles",
-      context: "Links scientific evidence to product applications"
-    }
-  },
-
-  // Common query patterns the LLM should recognize
-  queryPatterns: {
-    productRecommendation: {
-      description: "User asking for product recommendations for a procedure/condition",
-      example: "What products should I use for gingivitis treatment?",
-      approach: "JOIN procedures, procedure_phase_products, products WHERE procedure matches condition"
-    },
-    clinicalEvidence: {
-      description: "User asking for research or evidence",
-      example: "What research supports using this product?",
-      approach: "SELECT from research_articles or product_details WHERE product/procedure matches"
-    },
-    procedureInformation: {
-      description: "User asking about procedure details",
-      example: "Tell me about periodontal surgery phases",
-      approach: "JOIN procedures, procedure_phases, phases WHERE procedure matches"
-    },
-    competitiveAdvantage: {
-      description: "User asking about product advantages",
-      example: "How is this product better than competitors?",
-      approach: "SELECT from competitive_advantage_* tables"
-    },
-    phaseSpecificGuidance: {
-      description: "User asking about treatment phases",
-      example: "What should I do in the post-operative phase?",
-      approach: "SELECT from phase_specific_usage WHERE phase matches"
-    }
-  },
-
-  // Safety rules for query generation
-  safetyRules: {
-    allowedOperations: ["SELECT"],
-    forbiddenOperations: ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE"],
-    requireWhere: true,
-    maxResults: 100,
-    allowedTables: [
-      "procedures", "products", "categories", "phases", "patient_types",
-      "research_articles", "product_details", "procedure_phase_products",
-      "procedure_phases", "condition_product_research_articles",
-      "competitive_advantage_active_ingredients", "competitive_advantage_competitors",
-      "phase_specific_usage", "procedure_dentists", "procedure_patient_types"
-    ]
+    "products→procedures": "JOIN procedure_phase_products ON product_id",
+    "procedures→categories": "JOIN categories ON category_id", 
+    "procedures→research": "JOIN research_articles ON procedure_name",
+    "products→details": "JOIN product_details ON product_id"
   }
 };
 
-export const SCHEMA_PROMPT_TEMPLATE = `You are a dental/periodontal database assistant. You help users find information about procedures, products, research, and treatment guidance.
-
-DATABASE SCHEMA:
-${JSON.stringify(DATABASE_SCHEMA_CONTEXT.entities, null, 2)}
-
-KEY RELATIONSHIPS:
-${JSON.stringify(DATABASE_SCHEMA_CONTEXT.relationships, null, 2)}
-
-SAFETY RULES:
-- Only generate SELECT queries
-- Always include WHERE clauses to limit results
-- Use proper JOINs for related data
-- Limit results to 100 rows maximum
-- Only query approved tables
-
-RESPONSE FORMAT:
-1. First, understand what the user is asking for
-2. Generate a safe SQL query
-3. Provide a natural language explanation of what you're looking for
-4. If the query might return many results, suggest ways to narrow it down
-
-Examples:
-User: "What products are used for gingivitis treatment?"
-SQL: SELECT DISTINCT p.name as product_name, pd.clinical_evidence 
+// Pre-built query templates for common patterns
+export const QUERY_TEMPLATES = {
+  findProductsForCondition: {
+    sql: `SELECT DISTINCT p.name as product_name, pd.clinical_evidence, pr.name as procedure_name, c.name as category
      FROM products p 
      JOIN procedure_phase_products ppp ON p.id = ppp.product_id 
      JOIN procedures pr ON ppp.procedure_id = pr.id 
+     LEFT JOIN categories c ON pr.category_id = c.id
      LEFT JOIN product_details pd ON p.id = pd.product_id 
-     WHERE pr.name ILIKE '%gingivitis%' 
-     LIMIT 100;
-
-User: "Show me research about chlorhexidine"
-SQL: SELECT title, author, abstract, url 
+     WHERE {conditions}
+     LIMIT 50`,
+    conditions: {
+      gingivitis: "pr.name ILIKE '%gingivitis%' OR pr.name ILIKE '%periodontal%' OR pr.name ILIKE '%gum disease%' OR pr.pitch_points ILIKE '%gingivitis%' OR pr.pitch_points ILIKE '%periodontal%' OR c.name ILIKE '%periodontal%'",
+      periodontitis: "pr.name ILIKE '%periodontitis%' OR pr.name ILIKE '%periodontal surgery%' OR pr.name ILIKE '%deep cleaning%' OR pr.pitch_points ILIKE '%periodontitis%' OR c.name ILIKE '%periodontal%'",
+      implant: "pr.name ILIKE '%implant%' OR pr.name ILIKE '%oral surgery%' OR pr.pitch_points ILIKE '%implant%' OR c.name ILIKE '%oral surgery%'",
+      extraction: "pr.name ILIKE '%extraction%' OR pr.name ILIKE '%oral surgery%' OR pr.name ILIKE '%surgical removal%' OR pr.pitch_points ILIKE '%extraction%'",
+      cleaning: "pr.name ILIKE '%cleaning%' OR pr.name ILIKE '%prophylaxis%' OR pr.name ILIKE '%scaling%' OR pr.name ILIKE '%polishing%' OR pr.pitch_points ILIKE '%cleaning%'"
+    }
+  },
+  
+  findResearch: {
+    sql: `SELECT title, author, abstract, url, procedure_name, product_name
      FROM research_articles 
-     WHERE product_name ILIKE '%chlorhexidine%' OR abstract ILIKE '%chlorhexidine%' 
-     LIMIT 100;
-`;
+     WHERE {conditions}
+     LIMIT 50`,
+    conditions: {
+      byProduct: "product_name ILIKE '%{term}%' OR abstract ILIKE '%{term}%' OR title ILIKE '%{term}%'",
+      byProcedure: "procedure_name ILIKE '%{term}%' OR abstract ILIKE '%{term}%' OR title ILIKE '%{term}%'"
+    }
+  },
+  
+  findProductDetails: {
+    sql: `SELECT p.name as product_name, pd.clinical_evidence, pd.objection_handling, pd.scientific_rationale
+     FROM products p 
+     JOIN product_details pd ON p.id = pd.product_id 
+     WHERE {conditions}
+     LIMIT 50`,
+    conditions: {
+      byName: "p.name ILIKE '%{term}%' OR pd.product_name ILIKE '%{term}%'"
+    }
+  },
+  
+  listCategories: {
+    sql: `SELECT c.name as category, COUNT(p.id) as procedure_count
+     FROM categories c 
+     LEFT JOIN procedures p ON c.id = p.category_id 
+     GROUP BY c.name 
+     ORDER BY procedure_count DESC
+     LIMIT 20`
+  }
+};
 
-export const generateContextPrompt = (userQuery) => {
-  return `${SCHEMA_PROMPT_TEMPLATE}
+// Smart condition detection
+export const CONDITION_MAPPINGS = {
+  gingivitis: ["gingivitis", "gum disease", "gum inflammation"],
+  periodontitis: ["periodontitis", "advanced gum disease", "bone loss"],
+  implant: ["implant", "dental implant", "tooth replacement"],
+  extraction: ["extraction", "tooth removal", "pulling tooth"],
+  cleaning: ["cleaning", "prophylaxis", "dental hygiene", "scaling"],
+  whitening: ["whitening", "bleaching", "tooth brightening"],
+  filling: ["filling", "restoration", "cavity treatment"],
+  crown: ["crown", "cap", "tooth restoration"]
+};
 
-USER QUERY: "${userQuery}"
+// Minimal, efficient prompt template
+export const MINIMAL_PROMPT_TEMPLATE = `You are a dental database assistant. Generate PostgreSQL SELECT queries only.
 
-Please generate a SQL query to answer this question and explain what information you're retrieving.`;
+SCHEMA: {tables: procedures(name,category,pitch_points), products(name), categories(name), product_details(clinical_evidence,product_name), research_articles(title,abstract,product_name,procedure_name)}
+
+JOINS: products↔procedures via procedure_phase_products, procedures↔categories via category_id
+
+DENTAL TERMS: gingivitis→periodontal/gum disease, implant→oral surgery, extraction→surgical removal, cleaning→prophylaxis/scaling
+
+RULES: SELECT only, include WHERE+LIMIT, search multiple fields with ILIKE, use OR for related terms
+
+Examples:
+Q: "products for gingivitis?" 
+A: SELECT DISTINCT p.name, pd.clinical_evidence FROM products p JOIN procedure_phase_products ppp ON p.id=ppp.product_id JOIN procedures pr ON ppp.procedure_id=pr.id LEFT JOIN product_details pd ON p.id=pd.product_id WHERE pr.name ILIKE '%gingivitis%' OR pr.name ILIKE '%periodontal%' OR pr.pitch_points ILIKE '%gum disease%' LIMIT 50;
+
+Q: "research on chlorhexidine?"
+A: SELECT title, author, abstract FROM research_articles WHERE product_name ILIKE '%chlorhexidine%' OR abstract ILIKE '%chlorhexidine%' LIMIT 50;
+
+USER: "{query}"
+SQL:`;
+
+// Intelligent query builder
+export class QueryBuilder {
+  static detectQueryType(userQuery) {
+    const query = userQuery.toLowerCase();
+    
+    if (query.includes('product') && (query.includes('for') || query.includes('treat'))) {
+      return 'findProductsForCondition';
+    }
+    if (query.includes('research') || query.includes('study') || query.includes('article')) {
+      return 'findResearch';
+    }
+    if (query.includes('evidence') || query.includes('clinical') || query.includes('objection')) {
+      return 'findProductDetails';
+    }
+    if (query.includes('categor') || query.includes('list') || query.includes('types')) {
+      return 'listCategories';
+    }
+    
+    return 'findProductsForCondition'; // default
+  }
+  
+  static detectCondition(userQuery) {
+    const query = userQuery.toLowerCase();
+    
+    for (const [condition, terms] of Object.entries(CONDITION_MAPPINGS)) {
+      if (terms.some(term => query.includes(term))) {
+        return condition;
+      }
+    }
+    
+    // Extract key terms if no direct match
+    const words = query.split(' ').filter(w => w.length > 3);
+    return words.find(w => 
+      ['gingivitis', 'periodontitis', 'implant', 'extraction', 'cleaning'].includes(w)
+    ) || 'general';
+  }
+  
+  static buildQuery(userQuery) {
+    const queryType = this.detectQueryType(userQuery);
+    const condition = this.detectCondition(userQuery);
+    const template = QUERY_TEMPLATES[queryType];
+    
+    if (!template) {
+      return this.fallbackQuery(userQuery);
+    }
+    
+    if (queryType === 'findProductsForCondition') {
+      const conditionSQL = template.conditions[condition] || template.conditions.gingivitis;
+      return template.sql.replace('{conditions}', conditionSQL);
+    }
+    
+    if (queryType === 'findResearch') {
+      const term = this.extractSearchTerm(userQuery);
+      const conditionType = userQuery.toLowerCase().includes('product') ? 'byProduct' : 'byProcedure';
+      const conditionSQL = template.conditions[conditionType].replace(/{term}/g, term);
+      return template.sql.replace('{conditions}', conditionSQL);
+    }
+    
+    if (queryType === 'findProductDetails') {
+      const term = this.extractSearchTerm(userQuery);
+      const conditionSQL = template.conditions.byName.replace(/{term}/g, term);
+      return template.sql.replace('{conditions}', conditionSQL);
+    }
+    
+    return template.sql;
+  }
+  
+  static extractSearchTerm(userQuery) {
+    // Extract the main search term from the query
+    const query = userQuery.toLowerCase();
+    
+    // Look for quoted terms first
+    const quotedMatch = query.match(/"([^"]+)"/);
+    if (quotedMatch) return quotedMatch[1];
+    
+    // Look for product names or conditions
+    const terms = query.split(' ').filter(w => w.length > 3);
+    return terms.find(t => 
+      !['what', 'products', 'used', 'treatment', 'research', 'about', 'show', 'find'].includes(t)
+    ) || 'general';
+  }
+  
+  static fallbackQuery(userQuery) {
+    const term = this.extractSearchTerm(userQuery);
+    return `SELECT DISTINCT p.name as product_name, pd.clinical_evidence 
+     FROM products p 
+     LEFT JOIN product_details pd ON p.id = pd.product_id 
+            WHERE p.name ILIKE '%${term}%' OR pd.product_name ILIKE '%${term}%' 
+            LIMIT 50;`;
+  }
+}
+
+// Efficient context generator
+export const generateOptimizedPrompt = (userQuery) => {
+  // Try intelligent query building first
+  const builtQuery = QueryBuilder.buildQuery(userQuery);
+  
+  if (builtQuery && !userQuery.toLowerCase().includes('explain')) {
+    // Return pre-built query directly for efficiency
+    return {
+      usePrebuilt: true,
+      sql: builtQuery,
+      explanation: `Generated optimized query for: ${userQuery}`
+    };
+  }
+  
+  // Fall back to minimal LLM prompt
+  return {
+    usePrebuilt: false,
+    prompt: MINIMAL_PROMPT_TEMPLATE.replace('{query}', userQuery)
+  };
+};
+
+// Legacy exports for backward compatibility
+export const DATABASE_SCHEMA_CONTEXT = {
+  entities: {
+    procedures: {
+      description: "Dental/periodontal procedures and surgical treatments",
+      columns: ["id", "name", "category", "pitch_points", "category_id", "patient_type"]
+    },
+    products: {
+      description: "Medical/dental products used in procedures", 
+      columns: ["id", "name"]
+    }
+  }
 };
 
 export const validateQuery = (sqlQuery) => {
@@ -204,7 +251,7 @@ export const validateQuery = (sqlQuery) => {
     return { valid: false, error: 'Only SELECT queries are allowed' };
   }
   
-  // Should have a WHERE clause (basic check)
+  // Should have a WHERE clause or LIMIT
   if (!query.includes('where') && !query.includes('limit')) {
     return { valid: false, error: 'Query should include WHERE clause or LIMIT to prevent large result sets' };
   }

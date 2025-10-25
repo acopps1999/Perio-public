@@ -143,26 +143,6 @@ const addCategoryToSupabase = async (categoryName) => {
     }
   };
   
-  // Mock function for saving data - in a real app, this would connect to backend
-  const saveToBackend = async (data, categoriesList, ddsTypesList, productsList) => {
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // console.log('Data saved:', data); // Keep for conditions if needed for localStorage backup
-        console.log('Legacy saveToBackend: Categories saved to localStorage:', categoriesList);
-        console.log('Legacy saveToBackend: DDS Types saved to localStorage:', ddsTypesList);
-        console.log('Legacy saveToBackend: Products saved to localStorage:', productsList);
-        
-        // Save everything to localStorage
-        // localStorage.setItem('conditions_data', JSON.stringify(data)); // Conditions will be saved via Supabase
-        localStorage.setItem('categories_data', JSON.stringify(categoriesList));
-        localStorage.setItem('dds_types_data', JSON.stringify(ddsTypesList));
-        localStorage.setItem('products_data', JSON.stringify(productsList));
-        
-        resolve({ success: true });
-      }, 1500);
-    });
-  };
   
   // Supabase functions for product management
   const addProductToSupabase = async (productName) => {
@@ -1007,7 +987,7 @@ const addCategoryToSupabase = async (categoryName) => {
           continue;
       }
   
-      const { data: pdData, error: pdError } = await supabase
+      const { error: pdError } = await supabase
           .from('product_details')
           .insert([{
               procedure_id: newProcedureId,
@@ -1240,7 +1220,7 @@ const addCategoryToSupabase = async (categoryName) => {
           console.warn(`SUPABASE_CUD: Product ID not found for ${productName}, skipping product_details.`);
           continue;
       }
-      const { data: pdData, error: pdError } = await supabase
+      const { error: pdError } = await supabase
           .from('product_details')
           .insert([{
               procedure_id: procedureId,
@@ -1338,7 +1318,7 @@ const addCategoryToSupabase = async (categoryName) => {
     console.log(`SUPABASE_CUD: Syncing procedure_phase_products for procedure ${procedureId}`);
     
     // First, get all existing recommendations for this procedure from the DB
-    const { data: existingPppData, error: fetchPppError } = await supabase
+    const { error: fetchPppError } = await supabase
       .from('procedure_phase_products')
       .select('id, phase_id, patient_type_id, product_id')
       .eq('procedure_id', procedureId);
@@ -1476,7 +1456,7 @@ const addCategoryToSupabase = async (categoryName) => {
     
     try {
       // First, get the condition name for logging
-      const { data: procedureData, error: fetchError } = await supabase
+      const { data: procedureData } = await supabase
         .from('procedures')
         .select('name')
         .eq('id', conditionId)

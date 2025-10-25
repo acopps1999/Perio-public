@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, Edit, Trash2, X, Target, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { createDynamicTextareaProps } from './useDynamicTextarea';
 import DynamicTextarea from './DynamicTextarea';
 
 // AdminPanelModals Component

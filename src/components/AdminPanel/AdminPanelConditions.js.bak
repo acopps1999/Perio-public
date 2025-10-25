@@ -53,10 +53,12 @@ if (editedConditions.length === 0) {
   );
 }
 
-const loadCompetitiveAdvantageFromSupabase = async (productName) => {
+// Unused function - commented out to fix compilation error
+// TODO: Remove or properly integrate this function
+/* const loadCompetitiveAdvantageFromSupabase = async (productName) => {
   try {
     // Load competitors
-    const { data: competitorsData, error: competitorsError } = await supabase
+    const { data: competitorsData, error: competitorsError} = await supabase
       .from('competitive_advantage_competitors')
       .select('competitor_name, advantages')
       .eq('product_name', productName);
@@ -99,7 +101,7 @@ const loadCompetitiveAdvantageFromSupabase = async (productName) => {
       activeIngredients: []
     });
   }
-};
+}; */
 
 
 

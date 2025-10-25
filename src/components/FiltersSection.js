@@ -17,7 +17,7 @@ function FiltersSection({
   searchQuery,
   setSearchQuery,
 }) {
-  const { isMobile, getResponsiveValue, getColumns } = useResponsive();
+  const { isMobile, getResponsiveValue } = useResponsive();
   const { isDarkMode } = useTheme();
   
   return (

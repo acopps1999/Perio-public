@@ -11,6 +11,7 @@ import FeedbackWidget from './FeedbackWidget';
 import DatabaseChatbot from './DatabaseChatbot';
 import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { loadConditionsFromSupabase, loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
@@ -29,11 +30,8 @@ function ClinicalChartMockup() {
     isMobile, 
     isTablet, 
     isDesktop, 
-    isTouchDevice,
     getResponsiveValue,
-    getButtonSize,
-    getSpacing,
-    windowSize 
+    getButtonSize
   } = useResponsive();
   
   // State management
@@ -50,8 +48,8 @@ function ClinicalChartMockup() {
   const [patientTypes, setPatientTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+
   const [wizardOpen, setWizardOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -78,13 +76,8 @@ function ClinicalChartMockup() {
     setIsLoadingData(true);
     
     try {
-      // Use the functional form of setState to get the previous state
-      // without creating a dependency on `selectedCondition` in useCallback.
-      let currentSelectedId;
-      setSelectedCondition(prev => {
-        currentSelectedId = prev?.db_id;
-        return prev;
-      });
+      // Store current selected condition ID before reloading data
+      const currentSelectedId = selectedCondition?.db_id;
 
       console.log("CHART_LOAD: Fetching conditions, products, and patient types from Supabase...");
       
@@ -162,7 +155,7 @@ function ClinicalChartMockup() {
     } finally {
       setIsLoadingData(false);
     }
-  }, []); // Empty dependency array is critical to prevent a stale function.
+  }, [selectedCondition]); // Include selectedCondition since we now access it directly
 
   // Load conditions on component mount
   useEffect(() => {
@@ -317,17 +310,17 @@ useEffect(() => {
       { 
         title: `Clinical application of ${cleanProductName} in ${selectedCondition.name}`, 
         author: "Smith et al., Journal of Dental Research, 2023",
-        abstract: "Background: This randomized controlled trial evaluated the clinical efficacy of ${cleanProductName} in patients with ${selectedCondition.name}.\n\nMethods: A total of 120 patients were randomly assigned to either treatment with ${cleanProductName} (n=60) or standard therapy (n=60). Clinical parameters including bleeding on probing, probing depth, and clinical attachment level were assessed at baseline, 3, and 6 months.\n\nResults: Significant improvements were observed in all clinical parameters with ${cleanProductName} compared to controls (p<0.05). The treatment group showed 34% greater reduction in bleeding on probing and 28% improvement in clinical attachment levels.\n\nConclusions: ${cleanProductName} demonstrates superior clinical outcomes when used as an adjunct to conventional periodontal therapy, offering enhanced healing and improved patient outcomes."
+        abstract: `Background: This randomized controlled trial evaluated the clinical efficacy of ${cleanProductName} in patients with ${selectedCondition.name}.\n\nMethods: A total of 120 patients were randomly assigned to either treatment with ${cleanProductName} (n=60) or standard therapy (n=60). Clinical parameters including bleeding on probing, probing depth, and clinical attachment level were assessed at baseline, 3, and 6 months.\n\nResults: Significant improvements were observed in all clinical parameters with ${cleanProductName} compared to controls (p<0.05). The treatment group showed 34% greater reduction in bleeding on probing and 28% improvement in clinical attachment levels.\n\nConclusions: ${cleanProductName} demonstrates superior clinical outcomes when used as an adjunct to conventional periodontal therapy, offering enhanced healing and improved patient outcomes.`
       },
       { 
         title: `Efficacy of ${cleanProductName} in dental practice`, 
         author: "Johnson et al., Periodontology Today, 2022",
-        abstract: "Objective: To assess the real-world effectiveness of ${cleanProductName} in clinical dental practice settings.\n\nStudy Design: This multicenter observational study followed 250 patients across 15 dental practices over 12 months. Patient-reported outcomes and clinical assessments were recorded at regular intervals.\n\nResults: Treatment with ${cleanProductName} resulted in significant improvements in tissue healing time (mean reduction of 3.2 days, p<0.001) and patient comfort scores (7.8 vs 5.4 on 10-point scale, p<0.01) compared to historical controls.\n\nClinical Significance: These findings support the integration of ${cleanProductName} into routine clinical protocols for enhanced patient care and outcomes."
+        abstract: `Objective: To assess the real-world effectiveness of ${cleanProductName} in clinical dental practice settings.\n\nStudy Design: This multicenter observational study followed 250 patients across 15 dental practices over 12 months. Patient-reported outcomes and clinical assessments were recorded at regular intervals.\n\nResults: Treatment with ${cleanProductName} resulted in significant improvements in tissue healing time (mean reduction of 3.2 days, p<0.001) and patient comfort scores (7.8 vs 5.4 on 10-point scale, p<0.01) compared to historical controls.\n\nClinical Significance: These findings support the integration of ${cleanProductName} into routine clinical protocols for enhanced patient care and outcomes.`
       },
       { 
         title: `Comparative study of ${cleanProductName} vs standard treatments`, 
         author: "Williams et al., Oral Surgery Journal, 2023",
-        abstract: "Purpose: To compare the therapeutic efficacy and safety profile of ${cleanProductName} against conventional treatment modalities.\n\nMaterials and Methods: This double-blind, randomized controlled trial included 180 patients divided into three groups: ${cleanProductName} (n=60), standard treatment A (n=60), and standard treatment B (n=60). Primary outcomes included healing time, complication rates, and patient satisfaction.\n\nResults: ${cleanProductName} demonstrated statistically significant advantages in healing time (p<0.001), with mean recovery reduced by 2.1 days compared to standard treatments. Complication rates were lower (8.3% vs 15.7%, p<0.05) and patient satisfaction scores were higher (8.9/10 vs 7.2/10, p<0.001).\n\nConclusion: ${cleanProductName} offers superior clinical outcomes with improved safety profile compared to conventional therapeutic approaches."
+        abstract: `Purpose: To compare the therapeutic efficacy and safety profile of ${cleanProductName} against conventional treatment modalities.\n\nMaterials and Methods: This double-blind, randomized controlled trial included 180 patients divided into three groups: ${cleanProductName} (n=60), standard treatment A (n=60), and standard treatment B (n=60). Primary outcomes included healing time, complication rates, and patient satisfaction.\n\nResults: ${cleanProductName} demonstrated statistically significant advantages in healing time (p<0.001), with mean recovery reduced by 2.1 days compared to standard treatments. Complication rates were lower (8.3% vs 15.7%, p<0.05) and patient satisfaction scores were higher (8.9/10 vs 7.2/10, p<0.001).\n\nConclusion: ${cleanProductName} offers superior clinical outcomes with improved safety profile compared to conventional therapeutic approaches.`
       }
     ];
   };

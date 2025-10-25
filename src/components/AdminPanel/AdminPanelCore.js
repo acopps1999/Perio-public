@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
   loadConditionsFromSupabase,
@@ -113,7 +113,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       setHasLoadedInitialData(true); // Still mark as loaded to prevent infinite retries
       setIsLoading(false); // Stop loading even on error
     }
-  }, []); // Remove hasLoadedInitialData dependency to prevent circular updates
+  }, [hasLoadedInitialData]); // Include hasLoadedInitialData dependency
 
   useEffect(() => {
     // Only load if this component instance hasn't initialized yet
@@ -134,17 +134,10 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         delete window.verifyDataIntegrity;
       }
     };
-  }, []); // Empty dependency array to run only on mount
-
-  // Initialize patient-specific products when a condition is selected
-  useEffect(() => {
-    if (selectedCondition) {
-      initializePatientSpecificProducts(selectedCondition);
-    }
-  }, [selectedCondition]);
+  }, [loadInitialData]); // Include loadInitialData dependency
 
   // Initialize patient-specific products for a condition
-  const initializePatientSpecificProducts = (condition) => {
+  const initializePatientSpecificProducts = useCallback((condition) => {
     if (!condition) {
         return;
     }
@@ -185,7 +178,14 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     });
     
     setPatientSpecificProducts(newPatientSpecificProducts);
-  };
+  }, [patientTypes, setPatientSpecificProducts]);
+
+  // Initialize patient-specific products when a condition is selected
+  useEffect(() => {
+    if (selectedCondition) {
+      initializePatientSpecificProducts(selectedCondition);
+    }
+  }, [selectedCondition, initializePatientSpecificProducts]);
 
   // Edit existing product
   const handleEditProduct = (product) => {

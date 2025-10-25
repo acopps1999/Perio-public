@@ -9,15 +9,16 @@
     "@radix-ui/react-tabs": "^1.0.4",
     "@supabase/supabase-js": "^2.49.4",
     "clsx": "^1.2.1",
+    "dompurify": "^3.3.0",
     "dotenv": "^16.5.0",
     "lucide-react": "^0.257.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.2",
-    "react-scripts": "5.0.1",
     "serve": "^14.2.4",
     "tailwindcss": "^3.3.2",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "yup": "^1.7.1"
   },
   "scripts": {
     "start": "serve -s build -p ${PORT:-10000}",
@@ -45,7 +46,8 @@
   },
   "devDependencies": {
     "eslint-plugin-react-hooks": "^4.6.2",
-    "firebase-admin": "^13.4.0"
+    "firebase-admin": "^13.4.0",
+    "react-scripts": "^5.0.1"
   },
   "eslintConfig": {
     "extends": [

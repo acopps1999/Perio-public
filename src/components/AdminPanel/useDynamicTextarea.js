@@ -70,7 +70,7 @@ export const useDynamicTextarea = (initialRows = 2, maxRows = 8) => {
     if (textarea.value) {
       adjustHeight();
     }
-  }, [initialRows]);
+  }, [initialRows, adjustHeight]);
 
   // Adjust height when value changes (for controlled components)
   useEffect(() => {
