@@ -17,20 +17,67 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [onAutoLogoutCallback, setOnAutoLogoutCallback] = useState(null);
 
-  // Check if user is already logged in on app start
+  // Check if user is already logged in on app start using Supabase session
   useEffect(() => {
-    const checkAuth = () => {
-      const savedAuth = localStorage.getItem('admin_authenticated');
-      const savedUser = localStorage.getItem('admin_user');
-      
-      if (savedAuth === 'true' && savedUser) {
-        setIsAuthenticated(true);
-        setAdminUser(JSON.parse(savedUser));
+    const checkAuth = async () => {
+      try {
+        // Get current session from Supabase (stored in httpOnly cookies)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          setLoading(false);
+          return;
+        }
+
+        // Verify user is an admin
+        const { data: adminData, error: adminError } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (adminData && !adminError) {
+          setIsAuthenticated(true);
+          setAdminUser({
+            ...adminData,
+            auth_user: session.user
+          });
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setIsAuthenticated(false);
+        setAdminUser(null);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Verify admin status
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (adminData) {
+          setIsAuthenticated(true);
+          setAdminUser({
+            ...adminData,
+            auth_user: session.user
+          });
+        }
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Auto-logout after 10 minutes of inactivity
@@ -48,13 +95,11 @@ export const AuthProvider = ({ children }) => {
         onAutoLogoutCallback();
       }
       
-      // Sign out from Supabase Auth
+      // Sign out from Supabase Auth (automatically clears session)
       await supabase.auth.signOut();
-      
+
       setIsAuthenticated(false);
       setAdminUser(null);
-      localStorage.removeItem('admin_authenticated');
-      localStorage.removeItem('admin_user');
     };
 
     // Reset the inactivity timer
@@ -123,21 +168,14 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Access denied - admin privileges required');
       }
 
-      // Set authentication state
+      // Set authentication state (session is automatically stored by Supabase)
       setIsAuthenticated(true);
       setAdminUser({
         ...adminData,
         auth_user: authData.user
       });
-      
-      // Save to localStorage for persistence
-      localStorage.setItem('admin_authenticated', 'true');
-      localStorage.setItem('admin_user', JSON.stringify({
-        ...adminData,
-        auth_user: authData.user
-      }));
 
-      console.log('SECURITY: Admin logged in - auto-logout listeners activated');
+      console.log('SECURITY: Admin logged in - session managed by Supabase, auto-logout listeners activated');
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -147,14 +185,12 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     console.log('SECURITY: Manual logout triggered');
-    
-    // Sign out from Supabase Auth
+
+    // Sign out from Supabase Auth (automatically clears session)
     await supabase.auth.signOut();
-    
+
     setIsAuthenticated(false);
     setAdminUser(null);
-    localStorage.removeItem('admin_authenticated');
-    localStorage.removeItem('admin_user');
   };
 
   // Function to register auto-logout callback

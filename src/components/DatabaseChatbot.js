@@ -3,6 +3,7 @@ import { Bot, Send, Loader, Database, Lightbulb, ChevronDown, ChevronUp, Copy, C
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import SupabaseQueryService from '../services/supabaseQueryService.js';
+import { chatInputSchema } from '../utils/validationSchemas';
 
 function DatabaseChatbot() {
   const { isDarkMode } = useTheme();
@@ -62,6 +63,21 @@ function DatabaseChatbot() {
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || isLoading) return;
 
+    // Validate input first
+    try {
+      await chatInputSchema.validate(currentMessage);
+    } catch (validationError) {
+      const errorMessage = {
+        id: Date.now(),
+        type: 'assistant',
+        content: `❌ Invalid input: ${validationError.message}\n\nPlease check your message and try again.`,
+        timestamp: new Date(),
+        error: validationError.message
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+
     const userMessage = {
       id: Date.now(),
       type: 'user',
@@ -70,13 +86,14 @@ function DatabaseChatbot() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToProcess = currentMessage; // Store before clearing
     setCurrentMessage('');
     setIsLoading(true);
 
     try {
       // Use Supabase query service for reliable database access
       console.log('🗄️ Starting Supabase query processing...');
-      const queryResult = await queryServiceRef.current.processQuestion(currentMessage);
+      const queryResult = await queryServiceRef.current.processQuestion(messageToProcess);
       
       // Format the response from Supabase service
       const assistantMessage = {

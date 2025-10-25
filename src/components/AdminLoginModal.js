@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { loginSchema } from '../utils/validationSchemas';
 
 function AdminLoginModal({ isOpen, onClose, onSuccess }) {
   const [email, setEmail] = useState('');
@@ -16,8 +17,11 @@ function AdminLoginModal({ isOpen, onClose, onSuccess }) {
     setIsLoading(true);
 
     try {
+      // Validate input before attempting login
+      await loginSchema.validate({ email, password }, { abortEarly: false });
+
       const result = await login(email, password);
-      
+
       if (result.success) {
         // Clear form and close modal
         setEmail('');
@@ -30,7 +34,12 @@ function AdminLoginModal({ isOpen, onClose, onSuccess }) {
         setError(result.error || 'Invalid credentials');
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      if (err.name === 'ValidationError') {
+        // Display first validation error
+        setError(err.errors[0] || 'Invalid input');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
