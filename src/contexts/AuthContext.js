@@ -88,13 +88,11 @@ export const AuthProvider = ({ children }) => {
 
     // Function to perform logout
     const performLogout = async () => {
-      console.log('SECURITY: Auto-logout triggered - 10 minutes of inactivity');
-      
       // Call the callback before logout (if set) to close admin panels
       if (onAutoLogoutCallback) {
         onAutoLogoutCallback();
       }
-      
+
       // Sign out from Supabase Auth (automatically clears session)
       await supabase.auth.signOut();
 
@@ -136,19 +134,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      console.log('Attempting login with:', { email, password });
-      console.log('Supabase client:', supabase);
-      
       // Use Supabase Auth for authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
       });
 
-      console.log('Supabase auth response:', { authData, authError });
-
       if (authError || !authData.user) {
-        console.error('Auth login failed:', authError);
         throw new Error('Invalid credentials');
       }
 
@@ -159,10 +151,7 @@ export const AuthProvider = ({ children }) => {
         .eq('user_id', authData.user.id)
         .single();
 
-      console.log('Admin verification response:', { adminData, adminError });
-
       if (adminError || !adminData) {
-        console.error('Admin verification failed:', adminError);
         // Sign out the user since they're not an admin
         await supabase.auth.signOut();
         throw new Error('Access denied - admin privileges required');
@@ -175,7 +164,6 @@ export const AuthProvider = ({ children }) => {
         auth_user: authData.user
       });
 
-      console.log('SECURITY: Admin logged in - session managed by Supabase, auto-logout listeners activated');
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -184,8 +172,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    console.log('SECURITY: Manual logout triggered');
-
     // Sign out from Supabase Auth (automatically clears session)
     await supabase.auth.signOut();
 

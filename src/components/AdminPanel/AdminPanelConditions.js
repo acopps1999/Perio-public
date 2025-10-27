@@ -3,13 +3,23 @@ import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
 import { Plus, Trash2, X, ChevronDown, ChevronRight, Info, User } from 'lucide-react';
 import clsx from 'clsx';
-import { supabase } from '../../supabaseClient';
 import DynamicTextarea from './DynamicTextarea';
+import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { useDebouncedCallback } from '../../hooks/useDebounce';
+import {
+  updateConditionFieldRealtime,
+  addPhaseToConditionRealtime,
+  removePhaseFromConditionRealtime,
+  updateProductDetailRealtime,
+  addProductToPatientTypeRealtime,
+  removeProductFromPatientTypeRealtime
+} from './AdminPanelSupabase';
 
 // AdminPanelConditions Component
 function AdminPanelConditions({
   // Props from AdminPanelCore
-  editedConditions,
+  conditions,
+  setConditions,
   selectedCondition,
   setSelectedCondition,
   categories,
@@ -22,13 +32,9 @@ function AdminPanelConditions({
   setPatientSpecificProducts,
   selectedResearchProduct,
   setSelectedResearchProduct,
-  isEditing,
-  isSaving,
   showSuccess,
   setShowSuccess,
   onClose,
-  handleResetChanges,
-  handleSaveChanges,
   handleConditionSelect,
   handleAddCondition,
   confirmDelete,
@@ -38,14 +44,152 @@ function AdminPanelConditions({
   addProductToPatientType,
   removeProductFromPatientType,
   getAllProductsForCondition,
-  setIsEditing
+  saveStatus,
+  executeUpdate,
+  ToastContainer
 }) {
 
 // State for tracking expanded product sections
 const [expandedProducts, setExpandedProducts] = useState({});
+// State for new phase input
+const [newPhase, setNewPhase] = useState('');
+
+// Debounced callback for condition field updates
+const debouncedUpdateConditionField = useDebouncedCallback(async (conditionId, field, value) => {
+  if (!conditionId) return;
+
+  const operationId = `condition-${conditionId}-${field}`;
+
+  await executeUpdate(
+    operationId,
+    // Optimistic update (already done via updateConditionField)
+    () => {
+      const oldConditions = [...conditions];
+      const oldSelected = {...selectedCondition};
+
+      // The UI is already updated via updateConditionField
+      // Rollback
+      return () => {
+        setConditions(oldConditions);
+        setSelectedCondition(oldSelected);
+      };
+    },
+    // Database update
+    async () => {
+      return await updateConditionFieldRealtime(conditionId, field, value);
+    },
+    null,
+    `Failed to save ${field}`
+  );
+}, 500);
+
+// Debounced callback for product detail updates
+const debouncedUpdateProductDetail = useDebouncedCallback(async (conditionId, productName, field, value) => {
+  if (!conditionId) return;
+
+  const operationId = `product-detail-${conditionId}-${productName}-${field}`;
+
+  await executeUpdate(
+    operationId,
+    // Optimistic update (already done via updateProductDetail)
+    () => {
+      const oldConditions = [...conditions];
+      const oldSelected = {...selectedCondition};
+
+      // The UI is already updated via updateProductDetail
+      // Rollback
+      return () => {
+        setConditions(oldConditions);
+        setSelectedCondition(oldSelected);
+      };
+    },
+    // Database update
+    async () => {
+      return await updateProductDetailRealtime(conditionId, productName, field, value);
+    },
+    null,
+    `Failed to save ${field}`
+  );
+}, 500);
+
+// Handler for adding a phase
+const handleAddPhase = async () => {
+  if (!newPhase.trim() || !selectedCondition?.db_id) return;
+
+  const phaseName = newPhase.trim();
+  const operationId = `phase-add-${selectedCondition.db_id}-${phaseName}`;
+
+  await executeUpdate(
+    operationId,
+    // Optimistic update
+    () => {
+      const oldConditions = [...conditions];
+      const oldSelected = {...selectedCondition};
+      const oldNewPhase = newPhase;
+
+      const updatedPhases = [...(selectedCondition.phases || []), phaseName];
+      setConditions(prev => prev.map(c =>
+        c.db_id === selectedCondition.db_id
+          ? { ...c, phases: updatedPhases }
+          : c
+      ));
+      setSelectedCondition(prev => ({ ...prev, phases: updatedPhases }));
+      setNewPhase('');
+
+      // Rollback
+      return () => {
+        setConditions(oldConditions);
+        setSelectedCondition(oldSelected);
+        setNewPhase(oldNewPhase);
+      };
+    },
+    // Database update
+    async () => {
+      return await addPhaseToConditionRealtime(selectedCondition.db_id, phaseName);
+    },
+    `Added phase "${phaseName}"`,
+    `Failed to add phase "${phaseName}"`
+  );
+};
+
+// Handler for removing a phase
+const handleRemovePhase = async (phaseToRemove) => {
+  if (!selectedCondition?.db_id) return;
+
+  const operationId = `phase-remove-${selectedCondition.db_id}-${phaseToRemove}`;
+
+  await executeUpdate(
+    operationId,
+    // Optimistic update
+    () => {
+      const oldConditions = [...conditions];
+      const oldSelected = {...selectedCondition};
+
+      const updatedPhases = selectedCondition.phases.filter(p => p !== phaseToRemove);
+      setConditions(prev => prev.map(c =>
+        c.db_id === selectedCondition.db_id
+          ? { ...c, phases: updatedPhases }
+          : c
+      ));
+      setSelectedCondition(prev => ({ ...prev, phases: updatedPhases }));
+
+      // Rollback
+      return () => {
+        setConditions(oldConditions);
+        setSelectedCondition(oldSelected);
+      };
+    },
+    // Database update
+    async () => {
+      return await removePhaseFromConditionRealtime(selectedCondition.db_id, phaseToRemove);
+    },
+    `Removed phase "${phaseToRemove}"`,
+    `Failed to remove phase "${phaseToRemove}"`
+  );
+};
 
 // Return early if no data
-if (editedConditions.length === 0) {
+if (conditions.length === 0) {
   return (
     <div className="text-center py-10 text-gray-500">
       Loading conditions...
@@ -53,70 +197,20 @@ if (editedConditions.length === 0) {
   );
 }
 
-const loadCompetitiveAdvantageFromSupabase = async (productName) => {
-  try {
-    // Load competitors
-    const { data: competitorsData, error: competitorsError } = await supabase
-      .from('competitive_advantage_competitors')
-      .select('competitor_name, advantages')
-      .eq('product_name', productName);
-    
-    if (competitorsError) {
-      console.error('Error loading competitors:', competitorsError);
-    }
-    
-    // Load active ingredients
-    const { data: ingredientsData, error: ingredientsError } = await supabase
-      .from('competitive_advantage_active_ingredients')
-      .select('ingredient_name, advantages')
-      .eq('product_name', productName);
-    
-    if (ingredientsError) {
-      console.error('Error loading active ingredients:', ingredientsError);
-    }
-    
-    // Format data for the component
-    const competitors = (competitorsData || []).map(item => ({
-      name: item.competitor_name,
-      advantages: item.advantages || ''
-    }));
-    
-    const activeIngredients = (ingredientsData || []).map(item => ({
-      name: item.ingredient_name,
-      advantages: item.advantages || ''
-    }));
-    
-    setCompetitiveAdvantageData({
-      competitors,
-      activeIngredients
-    });
-    
-  } catch (error) {
-    console.error('Error loading competitive advantage:', error);
-    // Initialize with empty structure on error
-    setCompetitiveAdvantageData({
-      competitors: [],
-      activeIngredients: []
-    });
-  }
-};
-
-
-
 // Function to get unique products that are actually configured as recommendations
 const getRecommendedProductsForCondition = (condition) => {
   if (!condition || !condition.patientSpecificConfig) return [];
-  
+
   const recommendedProducts = new Set();
-  
+
   // Iterate through all phases
   Object.keys(condition.patientSpecificConfig).forEach(phase => {
     const phaseConfig = condition.patientSpecificConfig[phase];
-    
+
     // Iterate through all patient types in this phase
     Object.keys(phaseConfig).forEach(patientType => {
       const products = phaseConfig[patientType] || [];
-      
+
       // Add each product to the set
       products.forEach(product => {
         if (product && product.trim()) {
@@ -125,31 +219,31 @@ const getRecommendedProductsForCondition = (condition) => {
       });
     });
   });
-  
+
   return Array.from(recommendedProducts).sort();
 };
 
 // Function to get phases where a specific product is recommended
 const getPhasesForProduct = (condition, productName) => {
   if (!condition || !condition.patientSpecificConfig) return [];
-  
+
   const productPhases = [];
-  
+
   // Iterate through all phases
   Object.keys(condition.patientSpecificConfig).forEach(phase => {
     const phaseConfig = condition.patientSpecificConfig[phase];
-    
+
     // Check if the product is recommended for any patient type in this phase
     const isProductInPhase = Object.keys(phaseConfig).some(patientType => {
       const products = phaseConfig[patientType] || [];
       return products.includes(productName);
     });
-    
+
     if (isProductInPhase) {
       productPhases.push(phase);
     }
   });
-  
+
   return productPhases;
 };
 
@@ -272,7 +366,7 @@ return (
         </div>
         
         <ul className="space-y-1">
-          {editedConditions.map((condition) => (
+          {conditions.map((condition) => (
             <li 
               key={condition.name}
               className={clsx(
@@ -324,44 +418,76 @@ return (
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Condition & Surgical Procedure Name
                 </label>
-                <input
-                  type="text"
-                  value={selectedCondition.name}
-                  onChange={(e) => updateConditionField(selectedCondition.name, 'name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={selectedCondition.name}
+                    onChange={(e) => {
+                      updateConditionField(selectedCondition.db_id, 'name', e.target.value);
+                      debouncedUpdateConditionField(selectedCondition.db_id, 'name', e.target.value);
+                    }}
+                    className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                  />
+                  <SaveStatusIndicator
+                    status={saveStatus[`condition-${selectedCondition.db_id}-name`]}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                  />
+                </div>
               </div>
-              
+
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category
                 </label>
-                <select
-                  value={selectedCondition.category}
-                  onChange={(e) => updateConditionField(selectedCondition.name, 'category', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={selectedCondition.category}
+                    onChange={(e) => {
+                      // Update database with category_id (will convert name to ID and update local state)
+                      updateConditionField(selectedCondition.db_id, 'category_id', e.target.value);
+                    }}
+                    className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <SaveStatusIndicator
+                    status={saveStatus[`condition-${selectedCondition.db_id}-category_id`]}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none"
+                  />
+                </div>
               </div>
             </div>
-            
+
             {/* Treatment Modifier */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Treatment Modifier
               </label>
-              <input
-                type="text"
-                value={selectedCondition.patientType}
-                onChange={(e) => updateConditionField(selectedCondition.name, 'patientType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={selectedCondition.patientType}
+                  onChange={(e) => {
+                    // Only update the input value for immediate UI feedback
+                    // The debounced function will handle state and database updates
+                    const newValue = e.target.value;
+                    // Immediate local UI update only
+                    setSelectedCondition(prev => ({ ...prev, patientType: newValue }));
+                    // Debounced database save (will also update conditions array)
+                    debouncedUpdateConditionField(selectedCondition.db_id, 'patient_type', newValue);
+                  }}
+                  className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                />
+                <SaveStatusIndicator
+                  status={saveStatus[`condition-${selectedCondition.db_id}-patient_type`]}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                />
+              </div>
               <p className="mt-1 text-xs text-gray-500">Format: "Types 1 to 4" or "Types 3 to 4"</p>
             </div>
             
@@ -381,7 +507,7 @@ return (
                       <button
                         onClick={() => {
                           const updatedDds = selectedCondition.dds.filter(d => d !== dds);
-                          updateConditionField(selectedCondition.name, 'dds', updatedDds);
+                          updateConditionField(selectedCondition.db_id, 'dds', updatedDds);
                         }}
                         className="ml-1 text-slate-700 hover:text-slate-900"
                       >
@@ -395,7 +521,7 @@ return (
                 onChange={(e) => {
                   if (e.target.value && !selectedCondition.dds.includes(e.target.value)) {
                     const updatedDds = [...selectedCondition.dds, e.target.value];
-                    updateConditionField(selectedCondition.name, 'dds', updatedDds);
+                    updateConditionField(selectedCondition.db_id, 'dds', updatedDds);
                   }
                   e.target.value = ''; // Reset select
                 }}
@@ -418,20 +544,20 @@ return (
               <div className="border border-gray-300 rounded-md p-2 mb-2">
                 <div className="flex flex-wrap gap-2">
                   {selectedCondition.phases.map((phase) => (
-                    <span 
-                      key={phase} 
+                    <span
+                      key={phase}
                       className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm flex items-center"
                     >
                       {phase}
                       <button
-                        onClick={() => {
-                          const updatedPhases = selectedCondition.phases.filter(p => p !== phase);
-                          updateConditionField(selectedCondition.name, 'phases', updatedPhases);
-                        }}
+                        onClick={() => handleRemovePhase(phase)}
                         className="ml-1 text-purple-700 hover:text-purple-900"
                       >
                         <X size={14} />
                       </button>
+                      <SaveStatusIndicator
+                        status={saveStatus[`phase-remove-${selectedCondition.db_id}-${phase}`]}
+                      />
                     </span>
                   ))}
                 </div>
@@ -439,28 +565,24 @@ return (
               <div className="flex gap-2">
                 <input
                   type="text"
+                  value={newPhase}
+                  onChange={(e) => setNewPhase(e.target.value)}
                   placeholder="New phase name..."
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.target.value && !selectedCondition.phases.includes(e.target.value)) {
-                      const updatedPhases = [...selectedCondition.phases, e.target.value];
-                      updateConditionField(selectedCondition.name, 'phases', updatedPhases);
-                      e.target.value = '';
+                    if (e.key === 'Enter' && newPhase.trim() && !selectedCondition.phases.includes(newPhase.trim())) {
+                      handleAddPhase();
                     }
                   }}
                 />
                 <button
-                  onClick={(e) => {
-                    const input = e.target.previousSibling;
-                    if (input.value && !selectedCondition.phases.includes(input.value)) {
-                      const updatedPhases = [...selectedCondition.phases, input.value];
-                      updateConditionField(selectedCondition.name, 'phases', updatedPhases);
-                      input.value = '';
-                    }
-                  }}
-                  className="px-3 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90"
+                  onClick={handleAddPhase}
+                  className="px-3 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 flex items-center gap-1"
                 >
                   Add
+                  <SaveStatusIndicator
+                    status={saveStatus[`phase-add-${selectedCondition.db_id}-${newPhase.trim()}`]}
+                  />
                 </button>
               </div>
             </div>
@@ -789,25 +911,39 @@ return (
                                       
                                       {recommendedPhases.map((phase) => (
                                         <Tabs.Content key={phase} value={phase} className="p-4">
-                                          <DynamicTextarea
-                                            initialRows={3}
-                                            maxRows={12}
-                                            value={
-                                              productDetails.usage && 
-                                              typeof productDetails.usage === 'object' ?
-                                              productDetails.usage[phase] || '' :
-                                              productDetails.usage || ''
-                                            }
-                                            onChange={(e) => updateProductDetail(
-                                              selectedCondition.name,
-                                              productName,
-                                              'usage',
-                                              e.target.value,
-                                              phase
-                                            )}
-                                            placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
-                                          />
+                                          <div className="relative">
+                                            <DynamicTextarea
+                                              initialRows={3}
+                                              maxRows={12}
+                                              value={
+                                                productDetails.usage &&
+                                                typeof productDetails.usage === 'object' ?
+                                                productDetails.usage[phase] || '' :
+                                                productDetails.usage || ''
+                                              }
+                                              onChange={(e) => {
+                                                updateProductDetail(
+                                                  selectedCondition.name,
+                                                  productName,
+                                                  'usage',
+                                                  e.target.value,
+                                                  phase
+                                                );
+                                                debouncedUpdateProductDetail(
+                                                  selectedCondition.db_id,
+                                                  productName,
+                                                  `usage_${phase}`,
+                                                  e.target.value
+                                                );
+                                              }}
+                                              placeholder={`Enter usage instructions for ${phase} phase. Line breaks will be preserved in the display.`}
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                                            />
+                                            <SaveStatusIndicator
+                                              status={saveStatus[`product-detail-${selectedCondition.db_id}-${productName}-usage_${phase}`]}
+                                              className="absolute right-2 top-2"
+                                            />
+                                          </div>
                                         </Tabs.Content>
                                       ))}
                                     </Tabs.Root>
@@ -828,79 +964,135 @@ return (
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Scientific Rationale
                             </label>
-                            <DynamicTextarea
-                              initialRows={2}
-                              maxRows={8}
-                              value={productDetails.rationale || ''}
-                              onChange={(e) => updateProductDetail(
-                                selectedCondition.name,
-                                productName,
-                                'rationale',
-                                e.target.value
-                              )}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
-                            />
+                            <div className="relative">
+                              <DynamicTextarea
+                                initialRows={2}
+                                maxRows={8}
+                                value={productDetails.rationale || ''}
+                                onChange={(e) => {
+                                  updateProductDetail(
+                                    selectedCondition.name,
+                                    productName,
+                                    'rationale',
+                                    e.target.value
+                                  );
+                                  debouncedUpdateProductDetail(
+                                    selectedCondition.db_id,
+                                    productName,
+                                    'rationale',
+                                    e.target.value
+                                  );
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter scientific rationale. Line breaks will be preserved in the display."
+                              />
+                              <SaveStatusIndicator
+                                status={saveStatus[`product-detail-${selectedCondition.db_id}-${productName}-rationale`]}
+                                className="absolute right-2 top-2"
+                              />
+                            </div>
                           </div>
-                          
+
                           {/* Clinical Evidence */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Clinical Evidence
                             </label>
-                            <DynamicTextarea
-                              initialRows={2}
-                              maxRows={8}
-                              value={productDetails.clinicalEvidence || ''}
-                              onChange={(e) => updateProductDetail(
-                                selectedCondition.name,
-                                productName,
-                                'clinicalEvidence',
-                                e.target.value
-                              )}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
-                            />
+                            <div className="relative">
+                              <DynamicTextarea
+                                initialRows={2}
+                                maxRows={8}
+                                value={productDetails.clinicalEvidence || ''}
+                                onChange={(e) => {
+                                  updateProductDetail(
+                                    selectedCondition.name,
+                                    productName,
+                                    'clinicalEvidence',
+                                    e.target.value
+                                  );
+                                  debouncedUpdateProductDetail(
+                                    selectedCondition.db_id,
+                                    productName,
+                                    'clinical_evidence',
+                                    e.target.value
+                                  );
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter clinical evidence. Line breaks will be preserved in the display."
+                              />
+                              <SaveStatusIndicator
+                                status={saveStatus[`product-detail-${selectedCondition.db_id}-${productName}-clinical_evidence`]}
+                                className="absolute right-2 top-2"
+                              />
+                            </div>
                           </div>
-                          
+
                           {/* Handling Objections */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Handling Objections
                             </label>
-                            <DynamicTextarea
-                              initialRows={2}
-                              maxRows={8}
-                              value={productDetails.handlingObjections || ''}
-                              onChange={(e) => updateProductDetail(
-                                selectedCondition.name,
-                                productName,
-                                'handlingObjections',
-                                e.target.value
-                              )}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Enter objection handling information. Line breaks will be preserved in the display."
-                            />
+                            <div className="relative">
+                              <DynamicTextarea
+                                initialRows={2}
+                                maxRows={8}
+                                value={productDetails.handlingObjections || ''}
+                                onChange={(e) => {
+                                  updateProductDetail(
+                                    selectedCondition.name,
+                                    productName,
+                                    'handlingObjections',
+                                    e.target.value
+                                  );
+                                  debouncedUpdateProductDetail(
+                                    selectedCondition.db_id,
+                                    productName,
+                                    'handling_objections',
+                                    e.target.value
+                                  );
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter objection handling information. Line breaks will be preserved in the display."
+                              />
+                              <SaveStatusIndicator
+                                status={saveStatus[`product-detail-${selectedCondition.db_id}-${productName}-handling_objections`]}
+                                className="absolute right-2 top-2"
+                              />
+                            </div>
                           </div>
-                          
+
                           {/* Key Pitch Points */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Key Pitch Points
                             </label>
-                            <DynamicTextarea
-                              initialRows={2}
-                              maxRows={8}
-                              value={productDetails.pitchPoints || ''}
-                              onChange={(e) => updateProductDetail(
-                                selectedCondition.name,
-                                productName,
-                                'pitchPoints',
-                                e.target.value
-                              )}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Enter key pitch points. Line breaks will be preserved in the display."
-                            />
+                            <div className="relative">
+                              <DynamicTextarea
+                                initialRows={2}
+                                maxRows={8}
+                                value={productDetails.pitchPoints || ''}
+                                onChange={(e) => {
+                                  updateProductDetail(
+                                    selectedCondition.name,
+                                    productName,
+                                    'pitchPoints',
+                                    e.target.value
+                                  );
+                                  debouncedUpdateProductDetail(
+                                    selectedCondition.db_id,
+                                    productName,
+                                    'pitch_points',
+                                    e.target.value
+                                  );
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter key pitch points. Line breaks will be preserved in the display."
+                              />
+                              <SaveStatusIndicator
+                                status={saveStatus[`product-detail-${selectedCondition.db_id}-${productName}-pitch_points`]}
+                                className="absolute right-2 top-2"
+                              />
+                            </div>
                           </div>
                           
 
@@ -921,6 +1113,7 @@ return (
         )}
       </div>
     </div>
+    {ToastContainer && <ToastContainer />}
   </div>
 );
 }

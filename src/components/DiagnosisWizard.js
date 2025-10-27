@@ -162,7 +162,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
   // Load competitive advantage data from Supabase
   const loadCompetitiveAdvantageData = async (productName) => {
     try {
-      console.log('Loading competitive advantage data for product:', productName);
       
       // Fetch competitors data from Supabase
       const { data: competitorsData, error: competitorsError } = await supabase
@@ -197,8 +196,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
         advantages: ing.advantages || 'No benefits listed for this ingredient.'
       }));
 
-      console.log('Fetched competitors:', competitors);
-      console.log('Fetched active ingredients:', activeIngredients);
 
       // Set the competitive advantage data
       const competitiveData = {
@@ -213,7 +210,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
 
       // If no data found, fall back to mock data
       if (competitors.length === 0 && activeIngredients.length === 0) {
-        console.log('No competitive advantage data found, using mock data');
         const mockData = {
           productName: productName,
           competitors: [
@@ -270,7 +266,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
     
     try {
       setIsLoadingResearch(true);
-      console.log('Fetching research articles for product:', cleanProductName);
       
       // Get the product ID first
       const { data: productData, error: productError } = await supabase
@@ -280,7 +275,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
         .single();
 
       if (productError || !productData) {
-        console.log('Product not found or error:', productError);
         return [];
       }
 
@@ -304,7 +298,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
         return [];
       }
 
-      console.log('Fetched research articles:', researchData);
       
       // Remove duplicates based on title and author combination
       const uniqueArticles = [];
@@ -320,7 +313,6 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
         }
       });
       
-      console.log(`Removed ${(researchData || []).length - uniqueArticles.length} duplicate articles. Showing ${uniqueArticles.length} unique articles.`);
       return uniqueArticles;
       
     } catch (error) {

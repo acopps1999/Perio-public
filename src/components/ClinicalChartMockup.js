@@ -14,8 +14,8 @@ import ThemeToggle from './ThemeToggle';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { loadConditionsFromSupabase, loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase'; // Import the robust loading function
-import { supabase } from '../supabaseClient'; // Import supabase client
+import { loadConditionsFromSupabase, loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase';
+import { supabase } from '../supabaseClient';
 import useResponsive from '../hooks/useResponsive';
 
 function ClinicalChartMockup() {
@@ -72,14 +72,12 @@ function ClinicalChartMockup() {
   }, [isDesktop]);
 
   const loadChartData = useCallback(async (forceRefresh = false) => {
-    console.log("CHART_LOAD: Starting chart data load...");
     setIsLoadingData(true);
     
     try {
       // Store current selected condition ID before reloading data
       const currentSelectedId = selectedCondition?.db_id;
 
-      console.log("CHART_LOAD: Fetching conditions, products, and patient types from Supabase...");
       
       // Parallelize fetching - only force refresh when needed (e.g., after admin saves)
       const [newConditions, productsResult, dbPatientTypes] = await Promise.all([
@@ -88,11 +86,9 @@ function ClinicalChartMockup() {
           supabase.from('patient_types').select('id, name, description').order('name', { ascending: true })
       ]);
 
-      console.log("CHART_LOAD: Raw data received - Conditions:", newConditions?.length || 0, "Products:", productsResult?.data?.length || 0, "Patient Types:", dbPatientTypes?.data?.length || 0);
       
       // Debug: Log first condition to see its structure
       if (newConditions && newConditions.length > 0) {
-        console.log("CHART_LOAD: First condition structure:", JSON.stringify(newConditions[0], null, 2));
       }
 
       if (dbPatientTypes.error) {
@@ -112,7 +108,6 @@ function ClinicalChartMockup() {
       const uniqueCategories = ['All', ...new Set(newConditions.map(c => c.category).filter(Boolean))];
       const allDdsTypes = ['All', ...new Set(newConditions.flatMap(c => c.dds || []))];
 
-      console.log("CHART_LOAD: Processed categories:", uniqueCategories.length, "DDS types:", allDdsTypes.length);
 
       setConditions(newConditions);
       setFilteredConditions(newConditions);
@@ -122,26 +117,21 @@ function ClinicalChartMockup() {
       
       // Debug: Log products being set
       const productsToSet = productsResult.success ? productsResult.data : [];
-      console.log('DEBUG loadChartData - Products being set:', productsToSet);
       setAllProducts(productsToSet); // Set the products with availability info
 
       // After reload, try to re-select the same condition
       const reSelectedCondition = newConditions.find(c => c.db_id === currentSelectedId);
 
       if (reSelectedCondition) {
-        console.log("CHART_LOAD: Re-selecting previous condition:", reSelectedCondition.name);
         setSelectedCondition(reSelectedCondition);
       } else if (newConditions.length > 0) {
         // Fallback to the first condition if the old one doesn't exist anymore
-        console.log("CHART_LOAD: Selecting first condition:", newConditions[0].name);
         setSelectedCondition(newConditions[0]);
         setActiveTab(newConditions[0].phases && newConditions[0].phases.length > 0 ? newConditions[0].phases[0] : '');
       } else {
-        console.log("CHART_LOAD: No conditions available");
         setSelectedCondition(null); // No conditions left
       }
       
-      console.log("CHART_LOAD: Chart data loaded successfully!");
       
     } catch (error) {
       console.error("CHART_LOAD: Critical error during chart data loading:", error);
@@ -155,7 +145,7 @@ function ClinicalChartMockup() {
     } finally {
       setIsLoadingData(false);
     }
-  }, [selectedCondition]); // Include selectedCondition since we now access it directly
+  }, []); // Empty dependencies - selectedCondition is only read, not a dependency
 
   // Load conditions on component mount
   useEffect(() => {
@@ -262,7 +252,6 @@ useEffect(() => {
   // ConditionDetails manages its own product selection internally
   const handleProductSelect = useCallback((product) => {
     // This function is kept for compatibility but should not automatically show additional info
-    console.log('handleProductSelect called for:', product);
     
     // Store the selected product for potential future use
     setSelectedProduct({
@@ -339,13 +328,6 @@ useEffect(() => {
   const getProductAvailability = useCallback((productName) => {
     const cleanName = productName.replace(' (Type 3/4 Only)', '');
     const product = allProducts.find(p => p.name === cleanName);
-    console.log('DEBUG getProductAvailability:', {
-      productName,
-      cleanName,
-      allProducts: allProducts.map(p => ({ name: p.name, is_available: p.is_available })),
-      foundProduct: product,
-      result: product ? product.is_available : true
-    });
     return product ? product.is_available : true; // Default to available if not found
   }, [allProducts]);
 
@@ -377,7 +359,6 @@ useEffect(() => {
 
   // When AdminPanel saves, we just need to reload our data.
   const handleSaveChangesSuccess = async () => {
-    console.log("CHART_LOAD: AdminPanel saved. Reloading chart data with fresh data.");
     await loadChartData(true); // Force refresh after admin saves
   };
 
@@ -385,7 +366,6 @@ useEffect(() => {
   useEffect(() => {
     if (registerAutoLogoutCallback) {
       registerAutoLogoutCallback(() => {
-        console.log('Auto-logout callback: Closing admin panel');
         setAdminOpen(false);
       });
     }
@@ -394,7 +374,6 @@ useEffect(() => {
   // Close admin panel when user is no longer authenticated (backup safety)
   useEffect(() => {
     if (!isAuthenticated && adminOpen) {
-      console.log('User logged out: Closing admin panel');
       setAdminOpen(false);
     }
   }, [isAuthenticated, adminOpen]);

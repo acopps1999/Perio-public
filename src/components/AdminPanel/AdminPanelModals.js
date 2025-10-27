@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Plus, Edit, Trash2, X, Target, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, X, Target, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import DynamicTextarea from './DynamicTextarea';
 
@@ -13,7 +13,7 @@ function AdminPanelModals({
   setShowDeleteModal,
   competitiveAdvantageModalOpen,
   setCompetitiveAdvantageModalOpen,
-  
+
   // Modal data props
   modalType,
   newItemData,
@@ -26,14 +26,15 @@ function AdminPanelModals({
   setSelectedProductForAdvantage,
   competitiveAdvantageData,
   setCompetitiveAdvantageData,
-  
+
   // Handler props
   handleSubmitNewItem,
   handleDelete,
   isDeleting,
-  setIsEditing,
-  setShowSuccess,
-  
+
+  // Real-time save status (for toast notifications)
+  executeUpdate,
+
   // Data props
   categories,
   allProducts
@@ -111,7 +112,6 @@ function AdminPanelModals({
         .eq('product_name', productName);
       
       if (competitorsError) {
-        console.error('Error loading competitors:', competitorsError);
       }
       
       // Load active ingredients
@@ -121,7 +121,6 @@ function AdminPanelModals({
         .eq('product_name', productName);
       
       if (ingredientsError) {
-        console.error('Error loading active ingredients:', ingredientsError);
       }
       
       // Format data for the component
@@ -141,7 +140,6 @@ function AdminPanelModals({
       });
       
     } catch (error) {
-      console.error('Error loading competitive advantage:', error);
       // Initialize with empty structure on error
       setCompetitiveAdvantageData({
         competitors: [],
@@ -154,22 +152,38 @@ function AdminPanelModals({
 
   const saveCompetitiveAdvantage = async () => {
     if (!selectedProductForAdvantage) return;
-    
+
     try {
-      setIsEditing(true);
-      
+      console.log('[saveCompetitiveAdvantage] Starting save for product:', selectedProductForAdvantage);
+
       // Delete existing competitors for this product
-      await supabase
+      const { error: deleteCompError } = await supabase
         .from('competitive_advantage_competitors')
         .delete()
         .eq('product_name', selectedProductForAdvantage);
-      
+
+      if (deleteCompError) {
+        console.error('Error deleting existing competitors:', deleteCompError);
+        if (executeUpdate && executeUpdate.showToast) {
+          executeUpdate.showToast('Failed to delete existing competitors', 'error');
+        }
+        return;
+      }
+
       // Delete existing active ingredients for this product
-      await supabase
+      const { error: deleteIngError } = await supabase
         .from('competitive_advantage_active_ingredients')
         .delete()
         .eq('product_name', selectedProductForAdvantage);
-      
+
+      if (deleteIngError) {
+        console.error('Error deleting existing ingredients:', deleteIngError);
+        if (executeUpdate && executeUpdate.showToast) {
+          executeUpdate.showToast('Failed to delete existing ingredients', 'error');
+        }
+        return;
+      }
+
       // Insert new competitors
       if (competitiveAdvantageData.competitors && competitiveAdvantageData.competitors.length > 0) {
         const competitorsToInsert = competitiveAdvantageData.competitors
@@ -179,19 +193,22 @@ function AdminPanelModals({
             competitor_name: comp.name,
             advantages: comp.advantages || ''
           }));
-        
+
         if (competitorsToInsert.length > 0) {
           const { error: competitorsError } = await supabase
             .from('competitive_advantage_competitors')
             .insert(competitorsToInsert);
-          
+
           if (competitorsError) {
-            console.error('Error saving competitors:', competitorsError);
+            console.error('Error inserting competitors:', competitorsError);
+            if (executeUpdate && executeUpdate.showToast) {
+              executeUpdate.showToast('Failed to save competitors', 'error');
+            }
             return;
           }
         }
       }
-      
+
       // Insert new active ingredients
       if (competitiveAdvantageData.activeIngredients && competitiveAdvantageData.activeIngredients.length > 0) {
         const ingredientsToInsert = competitiveAdvantageData.activeIngredients
@@ -201,30 +218,37 @@ function AdminPanelModals({
             ingredient_name: ing.name,
             advantages: ing.advantages || ''
           }));
-        
+
         if (ingredientsToInsert.length > 0) {
           const { error: ingredientsError } = await supabase
             .from('competitive_advantage_active_ingredients')
             .insert(ingredientsToInsert);
-          
+
           if (ingredientsError) {
-            console.error('Error saving active ingredients:', ingredientsError);
+            console.error('Error inserting ingredients:', ingredientsError);
+            if (executeUpdate && executeUpdate.showToast) {
+              executeUpdate.showToast('Failed to save active ingredients', 'error');
+            }
             return;
           }
         }
       }
-      
-      console.log('Competitive advantage saved successfully for', selectedProductForAdvantage);
-      
+
+      console.log('[saveCompetitiveAdvantage] Save successful');
+
       // Close modal
       resetCompetitiveAdvantageState();
-      
+
       // Show success notification
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-      
+      if (executeUpdate && executeUpdate.showToast) {
+        executeUpdate.showToast(`Competitive advantage saved for ${selectedProductForAdvantage}`, 'success');
+      }
+
     } catch (error) {
-      console.error('Error saving competitive advantage:', error);
+      console.error('Unexpected error in saveCompetitiveAdvantage:', error);
+      if (executeUpdate && executeUpdate.showToast) {
+        executeUpdate.showToast('Failed to save competitive advantage', 'error');
+      }
     }
   };
 
@@ -281,11 +305,18 @@ function AdminPanelModals({
   };
 
   const removeCompetitor = (index) => {
-    setCompetitiveAdvantageData(prev => ({
-      ...prev,
-      competitors: prev.competitors.filter((_, i) => i !== index)
-    }));
-    
+    console.log('[removeCompetitor] Removing competitor at index:', index);
+    console.log('[removeCompetitor] Current competitors:', competitiveAdvantageData.competitors);
+
+    setCompetitiveAdvantageData(prev => {
+      const updated = {
+        ...prev,
+        competitors: prev.competitors.filter((_, i) => i !== index)
+      };
+      console.log('[removeCompetitor] Updated competitors:', updated.competitors);
+      return updated;
+    });
+
     // Update expanded state - remove the deleted index and shift others down
     setExpandedCompetitors(prev => {
       const newExpanded = {};
@@ -303,11 +334,18 @@ function AdminPanelModals({
   };
 
   const removeActiveIngredient = (index) => {
-    setCompetitiveAdvantageData(prev => ({
-      ...prev,
-      activeIngredients: prev.activeIngredients.filter((_, i) => i !== index)
-    }));
-    
+    console.log('[removeActiveIngredient] Removing ingredient at index:', index);
+    console.log('[removeActiveIngredient] Current ingredients:', competitiveAdvantageData.activeIngredients);
+
+    setCompetitiveAdvantageData(prev => {
+      const updated = {
+        ...prev,
+        activeIngredients: prev.activeIngredients.filter((_, i) => i !== index)
+      };
+      console.log('[removeActiveIngredient] Updated ingredients:', updated.activeIngredients);
+      return updated;
+    });
+
     // Update expanded state - remove the deleted index and shift others down
     setExpandedActiveIngredients(prev => {
       const newExpanded = {};

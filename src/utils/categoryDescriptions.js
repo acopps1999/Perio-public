@@ -57,7 +57,6 @@ export const setCategoryDescription = (categoryName, description) => {
   // For now, this would just update the in-memory mapping
   // In the future, this could save to database
   DEFAULT_CATEGORY_DESCRIPTIONS[categoryName] = description;
-  console.log(`Category description updated: ${categoryName} = ${description}`);
 };
 
 /**
@@ -66,7 +65,6 @@ export const setCategoryDescription = (categoryName, description) => {
  */
 export const removeCategoryDescription = (categoryName) => {
   delete DEFAULT_CATEGORY_DESCRIPTIONS[categoryName];
-  console.log(`Category description removed: ${categoryName}`);
 };
 
 /**

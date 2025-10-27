@@ -106,7 +106,6 @@ function FeedbackWidget() {
     setIsSubmitting(true);
 
     try {
-      console.log('🚀 FEEDBACK: Starting feedback submission process...');
       
       const context = captureContext();
       
@@ -117,10 +116,8 @@ function FeedbackWidget() {
         context: context
       };
 
-      console.log('🚀 FEEDBACK: Prepared feedback data:', feedbackData);
 
       // 1. Save to Supabase
-      console.log('💾 SUPABASE: Saving feedback to database...');
       const { data, error } = await supabase
         .from('feedback')
         .insert([feedbackData])
@@ -130,15 +127,11 @@ function FeedbackWidget() {
         throw new Error(`Supabase error: ${error.message}`);
       }
 
-      console.log('💾 SUPABASE: ✅ Feedback saved successfully!', data);
       const feedbackId = data[0]?.id;
-      console.log('💾 SUPABASE: ✅ Feedback ID:', feedbackId);
 
       // 2. Send email notification
-      console.log('📧 EMAIL: Attempting to send email notification...');
       await sendEmailNotification(feedbackData, feedbackId);
 
-      console.log('🎉 FEEDBACK: ✅ Feedback submission completed successfully!');
       setIsSubmitted(true);
       setTimeout(() => {
         handleClose();
@@ -161,19 +154,8 @@ function FeedbackWidget() {
     try {
       // Check if email is configured
       if (!isEmailConfigured()) {
-        console.log('📧 EmailJS not configured - skipping email notification');
-        console.log('📧 Configure email settings in src/config/feedbackConfig.js');
-        console.log('💾 Feedback data saved to database:', { feedbackId, ...feedbackData });
         return;
       }
-
-      console.log('📧 EMAIL: Starting email notification process...');
-      console.log('📧 EMAIL: EmailJS Config Check:', {
-        serviceId: feedbackConfig.emailjs.serviceId,
-        templateId: feedbackConfig.emailjs.templateId,
-        publicKeyLength: feedbackConfig.emailjs.publicKey?.length,
-        notificationEmail: feedbackConfig.notificationEmail
-      });
 
       // Prepare email data
       const emailData = {
@@ -188,17 +170,14 @@ function FeedbackWidget() {
         to_email: feedbackConfig.notificationEmail
       };
 
-      console.log('📧 EMAIL: Prepared email data:', emailData);
 
       // Load EmailJS dynamically with latest version
       if (typeof window !== 'undefined' && !window.emailjs) {
-        console.log('📧 EMAIL: Loading EmailJS SDK...');
         await loadEmailJS();
       }
 
       // Send email using EmailJS (supports both v3 and v4)
       if (window.emailjs && window.emailjs.send) {
-        console.log('📧 EMAIL: Sending email via EmailJS...');
         
         let response;
         try {
@@ -208,9 +187,7 @@ function FeedbackWidget() {
             feedbackConfig.emailjs.templateId,
             emailData
           );
-          console.log('📧 EMAIL: ✅ Email sent with v4 syntax!', response);
         } catch (v4Error) {
-          console.log('📧 EMAIL: v4 syntax failed, trying v3 syntax...', v4Error);
           try {
             // Fallback to v3 syntax (with public key parameter)
             response = await window.emailjs.send(
@@ -219,13 +196,11 @@ function FeedbackWidget() {
               emailData,
               feedbackConfig.emailjs.publicKey
             );
-            console.log('📧 EMAIL: ✅ Email sent with v3 syntax!', response);
           } catch (v3Error) {
             throw new Error(`Both v4 and v3 syntax failed. v4: ${v4Error.message}, v3: ${v3Error.message}`);
           }
         }
         
-        console.log('📧 EMAIL: ✅ Notification sent to:', feedbackConfig.notificationEmail);
       } else {
         console.error('📧 EMAIL: ❌ EmailJS not available or send method not found');
         console.error('📧 EMAIL: ❌ window.emailjs:', window.emailjs);
@@ -250,7 +225,6 @@ function FeedbackWidget() {
       }
       
       // Don't throw error - feedback was already saved to database
-      console.log('💾 FEEDBACK: ✅ Feedback still saved to database successfully');
     }
   };
 
@@ -258,12 +232,10 @@ function FeedbackWidget() {
     return new Promise((resolve, reject) => {
       // Check if EmailJS is already loaded
       if (window.emailjs) {
-        console.log('📧 EMAIL: EmailJS already loaded, initializing...');
         try {
           window.emailjs.init({
             publicKey: feedbackConfig.emailjs.publicKey,
           });
-          console.log('📧 EMAIL: EmailJS initialized with existing SDK');
           resolve();
           return;
         } catch (error) {
@@ -292,10 +264,8 @@ function FeedbackWidget() {
         const currentUrl = cdnUrls[currentUrlIndex];
         script.src = currentUrl;
         
-        console.log(`📧 EMAIL: Attempting to load EmailJS from: ${currentUrl}`);
 
         script.onload = () => {
-          console.log(`📧 EMAIL: ✅ EmailJS loaded successfully from: ${currentUrl}`);
           
           // Check if emailjs is now available
           if (window.emailjs) {
@@ -304,14 +274,12 @@ function FeedbackWidget() {
               window.emailjs.init({
                 publicKey: feedbackConfig.emailjs.publicKey,
               });
-              console.log('📧 EMAIL: ✅ EmailJS initialized successfully');
               resolve();
             } catch (initError) {
               console.error('📧 EMAIL: ❌ Error initializing EmailJS:', initError);
               // Try the old initialization method as fallback
               try {
                 window.emailjs.init(feedbackConfig.emailjs.publicKey);
-                console.log('📧 EMAIL: ✅ EmailJS initialized with fallback method');
                 resolve();
               } catch (fallbackError) {
                 console.error('📧 EMAIL: ❌ Fallback initialization failed:', fallbackError);

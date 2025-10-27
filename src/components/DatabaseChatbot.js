@@ -92,7 +92,6 @@ function DatabaseChatbot() {
 
     try {
       // Use Supabase query service for reliable database access
-      console.log('🗄️ Starting Supabase query processing...');
       const queryResult = await queryServiceRef.current.processQuestion(messageToProcess);
       
       // Format the response from Supabase service

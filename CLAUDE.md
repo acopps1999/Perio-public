@@ -453,13 +453,14 @@ ps aux | grep node
 - Consider mobile responsiveness (app is desktop-first but has mobile support)
 
 ### DON'T
-- Add more console.log statements (17+ files already have them)
+- Add more console.log statements (cleaned up Jan 2025)
 - Create new query services without removing old ones
 - Modify database schema without checking dependencies
 - Add features without tests (0% coverage needs to improve)
 - Commit .env files (already a problem)
 - Make security changes without thorough review
 - Assume LLM features work (they don't)
+- **NEVER git commit unless explicitly instructed by the user**
 
 ### WHEN REFACTORING
 - Break large functions into smaller units

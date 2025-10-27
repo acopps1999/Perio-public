@@ -250,7 +250,6 @@ function DataImportExport({ onDataChange }) {
           console.error(`Error clearing ${table}:`, error);
           throw error;
         }
-        console.log(`Cleared table: ${table}`);
       } catch (error) {
         console.error(`Failed to clear ${table}:`, error);
         throw error;

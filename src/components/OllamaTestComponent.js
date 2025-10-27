@@ -7,7 +7,6 @@ const OllamaTestComponent = () => {
   const addLog = (message) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
-    console.log('🧪 TEST:', message);
   };
 
   const testOllamaConnection = async () => {

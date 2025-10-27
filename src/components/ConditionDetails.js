@@ -298,15 +298,7 @@ function ConditionDetails({
                       const cleanProductName = product.replace(' (Type 3/4 Only)', '');
                       const isSelected = selectedProduct === cleanProductName;
                       const isAvailable = getProductAvailability ? getProductAvailability(product) : true;
-                      
-                      // Debug logging
-                      console.log('DEBUG ConditionDetails product card:', {
-                        product,
-                        cleanProductName,
-                        isAvailable,
-                        hasGetProductAvailability: !!getProductAvailability
-                      });
-                      
+
                       return (
                       <div 
                         key={product}

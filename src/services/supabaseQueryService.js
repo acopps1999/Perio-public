@@ -15,16 +15,13 @@ export class SupabaseQueryService {
    * Main entry point - processes natural language questions using query builder
    */
   async processQuestion(userQuestion) {
-    console.log('🗄️ SUPABASE: Processing question:', userQuestion);
 
     try {
       // Analyze intent and extract entities
       const analysis = this.analyzeIntent(userQuestion);
-      console.log('🗄️ SUPABASE: Analysis:', analysis);
 
       // Execute appropriate queries based on intent
       const results = await this.executeQueries(analysis);
-      console.log('🗄️ SUPABASE: Query results:', results);
 
       // Format response
       const response = this.formatResponse(userQuestion, results, analysis);
@@ -201,8 +198,6 @@ export class SupabaseQueryService {
       }
     }
 
-    console.log('🔍 Dynamic search terms extracted:', analysis.searchTerms);
-    console.log('🎯 Primary condition identified:', analysis.entities.condition);
 
     // Determine specificity level
     if (analysis.entities.severity && analysis.entities.patientType) {
@@ -350,7 +345,6 @@ export class SupabaseQueryService {
 
   async findProductsByAvailability(isAvailable) {
     try {
-      console.log(`🔍 AVAILABILITY: Searching for ${isAvailable ? 'available' : 'unavailable'} products`);
       
       const { data: products, error } = await supabase
         .from('products')
@@ -371,7 +365,6 @@ export class SupabaseQueryService {
         return [];
       }
 
-      console.log(`✅ AVAILABILITY: Found ${products?.length || 0} ${isAvailable ? 'available' : 'unavailable'} products`);
       
       return (products || []).map(product => ({
         ...product,
@@ -431,7 +424,6 @@ export class SupabaseQueryService {
 
   async getProductRecommendations(analysis) {
     try {
-      console.log('🎯 SUPABASE: Getting product recommendations for:', analysis);
 
       // Start with phase-specific product usage if we have phase/severity info
       if (analysis.entities.phase || analysis.entities.severity || analysis.entities.patientType) {
@@ -616,7 +608,6 @@ export class SupabaseQueryService {
     try {
       if (!analysis.searchTerms.length) return [];
 
-      console.log('📝 Searching product details with terms:', analysis.searchTerms);
 
       const primaryTerm = analysis.entities.condition || analysis.searchTerms[0];
 
@@ -686,7 +677,6 @@ export class SupabaseQueryService {
         ...(rationaleResults2.data || [])
       ];
 
-      console.log('📝 Found', allResults.length, 'product detail matches');
 
       return allResults
         .filter(result => result.products)
@@ -712,13 +702,11 @@ export class SupabaseQueryService {
 
   async findProducts(analysis) {
     try {
-      console.log('🗄️ SUPABASE: Finding products for:', analysis.searchTerms);
 
       let allProducts = [];
 
       // Search products directly by name using ALL search terms
       if (analysis.searchTerms.length > 0) {
-        console.log('🔍 Searching products directly with terms:', analysis.searchTerms);
         
                       // Use the primary search term only to avoid complex OR queries
         const primaryTerm = analysis.entities.condition || analysis.searchTerms[0];
@@ -741,7 +729,6 @@ export class SupabaseQueryService {
           .limit(this.maxResults);
 
                   if (!directError && directProducts) {
-            console.log('🔍 Found', directProducts.length, 'direct product matches');
             const enhancedProducts = directProducts.map(product => ({
               ...product,
               match_reason: 'Direct product name match',
@@ -770,7 +757,6 @@ export class SupabaseQueryService {
 
       // Prioritize products based on evidence strength for the specific condition
       const prioritizedProducts = this.prioritizeProductsByEvidence(uniqueProducts, analysis);
-      console.log('🗄️ SUPABASE: Found', prioritizedProducts.length, 'products');
       return prioritizedProducts;
 
     } catch (error) {
@@ -843,7 +829,6 @@ export class SupabaseQueryService {
     try {
       if (!analysis.searchTerms.length) return [];
 
-      console.log('🔍 Searching procedures with terms:', analysis.searchTerms);
 
       // Use the primary search term without URL encoding (Supabase handles this)
       const primaryTerm = analysis.entities.condition || analysis.searchTerms[0];
@@ -894,7 +879,6 @@ export class SupabaseQueryService {
                categoryName.includes(searchTerm);
       });
 
-      console.log('🔍 Found', allResults.length, 'procedure-product matches');
 
       return allResults
         .filter(result => result.products)
@@ -918,7 +902,6 @@ export class SupabaseQueryService {
     try {
       if (!analysis.searchTerms.length) return [];
 
-      console.log('📚 Searching research with terms:', analysis.searchTerms);
 
       // Use simpler search for primary condition
       const primaryTerm = analysis.entities.condition || analysis.searchTerms[0];
@@ -950,7 +933,6 @@ export class SupabaseQueryService {
         return [];
       }
 
-      console.log('📚 Found', researchResults?.length || 0, 'research-product matches');
 
       return (researchResults || [])
         .filter(result => result.products)
@@ -970,7 +952,6 @@ export class SupabaseQueryService {
 
   async findProcedures(analysis) {
     try {
-      console.log('🗄️ SUPABASE: Finding procedures for:', analysis.searchTerms);
 
       let query = supabase
         .from('procedures')
@@ -998,7 +979,6 @@ export class SupabaseQueryService {
         return [];
       }
 
-      console.log('🗄️ SUPABASE: Found', (data || []).length, 'procedures');
       return data || [];
 
     } catch (error) {
@@ -1009,7 +989,6 @@ export class SupabaseQueryService {
 
   async findResearch(analysis) {
     try {
-      console.log('🗄️ SUPABASE: Finding research for:', analysis.searchTerms);
 
       // The actual table is condition_product_research_articles
       let query = supabase
@@ -1041,7 +1020,6 @@ export class SupabaseQueryService {
         return [];
       }
 
-      console.log('🗄️ SUPABASE: Found', (data || []).length, 'research articles');
       return data || [];
 
     } catch (error) {
@@ -1052,7 +1030,6 @@ export class SupabaseQueryService {
 
   async findEvidence(analysis) {
     try {
-      console.log('🗄️ SUPABASE: Finding evidence for:', analysis.searchTerms);
 
       let query = supabase
         .from('product_details')
@@ -1081,7 +1058,6 @@ export class SupabaseQueryService {
         return [];
       }
 
-      console.log('🗄️ SUPABASE: Found', (data || []).length, 'evidence records');
       return data || [];
 
     } catch (error) {

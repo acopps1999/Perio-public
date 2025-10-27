@@ -1,21 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
+import { useOptimisticUpdate } from '../../hooks/useOptimisticUpdate';
+import { useDebouncedCallback } from '../../hooks/useDebounce';
+import { useToast } from './Toast';
 import {
   loadConditionsFromSupabase,
   loadCategoriesFromSupabase,
   loadDdsTypesFromSupabase,
   loadProductsFromSupabase,
   updateProductAvailabilityInSupabase,
-  syncCategoriesWithSupabase,
-  syncDdsTypesWithSupabase,
-  syncProductsWithSupabase,
-  syncPhasesWithSupabase,
-  addConditionToSupabase,
-  updateConditionInSupabase,
-  deleteConditionFromSupabase,
-  getEntityIdMaps,
   invalidateConditionsCache,
-  verifyDataIntegrity
+  updateConditionFieldRealtime,
+  addPhaseToConditionRealtime,
+  removePhaseFromConditionRealtime,
+  addProductToPatientTypeRealtime,
+  removeProductFromPatientTypeRealtime,
+  updateProductDetailRealtime,
+  addCategoryRealtime,
+  deleteCategoryRealtime,
+  addDdsTypeRealtime,
+  deleteDdsTypeRealtime,
+  addProductRealtime,
+  renameProductRealtime,
+  deleteProductRealtime,
+  addConditionToSupabase,
+  deleteConditionFromSupabase,
+  getEntityIdMaps
 } from './AdminPanelSupabase';
 
 function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
@@ -23,20 +33,18 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false); // Prevent duplicate loading
   const [isLoading, setIsLoading] = useState(true); // Track loading state for UI
   const hasInitialized = useRef(false); // Prevent duplicate initialization on the same component instance
-  const [initialConditions, setInitialConditions] = useState([]); // For diffing
-  const [editedConditions, setEditedConditions] = useState([]);
+  const [conditions, setConditions] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null); // Stores the *original* name of the product being edited
   const [selectedResearchProduct, setSelectedResearchProduct] = useState(null);
   const [categories, setCategories] = useState([]);
   const [ddsTypes, setDdsTypes] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
-  const [productRenames, setProductRenames] = useState([]); // To track {oldName, newName}
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [conditionsToDelete, setConditionsToDelete] = useState([]);
-  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Toast and optimistic update hooks
+  const { showToast, ToastContainer } = useToast();
+  const { executeUpdate, saveStatus } = useOptimisticUpdate(showToast);
   
   // Patient-specific products configuration
   const [patientTypes, setPatientTypes] = useState([]); // To hold [{id, name}, ...] from DB
@@ -62,20 +70,16 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const loadInitialData = useCallback(async (forceRefresh = false) => {
     // Prevent duplicate loading unless explicitly forced
     if (hasLoadedInitialData && !forceRefresh) {
-      console.log("PERFORMANCE_ADMIN: AdminPanel data already loaded, skipping duplicate load.");
       setIsLoading(false);
       return;
     }
     
-    console.log("PERFORMANCE_ADMIN: AdminPanel loading data...");
     setIsLoading(true);
     
     try {
       // Load conditions from Supabase (use cache when possible)
       const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
-      const deepClonedConditions = JSON.parse(JSON.stringify(supabaseConditions || []));
-      setInitialConditions(deepClonedConditions);
-      setEditedConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
+      setConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
       
       // Auto-select the first condition
       if (supabaseConditions.length > 0) {
@@ -98,18 +102,18 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       // Load dynamic patient types
       const { data: ptData, error: ptError } = await supabase.from('patient_types').select('id, name').order('name');
       if (ptError) {
+        // TODO: Replace with proper error tracking (e.g., Sentry)
         console.error("Failed to load patient types", ptError);
         setPatientTypes([]);
       } else {
         setPatientTypes(ptData);
       }
-      
-      setIsEditing(false); // Reset editing state after a full load
+
       setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
       setIsLoading(false); // Data loaded successfully
-      console.log("PERFORMANCE_ADMIN: AdminPanel data fetch completed.");
     } catch (error) {
-      console.error("PERFORMANCE_ADMIN: Error loading data:", error);
+      // TODO: Replace with proper error tracking (e.g., Sentry)
+      console.error("Error loading data:", error);
       setHasLoadedInitialData(true); // Still mark as loaded to prevent infinite retries
       setIsLoading(false); // Stop loading even on error
     }
@@ -121,19 +125,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       hasInitialized.current = true;
       loadInitialData();
     }
-    
-    // Expose data integrity check for debugging (development only)
-    if (process.env.NODE_ENV === 'development') {
-      window.verifyDataIntegrity = verifyDataIntegrity;
-      console.log('DEBUG: Data integrity verification available via window.verifyDataIntegrity()');
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if (process.env.NODE_ENV === 'development') {
-        delete window.verifyDataIntegrity;
-      }
-    };
   }, [loadInitialData]); // Include loadInitialData dependency
 
   // Initialize patient-specific products for a condition
@@ -201,284 +192,36 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
 
   // Handle product availability toggle
   const handleProductAvailabilityToggle = async (productId, isAvailable) => {
-    try {
-      const result = await updateProductAvailabilityInSupabase(productId, isAvailable);
-      
-      if (result.success) {
-        // Update local state immediately for UI feedback
-        setAllProducts(prev => 
-          prev.map(p => 
-            p.id === productId 
+    const operationId = `product-availability-${productId}`;
+
+    await executeUpdate(
+      operationId,
+      // Optimistic update
+      () => {
+        const oldProducts = [...allProducts];
+
+        setAllProducts(prev =>
+          prev.map(p =>
+            p.id === productId
               ? { ...p, is_available: isAvailable }
               : p
           ).sort((a, b) => a.name.localeCompare(b.name))
         );
-        console.log('Product availability updated successfully');
-      } else {
-        console.error('Failed to update product availability:', result.error);
-        alert('Failed to update product availability. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error updating product availability:', error);
-      alert('Failed to update product availability. Please try again.');
-    }
-  };
 
-  // Save all changes
-  const handleSaveChanges = async () => {
-    console.log('PERFORMANCE_SAVE: Starting optimized save to Supabase...');
-    const saveStartTime = performance.now();
-    setIsSaving(true);
-    let overallSuccess = true;
-    let finalError = null;
-
-    try {
-      // Step 0: Apply the patient-specific product configurations from the UI state
-      // back to the `editedConditions` array before we start the save process.
-      applyPatientSpecificProductsToCondition();
-      
-      // Pre-save validation
-      const validationErrors = [];
-      
-      // Check for duplicate condition names in the edited list
-      const conditionNames = editedConditions.map(c => c.name.trim().toLowerCase());
-      const duplicateNames = conditionNames.filter((name, index) => conditionNames.indexOf(name) !== index);
-      if (duplicateNames.length > 0) {
-        validationErrors.push(`Duplicate condition names detected: ${[...new Set(duplicateNames)].join(', ')}`);
-      }
-      
-      // Check for empty condition names
-      const emptyNames = editedConditions.filter(c => !c.name || c.name.trim() === '');
-      if (emptyNames.length > 0) {
-        validationErrors.push(`${emptyNames.length} condition(s) have empty names`);
-      }
-      
-      if (validationErrors.length > 0) {
-        const errorMessage = `Cannot save due to validation errors:\n• ${validationErrors.join('\n• ')}`;
-        console.error('VALIDATION: Save blocked due to validation errors:', validationErrors);
-        alert(errorMessage);
-        setIsSaving(false);
-        return;
-      }
-
-      // Step 1: Sync all lookup tables in parallel (Categories, DDS, Products, Phases)
-      console.log('PERFORMANCE_SAVE: Syncing all lookup tables in parallel...');
-      const allPhaseNames = new Set(editedConditions.flatMap(c => c.phases || []));
-      
-      await Promise.all([
-        syncCategoriesWithSupabase(categories),
-        syncDdsTypesWithSupabase(ddsTypes),
-        syncProductsWithSupabase(allProducts.map(p => p.name), productRenames),
-        syncPhasesWithSupabase(allPhaseNames)
-      ]);
-      
-      setProductRenames([]); // Clear renames after they are processed
-      console.log('PERFORMANCE_SAVE: All lookup tables synced in parallel.');
-
-      // Step 2: Get fresh ID maps AFTER syncing everything.
-      console.log('SAVE_CHANGES: Fetching latest entity ID maps post-sync...');
-      const entityIdMaps = await getEntityIdMaps();
-      if (!entityIdMaps.categoryNameToId || !entityIdMaps.productNameToId || !entityIdMaps.phaseNameToId || !entityIdMaps.ddsTypeNameToId || !entityIdMaps.patientTypeNameToIdMap) {
-          console.error("SAVE_CHANGES: Failed to fetch critical ID maps after sync. Aborting save.");
-          setIsSaving(false);
-          // Show error to user
-          return;
-      }
-      console.log('SAVE_CHANGES: Entity ID maps fetched successfully.');
-
-      // Step 3: Process DELETED conditions
-      const conditionsToDeleteCopy = [...conditionsToDelete];
-      setConditionsToDelete([]); // Clear immediately
-      let totalDeletionStats = { totalRecordsDeleted: 0, conditionsDeleted: 0 };
-      
-      for (const condIdToDelete of conditionsToDeleteCopy) {
-        console.log(`SAVE_CHANGES: Deleting condition with ID: ${condIdToDelete}`);
-        const deleteResult = await deleteConditionFromSupabase(condIdToDelete);
-        
-        if (!deleteResult.success) {
-            overallSuccess = false;
-            finalError = deleteResult.error;
-            console.error(`SAVE_CHANGES: Failed to delete condition ${condIdToDelete}:`, deleteResult.error);
-            if (deleteResult.warnings && deleteResult.warnings.length > 0) {
-              console.warn(`SAVE_CHANGES: Deletion warnings for condition ${condIdToDelete}:`, deleteResult.warnings);
-            }
-        } else {
-            totalDeletionStats.conditionsDeleted += 1;
-            totalDeletionStats.totalRecordsDeleted += deleteResult.totalRecordsDeleted || 0;
-            console.log(`SAVE_CHANGES: ✅ Successfully deleted condition "${deleteResult.data?.name || condIdToDelete}"`);
-            console.log(`SAVE_CHANGES: 📊 Deletion details:`, deleteResult.deletionStats);
-            
-            if (deleteResult.warnings && deleteResult.warnings.length > 0) {
-              console.warn(`SAVE_CHANGES: Deletion completed with warnings:`, deleteResult.warnings);
-            }
-        }
-      }
-      
-      if (conditionsToDeleteCopy.length > 0) {
-        console.log(`SAVE_CHANGES: 🗑️ Deletion Summary: ${totalDeletionStats.conditionsDeleted} conditions deleted, ${totalDeletionStats.totalRecordsDeleted} total records removed from database`);
-      }
-
-      // Step 4: Determine ADDED and UPDATED conditions from the single source of truth: `editedConditions`
-      const conditionsToUpdate = [];
-      const conditionsToAdd = [];
-      const initialConditionsMap = new Map(initialConditions.map(c => [c.db_id, c]));
-
-      for (const editedCond of editedConditions) {
-        if (editedCond.db_id) { // Existing condition
-          const originalCond = initialConditionsMap.get(editedCond.db_id);
-          if (originalCond) {
-            const originalStr = JSON.stringify(originalCond);
-            const editedStr = JSON.stringify(editedCond);
-            
-            if (originalStr !== editedStr) {
-              console.log(`CHANGE_DETECTION: Condition "${editedCond.name}" has changes detected.`);
-              console.log('Original patientSpecificConfig:', JSON.stringify(originalCond.patientSpecificConfig, null, 2));
-              console.log('Edited patientSpecificConfig:', JSON.stringify(editedCond.patientSpecificConfig, null, 2));
-              conditionsToUpdate.push(editedCond);
-            } else {
-              console.log(`CHANGE_DETECTION: No changes detected for condition "${editedCond.name}".`);
-            }
-          }
-        } else { // New condition
-          conditionsToAdd.push(editedCond);
-        }
-      }
-      console.log('SAVE_CHANGES: Conditions to add:', conditionsToAdd.map(c => c.name));
-      console.log('SAVE_CHANGES: Conditions to update:', conditionsToUpdate.map(c => c.name));
-      
-      // Step 5: Process ADDED new conditions
-      for (const condToAdd of conditionsToAdd) {
-        console.log(`SAVE_CHANGES: Adding new condition: ${condToAdd.name}`);
-        const addResult = await addConditionToSupabase(condToAdd, entityIdMaps);
-         if (!addResult.success) {
-          overallSuccess = false;
-          finalError = addResult.error;
-          
-          // Provide specific error handling for duplicate names
-          if (addResult.error?.code === 'DUPLICATE_NAME') {
-            console.error(`SAVE_CHANGES: ❌ Duplicate condition name "${condToAdd.name}": ${addResult.error.message}`);
-            alert(`Cannot save: ${addResult.error.message}`);
-          } else {
-            console.error(`SAVE_CHANGES: Failed to add condition ${condToAdd.name}:`, addResult.error);
-          }
-        } else {
-          console.log(`SAVE_CHANGES: ✅ Successfully added condition "${condToAdd.name}"`);
-        }
-      }
-
-      // Step 6: Process UPDATED existing conditions
-      for (const condToUpdate of conditionsToUpdate) {
-        console.log(`SAVE_CHANGES: Updating condition: ${condToUpdate.name}`);
-        const updateResult = await updateConditionInSupabase(condToUpdate, entityIdMaps);
-        if (!updateResult.success) {
-          overallSuccess = false;
-          finalError = updateResult.error;
-          console.error(`SAVE_CHANGES: Failed to update condition ${condToUpdate.name}:`, updateResult.error);
-        }
-      }
-
-      // Step 7: Finalize and reload
-      if (overallSuccess) {
-        const saveEndTime = performance.now();
-        console.log(`PERFORMANCE_SAVE: All operations successful in ${Math.round(saveEndTime - saveStartTime)}ms`);
-        console.log('PERFORMANCE_SAVE: Reloading data and notifying parent...');
-        
-        // Invalidate cache and notify parent to reload
-        invalidateConditionsCache();
-        
-        // Only notify parent to reload - AdminPanel will get fresh data when parent refreshes
-        console.log('PERFORMANCE_SAVE: Notifying parent to reload data...');
-        await Promise.resolve(onSaveChangesSuccess());
-        
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-      } else {
-        console.error('PERFORMANCE_SAVE: One or more operations failed.', finalError);
-        // Reload AdminPanel data to reflect current DB state on partial failure
-        await loadInitialData(true);
-      }
-
-    } catch (error) {
-      console.error('PERFORMANCE_SAVE: Critical error during save process:', error);
-      overallSuccess = false;
-      // Reload AdminPanel data to reflect current DB state on error
-      await loadInitialData(true);
-    } finally {
-      setIsSaving(false);
-      const totalTime = performance.now() - saveStartTime;
-      console.log(`PERFORMANCE_SAVE: Total save process completed in ${Math.round(totalTime)}ms`);
-    }
-  };
-  
-  const applyPatientSpecificProductsToCondition = () => {
-    if (!selectedCondition || !patientSpecificProducts) {
-      console.log("APPLY_CONFIG: Skipping - no selected condition or patient specific products");
-      console.log("APPLY_CONFIG: selectedCondition exists:", !!selectedCondition);
-      console.log("APPLY_CONFIG: patientSpecificProducts exists:", !!patientSpecificProducts);
-      return;
-    }
-    
-    console.log("APPLY_CONFIG: Applying patient-specific products to condition:", selectedCondition.name);
-    console.log("APPLY_CONFIG: Current patientSpecificProducts:", JSON.stringify(patientSpecificProducts, null, 2));
-    
-    // Check if patientSpecificProducts is empty
-    const hasAnyProducts = Object.keys(patientSpecificProducts).some(phase => 
-      Object.keys(patientSpecificProducts[phase] || {}).some(ptName => 
-        ptName !== 'all' && Array.isArray(patientSpecificProducts[phase][ptName]) && 
-        patientSpecificProducts[phase][ptName].length > 0
-      )
+        // Rollback function
+        return () => {
+          setAllProducts(oldProducts);
+        };
+      },
+      // Database update
+      async () => {
+        return await updateProductAvailabilityInSupabase(productId, isAvailable);
+      },
+      null, // No success message
+      'Failed to update product availability'
     );
-    
-    if (!hasAnyProducts) {
-      console.warn("APPLY_CONFIG: ⚠️ Patient-specific products appear to be empty! This will clear all product recommendations.");
-      console.warn("APPLY_CONFIG: This might be due to UI state not being properly initialized.");
-    }
-    
-    // This helper updates the `editedConditions` array, which is the single source of truth.
-    setEditedConditions(prevConditions =>
-      prevConditions.map(cond => {
-        if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-          // The patientSpecificProducts state has a `all` key for the UI which we must omit before saving.
-          const configToSave = {};
-          Object.keys(patientSpecificProducts).forEach(phase => {
-            configToSave[phase] = {};
-            Object.keys(patientSpecificProducts[phase]).forEach(ptName => {
-              if (ptName !== 'all') { // Exclude the 'all' property
-                configToSave[phase][ptName] = patientSpecificProducts[phase][ptName];
-              }
-            });
-          });
-          
-          console.log("APPLY_CONFIG: Config to save:", JSON.stringify(configToSave, null, 2));
-          
-          // Safety check: If configToSave is completely empty but the original condition had data,
-          // preserve the original data instead of clearing it
-          const hasNewData = Object.keys(configToSave).some(phase => 
-            Object.keys(configToSave[phase] || {}).some(ptName => 
-              Array.isArray(configToSave[phase][ptName]) && configToSave[phase][ptName].length > 0
-            )
-          );
-          
-          const hadOriginalData = cond.patientSpecificConfig && Object.keys(cond.patientSpecificConfig).some(phase => 
-            Object.keys(cond.patientSpecificConfig[phase] || {}).some(ptName => 
-              Array.isArray(cond.patientSpecificConfig[phase][ptName]) && cond.patientSpecificConfig[phase][ptName].length > 0
-            )
-          );
-          
-          if (!hasNewData && hadOriginalData) {
-            console.warn("APPLY_CONFIG: ⚠️ Preventing accidental clearing of patient-specific config. Preserving original data.");
-            console.warn("APPLY_CONFIG: This might indicate a UI state synchronization issue.");
-            return cond; // Return unchanged condition
-          }
-          
-          // Return a new condition object with the updated config
-          return { ...cond, patientSpecificConfig: configToSave };
-        }
-        return cond;
-      })
-    );
-    console.log("APPLY_CONFIG: Synced patient-specific product config to the main editedConditions state for saving.");
   };
+
 
   // Get all products that should be shown in Product Details (both saved and newly added)
   const getAllProductsForCondition = (condition) => {
@@ -517,24 +260,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     return allProducts;
   };
   
-  // Reset changes
-  const handleResetChanges = () => {
-    const deepClonedInitial = JSON.parse(JSON.stringify(initialConditions));
-    setEditedConditions(deepClonedInitial);
-    
-    // Find the currently selected condition in the newly reset list
-    const newSelectedCond = selectedCondition 
-      ? deepClonedInitial.find(c => c.db_id ? c.db_id === selectedCondition.db_id : c.name === selectedCondition.name)
-      : deepClonedInitial[0] || null;
-
-    setSelectedCondition(newSelectedCond);
-    setIsEditing(false);
-    setProductRenames([]); // Clear pending renames on reset
-    setConditionsToDelete([]); // Clear pending deletes
-    
-    // The useEffect for selectedCondition will re-initialize patient-specific products
-  };
-  
   // Handle condition selection
   const handleConditionSelect = (condition) => {
     setSelectedCondition(condition);
@@ -542,27 +267,77 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     initializePatientSpecificProducts(condition);
   };
   
-  // Update condition field
-  const updateConditionField = (conditionId, field, value) => {
-    setIsEditing(true);
-    setEditedConditions(prev => 
-      prev.map(condition => 
-        condition.name === conditionId
-          ? { ...condition, [field]: value }
-          : condition
-      )
+  // Update condition field with real-time save (debounced for text fields)
+  const updateConditionFieldDebounced = useDebouncedCallback(async (db_id, field, value) => {
+    const operationId = `condition-${db_id}-${field}`;
+
+    await executeUpdate(
+      operationId,
+      // Optimistic update
+      () => {
+        const oldConditions = [...conditions];
+        setConditions(prev => prev.map(c =>
+          c.db_id === db_id ? { ...c, [field]: value } : c
+        ));
+        if (selectedCondition?.db_id === db_id) {
+          setSelectedCondition(prev => ({ ...prev, [field]: value }));
+        }
+        // Rollback function
+        return () => {
+          setConditions(oldConditions);
+          if (selectedCondition?.db_id === db_id) {
+            const original = oldConditions.find(c => c.db_id === db_id);
+            if (original) setSelectedCondition(original);
+          }
+        };
+      },
+      // Database update
+      () => updateConditionFieldRealtime(db_id, field, value),
+      null,
+      `Failed to update ${field}`
     );
-    
-    // Update selected condition if it's the one being edited
-    if (selectedCondition && selectedCondition.name === conditionId) {
-      setSelectedCondition(prev => ({ ...prev, [field]: value }));
+  }, 500); // 500ms debounce
+
+  // Wrapper for immediate updates (non-text fields)
+  const updateConditionField = (db_id, field, value) => {
+    if (field === 'name' || field === 'description') {
+      // Debounced for text inputs
+      updateConditionFieldDebounced(db_id, field, value);
+    } else {
+      // Immediate for dropdowns/selects
+      const operationId = `condition-${db_id}-${field}`;
+
+      // Map database field names to local state field names
+      const localField = field === 'category_id' ? 'category' : field;
+
+      executeUpdate(
+        operationId,
+        () => {
+          const oldConditions = [...conditions];
+          setConditions(prev => prev.map(c =>
+            c.db_id === db_id ? { ...c, [localField]: value } : c
+          ));
+          if (selectedCondition?.db_id === db_id) {
+            setSelectedCondition(prev => ({ ...prev, [localField]: value }));
+          }
+          return () => {
+            setConditions(oldConditions);
+            if (selectedCondition?.db_id === db_id) {
+              const original = oldConditions.find(c => c.db_id === db_id);
+              if (original) setSelectedCondition(original);
+            }
+          };
+        },
+        () => updateConditionFieldRealtime(db_id, field, value),
+        null,
+        `Failed to update ${field}`
+      );
     }
   };
   
   // Update product details
   const updateProductDetail = (conditionId, productName, field, value, phase = null) => {
-    setIsEditing(true);
-    setEditedConditions(prev => 
+    setConditions(prev =>
       prev.map(condition => {
         if (condition.name === conditionId) {
           const updatedProductDetails = { ...condition.productDetails };
@@ -635,9 +410,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   const updatePatientSpecificConfigForSelectedCondition = (newConfig) => {
     if (!selectedCondition) return;
-    
-    // This helper updates the `editedConditions` array, which is the single source of truth.
-    setEditedConditions(prevConditions => 
+
+    // This helper updates the `conditions` array, which is the single source of truth.
+    setConditions(prevConditions =>
       prevConditions.map(cond => {
         if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
           // Return a new condition object with the updated config
@@ -650,8 +425,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   // Add product to specific patient type and phase
   const addProductToPatientType = (phase, patientType, productName) => {
-    setIsEditing(true);
-    
     setPatientSpecificProducts(prev => {
         const newConfig = JSON.parse(JSON.stringify(prev));
         
@@ -686,7 +459,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         }
         newConfig[phase].all = [...new Set(commonProducts)];
 
-        // Immediately update editedConditions to ensure proper change detection
+        // Immediately update conditions to ensure proper change detection
         if (selectedCondition) {
           const configToSave = {};
           Object.keys(newConfig).forEach(phaseName => {
@@ -698,7 +471,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
             });
           });
 
-          setEditedConditions(prevConditions =>
+          setConditions(prevConditions =>
             prevConditions.map(cond => {
               if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
                 return { ...cond, patientSpecificConfig: configToSave };
@@ -714,8 +487,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   // Remove product from specific patient type and phase
   const removeProductFromPatientType = (phase, patientType, productName) => {
-    setIsEditing(true);
-    
     setPatientSpecificProducts(prev => {
         const newConfig = JSON.parse(JSON.stringify(prev));
       
@@ -753,7 +524,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         }
         newConfig[phase].all = [...new Set(commonProducts)];
 
-        // Immediately update editedConditions to ensure proper change detection
+        // Immediately update conditions to ensure proper change detection
         if (selectedCondition) {
           const configToSave = {};
           Object.keys(newConfig).forEach(phaseName => {
@@ -765,7 +536,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
             });
           });
 
-          setEditedConditions(prevConditions =>
+          setConditions(prevConditions =>
             prevConditions.map(cond => {
               if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
                 return { ...cond, patientSpecificConfig: configToSave };
@@ -825,29 +596,30 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   // Submit new item from modal
   const handleSubmitNewItem = async () => {
-    setIsEditing(true); // General editing flag, might need refinement
+    console.log('handleSubmitNewItem called, modalType:', modalType, 'newItemData:', newItemData);
     const itemName = newItemData.name ? newItemData.name.trim() : '';
 
     if (!itemName) {
+      console.log('No item name provided, closing modal');
       setShowAddModal(false);
       setNewItemData({});
       setEditingProductId(null);
-      return; 
+      return;
     }
-    
+
     let success = false;
 
     if (modalType === 'product') {
+      console.log('Product modalType detected, editingProductId:', editingProductId);
       const productName = itemName;
       if (editingProductId) { // Editing existing product (rename)
         if (editingProductId !== productName) {
-          console.log(`SUBMIT_NEW_ITEM: Staging rename of product ${editingProductId} to ${productName}`);
-          // Instead of immediate Supabase call, stage the rename
-          setProductRenames(prev => [...prev, { oldName: editingProductId, newName: productName }]);
+          // Call real-time rename function
+          await renameProductRealtime(editingProductId, productName);
           // Update allProducts list locally for immediate UI feedback
           setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: productName } : p).sort((a, b) => a.name.localeCompare(b.name)));
-          // Update editedConditions to reflect the rename
-          setEditedConditions(prevConditions =>
+          // Update conditions to reflect the rename
+          setConditions(prevConditions =>
             prevConditions.map(condition => {
                 const updatedProductsInPhases = { ...condition.products };
                 Object.keys(updatedProductsInPhases).forEach(phase => {
@@ -881,17 +653,27 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           success = true; 
         }
       } else { // Adding new product
-        console.log(`SUBMIT_NEW_ITEM: Staging addition of new product ${productName}`);
-        // Instead of immediate Supabase call, add to local list
-        if (!allProducts.some(p => p.name === productName)) {
-          setAllProducts(prev => [...prev, { name: productName, is_available: true }].sort((a, b) => a.name.localeCompare(b.name)));
-        }
+        // Add product to database
+        console.log('Calling addProductRealtime with productName:', productName);
+        const result = await addProductRealtime(productName);
+        console.log('addProductRealtime result:', result);
+        if (result.success && result.data) {
+          // Add to local state with id from database
+          if (!allProducts.some(p => p.name === productName)) {
+            setAllProducts(prev => [...prev, { id: result.data.id, name: productName, is_available: true }].sort((a, b) => a.name.localeCompare(b.name)));
+          }
+          showToast('Product added successfully', 'success');
           success = true;
+        } else {
+          const errorMsg = result.error?.message || 'Failed to add product';
+          console.log('Product add failed, error:', errorMsg);
+          showToast(errorMsg, 'error');
+          success = false;
         }
+      }
 
   } else if (modalType === 'condition') {
-    // This is now handled by handleSaveChanges
-    console.log(`SUBMIT_NEW_ITEM: Staging new condition for addition: ${itemName}`);
+    // Add new condition to database
     const newConditionObject = {
         name: itemName,
         category: newItemData.category || (categories.length > 0 ? categories[0] : ''),
@@ -906,19 +688,30 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         scientificRationale: newItemData.scientificRationale || '',
         clinicalEvidence: newItemData.clinicalEvidence || '',
         handlingObjections: newItemData.handlingObjections || '',
-        // No db_id, which marks it as new
       };
-    setEditedConditions(prev => [...prev, newConditionObject]);
+
+    // Get entity ID mappings and save to database
+    const entityIdMaps = await getEntityIdMaps();
+    const result = await addConditionToSupabase(newConditionObject, entityIdMaps);
+    if (result.success && result.data) {
+      // Add to local state with db_id from database
+      const savedCondition = { ...newConditionObject, db_id: result.data.db_id };
+      setConditions(prev => [...prev, savedCondition]);
+      invalidateConditionsCache();
+      showToast('Condition added successfully', 'success');
       success = true;
+    } else {
+      const errorMsg = result.error?.message || 'Failed to add condition';
+      showToast(errorMsg, 'error');
+      success = false;
+    }
 
   } else if (modalType === 'category') {
-    console.log(`SUBMIT_NEW_ITEM: Staging addition of new category ${itemName}`);
     if (!categories.includes(itemName)) {
       setCategories(prev => [...prev, itemName].sort());
     }
     success = true;
   } else if (modalType === 'ddsType') {
-    console.log(`SUBMIT_NEW_ITEM: Staging addition of new DDS Type ${itemName}`);
     if (!ddsTypes.includes(itemName)) {
       setDdsTypes(prev => [...prev, itemName].sort());
     }
@@ -932,8 +725,8 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         // If a product was renamed, update allProducts list locally for immediate UI feedback
         // The full reload from loadInitialData will solidify this.
         setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: itemName } : p).sort((a, b) => a.name.localeCompare(b.name)));
-        // Also update editedConditions to reflect the rename in product lists and details
-        setEditedConditions(prevConditions =>
+        // Also update conditions to reflect the rename in product lists and details
+        setConditions(prevConditions =>
             prevConditions.map(condition => {
               const updatedProductsInPhases = { ...condition.products };
               Object.keys(updatedProductsInPhases).forEach(phase => {
@@ -969,11 +762,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setShowAddModal(false);
     setNewItemData({});
     setEditingProductId(null);
-    // setIsEditing(false); // Might reset too early if other edits are pending for conditions
   } else {
     // Handle failure (e.g., show error message to user)
     // Modal remains open for correction or explicit close
-    console.error("handleSubmitNewItem: An error occurred, item not saved/added.");
   }
 };
   
@@ -986,88 +777,81 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   // Handle delete
   const handleDelete = async () => {
     if (isDeleting) return;
-  
+
     try {
-      setIsEditing(true);
       setIsDeleting(true);
-  const { type, item } = itemToDelete;
-  let success = false;
-  
-  if (type === 'condition') {
-    if (!item.db_id) {
-            console.log("DELETE: Staging deletion of a new, unsaved condition locally:", item.name);
-        setEditedConditions(prev => prev.filter(c => c.name !== item.name));
-        if (selectedCondition && selectedCondition.name === item.name) {
-                const remainingConditions = editedConditions.filter(c => c.name !== item.name);
-                setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
-            }
-            success = true;
+      const { type, item } = itemToDelete;
+      let success = false;
+
+      if (type === 'condition') {
+        // Delete condition from database
+        const conditionId = item.db_id;
+        if (!conditionId) {
+          showToast('Cannot delete condition without ID', 'error');
+          success = false;
         } else {
-            console.log(`DELETE: Staging deletion of condition "${item.name}" (ID: ${item.db_id}).`);
-            setConditionsToDelete(prev => {
-              if (prev.includes(item.db_id)) {
-                  return prev;
-              }
-              return [...prev, item.db_id];
-            });
-            setEditedConditions(prev => prev.filter(c => c.db_id !== item.db_id));
-            if (selectedCondition && selectedCondition.db_id === item.db_id) {
-                const remainingConditions = editedConditions.filter(c => c.db_id !== item.db_id);
-                setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
+          const result = await deleteConditionFromSupabase(conditionId);
+          if (result.success) {
+            // Remove from local state
+            setConditions(prev => prev.filter(c => c.db_id !== conditionId));
+            if (selectedCondition && selectedCondition.db_id === conditionId) {
+              const remainingConditions = conditions.filter(c => c.db_id !== conditionId);
+              setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
             }
-        success = true;
+            invalidateConditionsCache();
+            showToast('Condition deleted successfully', 'success');
+            success = true;
+          } else {
+            const errorMsg = result.error?.message || 'Failed to delete condition';
+            showToast(errorMsg, 'error');
+            success = false;
+          }
         }
       } else if (type === 'product') {
-        console.log(`DELETE: Staging deletion of product "${item}".`);
-        // Instead of immediate Supabase call, remove from local lists
+        // Remove from local lists
         setAllProducts(prev => prev.filter(p => p.name !== item));
-        // Clean up from local productRenames if any involve this product
-        setProductRenames(prevRenames => prevRenames.filter(r => r.oldName !== item && r.newName !== item));
         success = true;
-  } else if (type === 'category') {
-    if (item === 'All') { // 'All' category should not be deleted
-      setShowDeleteModal(false); setItemToDelete(null); return;
-    }
-        console.log(`DELETE: Staging deletion of category "${item}".`);
+      } else if (type === 'category') {
+        if (item === 'All') { // 'All' category should not be deleted
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+          setIsDeleting(false);
+          return;
+        }
         setCategories(prev => prev.filter(c => c !== item));
         // When a category is deleted, conditions using it should be updated to have no category.
-        setEditedConditions(prev => prev.map(cond => {
-            if (cond.category === item) {
-                return { ...cond, category: null }; // or a default category if that's preferred
-            }
-            return cond;
+        setConditions(prev => prev.map(cond => {
+          if (cond.category === item) {
+            return { ...cond, category: null };
+          }
+          return cond;
         }));
         success = true;
-  } else if (type === 'ddsType') {
-     if (item === 'All') { // 'All' DDS type should not be deleted
-      setShowDeleteModal(false); setItemToDelete(null); return;
-    }
-        console.log(`DELETE: Staging deletion of DDS Type "${item}".`);
+      } else if (type === 'ddsType') {
+        if (item === 'All') { // 'All' DDS type should not be deleted
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+          setIsDeleting(false);
+          return;
+        }
         setDdsTypes(prev => prev.filter(d => d !== item));
         // When a DDS Type is deleted, remove it from any conditions that use it.
-        setEditedConditions(prev => prev.map(cond => {
-            if (cond.dds.includes(item)) {
-                return { ...cond, dds: cond.dds.filter(d => d !== item) };
-            }
-            return cond;
+        setConditions(prev => prev.map(cond => {
+          if (cond.dds.includes(item)) {
+            return { ...cond, dds: cond.dds.filter(d => d !== item) };
+          }
+          return cond;
         }));
         success = true;
-  }
-  
-  if (success) {
-        // For local-only changes, we don't need to reload, just close the modal.
-        // The main save button will handle Supabase sync and subsequent reload.
-        // console.log("DELETE: Operation successful, reloading initial data.");
-        // await loadInitialData();
-  } else {
-    console.error("DELETE: An error occurred during deletion. Data might be out of sync.");
-  }
+      }
+    } catch (error) {
+      showToast(`Error deleting: ${error.message}`, 'error');
     } finally {
-  setShowDeleteModal(false);
-  setItemToDelete(null);
+      setShowDeleteModal(false);
+      setItemToDelete(null);
       setIsDeleting(false);
     }
-};
+  };
   
 
 
@@ -1078,9 +862,8 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setActiveTab,
     isLoading,
     setIsLoading,
-    initialConditions,
-    editedConditions,
-    setEditedConditions,
+    conditions,
+    setConditions,
     selectedCondition,
     setSelectedCondition,
     editingProductId,
@@ -1093,19 +876,14 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setDdsTypes,
     allProducts,
     setAllProducts,
-    productRenames,
-    setProductRenames,
-    isEditing,
-    setIsEditing,
-    isSaving,
-    setIsSaving,
     isDeleting,
     setIsDeleting,
-    conditionsToDelete,
-    setConditionsToDelete,
-    showSuccess,
-    setShowSuccess,
-    
+
+    // Real-time save status
+    saveStatus,
+    executeUpdate,
+    ToastContainer,
+
     // Patient-specific products
     patientTypes,
     setPatientTypes,
@@ -1113,7 +891,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setActivePatientType,
     patientSpecificProducts,
     setPatientSpecificProducts,
-    
+
     // Modal states
     showDeleteModal,
     setShowDeleteModal,
@@ -1125,7 +903,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setModalType,
     newItemData,
     setNewItemData,
-    
+
     // Competitive advantage modal state
     competitiveAdvantageModalOpen,
     setCompetitiveAdvantageModalOpen,
@@ -1133,15 +911,12 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setSelectedProductForAdvantage,
     competitiveAdvantageData,
     setCompetitiveAdvantageData,
-    
+
     // Handlers
     loadInitialData,
     handleEditProduct,
     handleProductAvailabilityToggle,
-    handleSaveChanges,
-    applyPatientSpecificProductsToCondition,
     getAllProductsForCondition,
-    handleResetChanges,
     handleConditionSelect,
     updateConditionField,
     updateProductDetail,
@@ -1156,10 +931,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     handleSubmitNewItem,
     confirmDelete,
     handleDelete,
-    
-    // Developer utilities
-    verifyDataIntegrity,
-    
+
     // Props from parent
     onSaveChangesSuccess,
     onClose
