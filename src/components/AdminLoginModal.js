@@ -29,6 +29,8 @@ function AdminLoginModal({ isOpen, onClose, onSuccess }) {
         onClose();
         if (onSuccess) {
           onSuccess();
+        } else {
+          console.warn('⚠️ AdminLoginModal: onSuccess callback not provided');
         }
       } else {
         setError(result.error || 'Invalid credentials');

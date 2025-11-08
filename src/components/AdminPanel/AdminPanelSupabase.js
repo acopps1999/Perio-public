@@ -1,4 +1,5 @@
 import { supabase } from '../../supabaseClient';
+import { loadProcedures, refreshProceduresView } from '../../services/database';
 
 // NEW Supabase helper for adding a single category
 const addCategoryToSupabase = async (categoryName) => {
@@ -31,15 +32,14 @@ const addCategoryToSupabase = async (categoryName) => {
         return { success: false, error: fetchCatError || 'Category not found' };
       }
       const categoryId = categoryData.id;
-  
-      // Find procedures using this category
+
       const { data: procedures, error: fetchProcsError } = await supabase
         .from('procedures')
         .select('id')
         .eq('category_id', categoryId);
   
       if (fetchProcsError) {
-        // Decide if to proceed or return error
+        console.error('Error fetching procedures for category:', fetchProcsError);
       }
   
       if (procedures && procedures.length > 0) {
@@ -98,15 +98,13 @@ const addCategoryToSupabase = async (categoryName) => {
         return { success: false, error: fetchDentistError || 'DDS Type not found' };
       }
       const dentistId = dentistData.id;
-  
-      // Remove relations from 'procedure_dentists'
+
       const { error: deleteRelationsError } = await supabase
           .from('procedure_dentists')
           .delete()
           .eq('dentist_id', dentistId);
       if (deleteRelationsError) {
-          // Depending on policy, might want to return error or just log and proceed
-      } else {
+          console.error('Error deleting procedure_dentists relations:', deleteRelationsError);
       }
   
       const { data, error } = await supabase
@@ -167,10 +165,8 @@ const addCategoryToSupabase = async (categoryName) => {
   
   const deleteProductFromSupabase = async (productName) => {
     try {
-      console.log('[deleteProductFromSupabase] Starting deletion for product:', productName);
 
       // Step 0: Get the product ID first
-      console.log('[deleteProductFromSupabase] Looking up product ID...');
       const { data: productData, error: productFetchError } = await supabase
         .from('products')
         .select('id')
@@ -188,10 +184,8 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       const productId = productData.id;
-      console.log('[deleteProductFromSupabase] Product ID:', productId);
 
       // Step 1: Delete from procedure_phase_products (uses product_id, not product_name)
-      console.log('[deleteProductFromSupabase] Deleting from procedure_phase_products...');
       const { error: pppError } = await supabase
         .from('procedure_phase_products')
         .delete()
@@ -203,7 +197,6 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 2: Delete from competitive_advantage_competitors (uses product_name)
-      console.log('[deleteProductFromSupabase] Deleting from competitive_advantage_competitors...');
       const { error: compError } = await supabase
         .from('competitive_advantage_competitors')
         .delete()
@@ -215,7 +208,6 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 3: Delete from competitive_advantage_active_ingredients (uses product_name)
-      console.log('[deleteProductFromSupabase] Deleting from competitive_advantage_active_ingredients...');
       const { error: ingError } = await supabase
         .from('competitive_advantage_active_ingredients')
         .delete()
@@ -227,7 +219,6 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 4: Finally delete the product itself
-      console.log('[deleteProductFromSupabase] Deleting product from products table...');
       const { data, error } = await supabase
         .from('products')
         .delete()
@@ -239,7 +230,7 @@ const addCategoryToSupabase = async (categoryName) => {
         return { success: false, error };
       }
 
-      console.log('[deleteProductFromSupabase] Product deleted successfully:', data);
+      await refreshProceduresView();
       invalidateConditionsCache();
       return { success: true, data };
     } catch (error) {
@@ -250,19 +241,25 @@ const addCategoryToSupabase = async (categoryName) => {
   
   const loadProductsFromSupabase = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, is_available')
-        .order('name');
-      
-      if (error) {
-        return { success: false, error };
+      // Use raw fetch to bypass broken Supabase client
+      const productsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/products?select=id,name,is_available&order=name.asc`;
+      const response = await fetch(productsUrl, {
+        headers: {
+          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+        }
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
       }
-      
-      return { success: true, data: data.map(p => ({ 
+
+      const data = await response.json();
+
+      return { success: true, data: data.map(p => ({
         id: p.id,
-        name: p.name, 
-        is_available: p.is_available !== null ? p.is_available : true 
+        name: p.name,
+        is_available: p.is_available !== null ? p.is_available : true
       })) };
     } catch (error) {
       // TODO: Replace with proper error tracking (e.g., Sentry)
@@ -335,6 +332,7 @@ const addCategoryToSupabase = async (categoryName) => {
         .select('id, name');
 
       if (error) {
+        console.error('🔴 buildPatientTypeMaps: Error:', error);
         return { nameToId: {}, idToName: {} };
       }
 
@@ -348,6 +346,7 @@ const addCategoryToSupabase = async (categoryName) => {
 
       return { nameToId, idToName };
     } catch (fetchError) {
+      console.error('🔴 buildPatientTypeMaps: Exception:', fetchError);
       // TODO: Replace with proper error tracking (e.g., Sentry)
       console.error('Exception fetching patient types:', fetchError);
       return { nameToId: {}, idToName: {} };
@@ -377,248 +376,13 @@ const addCategoryToSupabase = async (categoryName) => {
       return loadingPromise;
     }
 
-    const startTime = performance.now();
-
     // Create and store the loading promise
     loadingPromise = (async () => {
       try {
-        // Get patient type maps once
-        const { idToName: patientTypeIdToNameMap } = await buildPatientTypeMaps();
-      
-      // OPTIMIZATION: Fetch ALL data in parallel with a single query each
-      const [
-        proceduresResult,
-        procedurePhasesResult, 
-        procedureDentistsResult,
-        procedurePhaseProductsResult,
-        productDetailsResult,
-        phaseUsageResult,
-        researchResult
-      ] = await Promise.all([
-        // Get all procedures with categories
-        supabase
-          .from('procedures')
-          .select(`
-            id, name, category_id, pitch_points, patient_type, created_at, updated_at,
-            categories:category_id (name)
-          `),
-        
-        // Get all procedure phases with phase names
-        supabase
-          .from('procedure_phases')
-          .select('procedure_id, phase_id, phases:phase_id(id, name)'),
-        
-        // Get all procedure dentists
-        supabase
-          .from('procedure_dentists')
-          .select('procedure_id, dentists:dentist_id(name)'),
-        
-        // Get all procedure phase products
-        supabase
-          .from('procedure_phase_products')
-          .select(`
-            procedure_id, product_id, phase_id, patient_type_id,
-            products:product_id(name), phases:phase_id(name)
-          `),
-        
-        // Get all product details
-        supabase
-          .from('product_details')
-          .select(`
-            procedure_id, product_id, objection_handling, fact_sheet_url,
-            clinical_evidence, pitch_points, scientific_rationale, rationale,
-            products:product_id(name)
-          `),
-        
-        // Get all phase usage
-        supabase
-          .from('phase_specific_usage')
-          .select('procedure_id, product_id, instructions, phases:phase_id(name)'),
-        
-        // Get all research articles
-        supabase
-          .from('condition_product_research_articles')
-          .select('procedure_id, product_id, title, author, abstract, url')
-      ]);
+        // Use new database service to load procedures
+        // This replaces the old 7-query pattern with a cleaner implementation
+        const conditions = await loadProcedures();
 
-      // Check for errors
-      const errors = [
-        proceduresResult.error,
-        procedurePhasesResult.error,
-        procedureDentistsResult.error,
-        procedurePhaseProductsResult.error,
-        productDetailsResult.error,
-        phaseUsageResult.error,
-        researchResult.error
-      ].filter(Boolean);
-
-      if (errors.length > 0) {
-        return [];
-      }
-  
-      // Create lookup maps for fast access
-      const procedurePhaseMap = new Map();
-      const procedureDentistMap = new Map();
-      const procedurePhaseProductMap = new Map();
-      const productDetailsMap = new Map();
-      const phaseUsageMap = new Map();
-      const researchMap = new Map();
-  
-      // Build lookup maps
-      procedurePhasesResult.data?.forEach(item => {
-        if (!procedurePhaseMap.has(item.procedure_id)) {
-          procedurePhaseMap.set(item.procedure_id, []);
-        }
-        if (item.phases) {
-          procedurePhaseMap.get(item.procedure_id).push(item.phases.name);
-        }
-      });
-  
-      procedureDentistsResult.data?.forEach(item => {
-        if (!procedureDentistMap.has(item.procedure_id)) {
-          procedureDentistMap.set(item.procedure_id, []);
-        }
-        if (item.dentists) {
-          procedureDentistMap.get(item.procedure_id).push(item.dentists.name);
-        }
-      });
-  
-      procedurePhaseProductsResult.data?.forEach(item => {
-        if (!procedurePhaseProductMap.has(item.procedure_id)) {
-          procedurePhaseProductMap.set(item.procedure_id, []);
-        }
-        procedurePhaseProductMap.get(item.procedure_id).push(item);
-      });
-  
-      productDetailsResult.data?.forEach(item => {
-        if (!productDetailsMap.has(item.procedure_id)) {
-          productDetailsMap.set(item.procedure_id, []);
-        }
-        productDetailsMap.get(item.procedure_id).push(item);
-      });
-  
-      phaseUsageResult.data?.forEach(item => {
-        const key = `${item.procedure_id}-${item.product_id}`;
-        if (!phaseUsageMap.has(key)) {
-          phaseUsageMap.set(key, []);
-        }
-        phaseUsageMap.get(key).push(item);
-      });
-  
-      researchResult.data?.forEach(item => {
-        const key = `${item.procedure_id}-${item.product_id}`;
-        if (!researchMap.has(key)) {
-          researchMap.set(key, []);
-        }
-        researchMap.get(key).push(item);
-      });
-  
-      // Process all conditions
-      const conditions = [];
-      const allPatientTypeNames = Object.values(patientTypeIdToNameMap);
-  
-      for (const proc of proceduresResult.data || []) {
-        const condition = {
-          name: proc.name,
-          db_id: proc.id,
-          category: proc.categories?.name || null,
-          pitchPoints: proc.pitch_points || '',
-          patientType: proc.patient_type || '',
-          phases: procedurePhaseMap.get(proc.id) || [],
-          dds: procedureDentistMap.get(proc.id) || [],
-          products: {},
-          productDetails: {},
-          patientSpecificConfig: {},
-          conditionSpecificResearch: {},
-          scientificRationale: '',
-          clinicalEvidence: '',
-          handlingObjections: ''
-        };
-  
-        // Initialize patient specific config structure
-        condition.phases.forEach(phaseName => {
-          condition.patientSpecificConfig[phaseName] = {};
-          allPatientTypeNames.forEach(ptName => {
-            condition.patientSpecificConfig[phaseName][ptName] = [];
-          });
-        });
-  
-        // Process phase products
-        const phaseProducts = procedurePhaseProductMap.get(proc.id) || [];
-        phaseProducts.forEach(ppp_item => {
-          if (!ppp_item.phases?.name || !ppp_item.products?.name) return;
-  
-          const phaseName = ppp_item.phases.name;
-          const productName = ppp_item.products.name;
-          let patientTypeName = patientTypeIdToNameMap[ppp_item.patient_type_id];
-          
-          if (!patientTypeName && allPatientTypeNames.length > 0) {
-            patientTypeName = allPatientTypeNames[0];
-          }
-  
-          if (patientTypeName && condition.patientSpecificConfig[phaseName]) {
-            if (!condition.patientSpecificConfig[phaseName][patientTypeName].includes(productName)) {
-              condition.patientSpecificConfig[phaseName][patientTypeName].push(productName);
-            }
-          }
-        });
-  
-        // Process product details
-        const productDetails = productDetailsMap.get(proc.id) || [];
-        let firstProductDetailProcessed = false;
-        
-        for (const pdItem of productDetails) {
-          if (!pdItem.products?.name) continue;
-          
-          const productName = pdItem.products.name;
-          
-          // Set condition-level fields from first product
-          if (!firstProductDetailProcessed) {
-            condition.scientificRationale = pdItem.scientific_rationale || '';
-            condition.clinicalEvidence = pdItem.clinical_evidence || '';
-            condition.handlingObjections = pdItem.objection_handling || '';
-            firstProductDetailProcessed = true;
-          }
-  
-          // Process usage instructions
-          const usageKey = `${proc.id}-${pdItem.product_id}`;
-          const usageData = phaseUsageMap.get(usageKey) || [];
-          const usageInstructionsByPhase = {};
-          usageData.forEach(u => {
-            if (u.phases?.name) {
-              usageInstructionsByPhase[u.phases.name] = u.instructions;
-            }
-          });
-  
-          // Process research articles
-          const researchKey = `${proc.id}-${pdItem.product_id}`;
-          const researchArticles = researchMap.get(researchKey) || [];
-  
-          // Store product details
-          condition.productDetails[productName] = {
-            scientificRationale: pdItem.scientific_rationale || '',
-            clinicalEvidence: pdItem.clinical_evidence || '',
-            handlingObjections: pdItem.objection_handling || '',
-            pitchPoints: pdItem.pitch_points || '',
-            rationale: pdItem.rationale || '',
-            factSheetUrl: pdItem.fact_sheet_url || '',
-            usage: usageInstructionsByPhase,
-            researchArticles: researchArticles
-          };
-  
-          // Store condition-specific research
-          if (researchArticles.length > 0) {
-            condition.conditionSpecificResearch[productName] = researchArticles;
-          }
-        }
-  
-        // Add patient type names for filtering
-        const patientTypeIds = [...new Set(phaseProducts.map(p => p.patient_type_id).filter(Boolean))];
-        condition.patientTypeNames = patientTypeIds.map(id => patientTypeIdToNameMap[id]).filter(Boolean);
-  
-        conditions.push(condition);
-      }
-  
         // Cache the results
         conditionsCache = conditions;
         cacheTimestamp = Date.now();
@@ -806,23 +570,9 @@ const addCategoryToSupabase = async (categoryName) => {
       if (!await batchInsert('phase_specific_usage', usageRecords, `product ${productName} in procedure ${newProcedureId}`)) {
           // Rollback?
       }
-      
-      // Regular research articles are now managed separately from condition-specific research
-      // Removing duplicate save to prevent 4x saving issue
-      // const researchRecords = (details.researchArticles || []).map(article => ({
-      //     procedure_id: newProcedureId,
-      //     product_id: productId,
-      //     title: article.title,
-      //     author: article.author,
-      //     abstract: article.abstract,
-      //     url: article.url,
-      // }));
-      // if (!await batchInsert('condition_product_research_articles', researchRecords, `product ${productName} in procedure ${newProcedureId}`)) {
-      //    // Rollback?
-      // }
     }
 
-    // 4c. Insert condition-specific research articles from conditionSpecificResearch field
+    // Insert condition-specific research articles from conditionSpecificResearch field
     if (condition.conditionSpecificResearch) {
       for (const productName of Object.keys(condition.conditionSpecificResearch)) {
         const productId = productNameToId[productName];
@@ -910,7 +660,11 @@ const addCategoryToSupabase = async (categoryName) => {
     if (!await batchInsert('procedure_phase_products', pppRecords, `procedure ${newProcedureId}`)) {
       // Rollback?
     }
-  
+
+    // Refresh materialized view and cache
+    await refreshProceduresView();
+    invalidateConditionsCache();
+
     // Return the condition with its new db_id, potentially re-fetch or merge other generated fields if needed
     return { success: true, error: null, data: { ...condition, db_id: newProcedureId } };
   };
@@ -999,6 +753,10 @@ const addCategoryToSupabase = async (categoryName) => {
               scientific_rationale: details.scientificRationale,
               rationale: details.rationale,
           }]);
+
+      if (pdError) {
+          console.error('Error inserting product detail:', pdError);
+      }
   
       const usageRecords = [];
       if (details.usage && typeof details.usage === 'object') {
@@ -1125,7 +883,11 @@ const addCategoryToSupabase = async (categoryName) => {
     }
       }
     }
-  
+
+    // Refresh materialized view and cache
+    await refreshProceduresView();
+    invalidateConditionsCache();
+
     return { success: true, error: null, data: condition };
   };
   
@@ -1199,7 +961,6 @@ const addCategoryToSupabase = async (categoryName) => {
   };
 
   const deleteConditionFromSupabase = async (conditionId) => {
-    console.log('[deleteConditionFromSupabase] Starting deletion for condition ID:', conditionId);
 
     // Track deletion statistics for logging
     const deletionStats = {};
@@ -1208,7 +969,6 @@ const addCategoryToSupabase = async (categoryName) => {
 
     try {
       // First, get the condition name for logging
-      console.log('[deleteConditionFromSupabase] Fetching condition name...');
       const { data: procedureData } = await supabase
         .from('procedures')
         .select('name')
@@ -1216,7 +976,6 @@ const addCategoryToSupabase = async (categoryName) => {
         .single();
 
       const conditionName = procedureData?.name || `Unknown (ID: ${conditionId})`;
-      console.log('[deleteConditionFromSupabase] Condition name:', conditionName);
 
       // Order of deletion matters - start with tables that have foreign keys to 'procedures'
       // Delete in reverse dependency order to avoid foreign key constraint violations
@@ -1232,7 +991,6 @@ const addCategoryToSupabase = async (categoryName) => {
       // Perform cascading deletion with detailed logging
       for (const table of tablesToDeleteFrom) {
         try {
-          console.log(`[deleteConditionFromSupabase] Deleting from ${table}...`);
 
           // Create timeout for each delete operation
           const timeoutPromise = new Promise((_, reject) =>
@@ -1272,7 +1030,6 @@ const addCategoryToSupabase = async (categoryName) => {
             }
           } else {
             const deletedCount = deletedData?.length || 0;
-            console.log(`[deleteConditionFromSupabase] Deleted ${deletedCount} records from ${table}`);
             deletionStats[table] = deletedCount;
             totalRecordsDeleted += deletedCount;
           }
@@ -1283,7 +1040,6 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Finally, delete from 'procedures' table itself
-      console.log('[deleteConditionFromSupabase] Deleting from procedures table...');
       const { data: deletedProcedure, error: procError } = await supabase
         .from('procedures')
         .delete()
@@ -1310,10 +1066,9 @@ const addCategoryToSupabase = async (categoryName) => {
         deletionStats.procedures = 1;
       }
 
-      console.log('[deleteConditionFromSupabase] Deletion complete. Total records deleted:', totalRecordsDeleted);
-      console.log('[deleteConditionFromSupabase] Deletion stats:', deletionStats);
 
-      // Invalidate cache after successful deletion
+      // Refresh materialized view and invalidate cache after successful deletion
+      await refreshProceduresView();
       invalidateConditionsCache();
 
       if (errors.length > 0) {
@@ -1398,6 +1153,7 @@ const updateConditionFieldRealtime = async (conditionId, field, value) => {
       return { success: false, error };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1453,6 +1209,7 @@ const addPhaseToConditionRealtime = async (conditionId, phaseName) => {
       return { success: false, error: linkError };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1527,10 +1284,10 @@ const removePhaseFromConditionRealtime = async (conditionId, phaseName) => {
         console.error('Error deleting orphaned phase:', deletePhaseError);
         // Don't fail the operation, the main delete succeeded
       } else {
-        console.log(`Deleted orphaned phase: ${phaseName}`);
       }
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1581,6 +1338,7 @@ const addProductToPatientTypeRealtime = async (conditionId, phaseName, patientTy
       return { success: false, error };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1629,6 +1387,7 @@ const removeProductFromPatientTypeRealtime = async (conditionId, phaseName, pati
       return { success: false, error };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1638,6 +1397,7 @@ const removeProductFromPatientTypeRealtime = async (conditionId, phaseName, pati
 
 /**
  * Update product details for a condition in real-time
+ * Routes usage fields to phase_specific_usage table, other fields to product_details
  */
 const updateProductDetailRealtime = async (conditionId, productName, field, value) => {
   try {
@@ -1652,39 +1412,93 @@ const updateProductDetailRealtime = async (conditionId, productName, field, valu
       return { success: false, error: 'Product not found' };
     }
 
-    // Check if product_details entry exists
-    const { data: existingDetail } = await supabase
-      .from('product_details')
-      .select('id')
-      .eq('procedure_id', conditionId)
-      .eq('product_id', productData.id)
-      .single();
+    // Check if this is a usage field (usage_PhaseName)
+    if (field.startsWith('usage_')) {
+      // Extract phase name from field (e.g., 'usage_Prep' -> 'Prep')
+      const phaseName = field.replace('usage_', '');
 
-    if (existingDetail) {
-      // Update existing
-      const { error } = await supabase
-        .from('product_details')
-        .update({ [field]: value })
-        .eq('id', existingDetail.id);
+      // Get phase ID
+      const { data: phaseData } = await supabase
+        .from('phases')
+        .select('id')
+        .eq('name', phaseName)
+        .single();
 
-      if (error) {
-        return { success: false, error };
+      if (!phaseData) {
+        return { success: false, error: `Phase ${phaseName} not found` };
+      }
+
+      // Check if phase_specific_usage entry exists
+      const { data: existingUsage } = await supabase
+        .from('phase_specific_usage')
+        .select('id')
+        .eq('procedure_id', conditionId)
+        .eq('product_id', productData.id)
+        .eq('phase_id', phaseData.id)
+        .maybeSingle();
+
+      if (existingUsage) {
+        // Update existing
+        const { error } = await supabase
+          .from('phase_specific_usage')
+          .update({ instructions: value })
+          .eq('id', existingUsage.id);
+
+        if (error) {
+          return { success: false, error };
+        }
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('phase_specific_usage')
+          .insert([{
+            procedure_id: conditionId,
+            product_id: productData.id,
+            phase_id: phaseData.id,
+            instructions: value
+          }]);
+
+        if (error) {
+          return { success: false, error };
+        }
       }
     } else {
-      // Create new with this field
-      const { error } = await supabase
+      // Regular product_details field
+      // Check if product_details entry exists
+      const { data: existingDetail } = await supabase
         .from('product_details')
-        .insert([{
-          procedure_id: conditionId,
-          product_id: productData.id,
-          [field]: value
-        }]);
+        .select('id')
+        .eq('procedure_id', conditionId)
+        .eq('product_id', productData.id)
+        .maybeSingle();
 
-      if (error) {
-        return { success: false, error };
+      if (existingDetail) {
+        // Update existing
+        const { error } = await supabase
+          .from('product_details')
+          .update({ [field]: value })
+          .eq('id', existingDetail.id);
+
+        if (error) {
+          return { success: false, error };
+        }
+      } else {
+        // Create new with this field
+        const { error } = await supabase
+          .from('product_details')
+          .insert([{
+            procedure_id: conditionId,
+            product_id: productData.id,
+            [field]: value
+          }]);
+
+        if (error) {
+          return { success: false, error };
+        }
       }
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {
@@ -1724,10 +1538,8 @@ const deleteDdsTypeRealtime = async (ddsTypeName) => {
  * Add a product in real-time
  */
 const addProductRealtime = async (productName) => {
-  console.log('[addProductRealtime] Starting, productName:', productName);
   try {
     // Insert new product directly - let the database unique constraint handle duplicates
-    console.log('[addProductRealtime] Inserting new product...');
 
     // Create a timeout promise
     const timeoutPromise = new Promise((_, reject) =>
@@ -1747,7 +1559,6 @@ const addProductRealtime = async (productName) => {
         return { data: null, error: err };
       });
 
-    console.log('[addProductRealtime] Insert result:', { data, error });
 
     if (error) {
       console.error('Error inserting product:', error);
@@ -1774,8 +1585,8 @@ const addProductRealtime = async (productName) => {
       return { success: false, error };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
-    console.log('[addProductRealtime] Success, returning data:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Unexpected error in addProductRealtime:', error);
@@ -1797,6 +1608,7 @@ const renameProductRealtime = async (oldName, newName) => {
       return { success: false, error };
     }
 
+    await refreshProceduresView();
     invalidateConditionsCache();
     return { success: true };
   } catch (error) {

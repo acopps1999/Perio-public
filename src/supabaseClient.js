@@ -9,11 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: true,  // CRITICAL: Must be true for RLS policies to work
+    autoRefreshToken: true, // Auto-refresh tokens so session doesn't expire
   },
   db: {
     schema: 'public'
+  },
+  realtime: {
+    // TEMPORARY: Disable realtime to test if WebSocket is blocking queries
+    params: {
+      eventsPerSecond: 0
+    }
   },
   global: {
     headers: {

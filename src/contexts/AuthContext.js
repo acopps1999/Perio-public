@@ -93,8 +93,11 @@ export const AuthProvider = ({ children }) => {
         onAutoLogoutCallback();
       }
 
-      // Sign out from Supabase Auth (automatically clears session)
-      await supabase.auth.signOut();
+      // Clear localStorage session
+      localStorage.removeItem('supabase.auth.token');
+
+      // Try to sign out from Supabase (may hang, so don't await)
+      supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
 
       setIsAuthenticated(false);
       setAdminUser(null);
@@ -134,49 +137,87 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Use Supabase Auth for authentication
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
+      console.log('🔐 Attempting login with raw fetch...');
+
+      // Use raw fetch to bypass broken Supabase client
+      const authUrl = `${process.env.REACT_APP_SUPABASE_URL}/auth/v1/token?grant_type=password`;
+      const authResponse = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
       });
 
-      if (authError || !authData.user) {
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json();
+        throw new Error(errorData.error_description || 'Invalid credentials');
+      }
+
+      const authData = await authResponse.json();
+      console.log('✅ Auth successful, checking admin status...');
+
+      if (!authData.user) {
         throw new Error('Invalid credentials');
       }
 
-      // Now verify the user is in the admins table
-      const { data: adminData, error: adminError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', authData.user.id)
-        .single();
+      // Now verify the user is in the admins table using raw fetch
+      const adminUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/admins?select=*&user_id=eq.${authData.user.id}`;
+      const adminResponse = await fetch(adminUrl, {
+        headers: {
+          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${authData.access_token}`
+        }
+      });
 
-      if (adminError || !adminData) {
-        // Sign out the user since they're not an admin
-        await supabase.auth.signOut();
+      const adminData = await adminResponse.json();
+      console.log('✅ Admin check response:', adminData);
+
+      if (!adminData || adminData.length === 0) {
         throw new Error('Access denied - admin privileges required');
       }
 
-      // Set authentication state (session is automatically stored by Supabase)
+      // Store the session manually in localStorage for persistence
+      const session = {
+        access_token: authData.access_token,
+        refresh_token: authData.refresh_token,
+        user: authData.user,
+        expires_at: authData.expires_at
+      };
+      localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+
+      // Set authentication state
       setIsAuthenticated(true);
       setAdminUser({
-        ...adminData,
+        ...adminData[0],
         auth_user: authData.user
       });
 
+      console.log('✅ Login successful!');
       return { success: true };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       return { success: false, error: error.message };
     }
   };
 
   const logout = async () => {
-    // Sign out from Supabase Auth (automatically clears session)
-    await supabase.auth.signOut();
+    console.log('🔓 Logging out...');
+
+    // Clear localStorage session
+    localStorage.removeItem('supabase.auth.token');
+
+    // Try to sign out from Supabase (may hang, so don't await)
+    supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
 
     setIsAuthenticated(false);
     setAdminUser(null);
+
+    console.log('✅ Logged out');
   };
 
   // Function to register auto-logout callback

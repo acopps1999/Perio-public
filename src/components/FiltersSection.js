@@ -19,7 +19,10 @@ function FiltersSection({
 }) {
   const { isMobile, getResponsiveValue } = useResponsive();
   const { isDarkMode } = useTheme();
-  
+
+  // Ensure patientTypes is always an array
+  const safePatientTypes = Array.isArray(patientTypes) ? patientTypes : [];
+
   return (
     <div className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow rounded-lg ${getResponsiveValue('p-3', 'p-4', 'p-4')} ${getResponsiveValue('mb-4', 'mb-6', 'mb-6')}`}>
       <h2 className={`${getResponsiveValue('text-base', 'text-lg', 'text-lg')} font-medium ${getResponsiveValue('mb-3', 'mb-4', 'mb-4')} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Filters</h2>
@@ -94,11 +97,11 @@ function FiltersSection({
             <Select.Portal>
               <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
                 <Select.Viewport className="p-1">
-                  {[{ name: 'All' }, ...patientTypes].map((pt) => (
+                  {[{ name: 'All' }, ...safePatientTypes].map((pt) => (
                     <Select.Item
                       key={pt.name}
                       value={pt.name}
-                      className="flex items-center h-8 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
+                      className="flex items-center h-8 px-3 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:bg-gray-100"
                     >
                       <Select.ItemText>
                         {pt.name === 'All' ? 'All Treatment Modifiers' : `${pt.name}: ${pt.description}`}

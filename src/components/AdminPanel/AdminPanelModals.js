@@ -154,8 +154,6 @@ function AdminPanelModals({
     if (!selectedProductForAdvantage) return;
 
     try {
-      console.log('[saveCompetitiveAdvantage] Starting save for product:', selectedProductForAdvantage);
-
       // Delete existing competitors for this product
       const { error: deleteCompError } = await supabase
         .from('competitive_advantage_competitors')
@@ -234,8 +232,6 @@ function AdminPanelModals({
         }
       }
 
-      console.log('[saveCompetitiveAdvantage] Save successful');
-
       // Close modal
       resetCompetitiveAdvantageState();
 
@@ -305,15 +301,11 @@ function AdminPanelModals({
   };
 
   const removeCompetitor = (index) => {
-    console.log('[removeCompetitor] Removing competitor at index:', index);
-    console.log('[removeCompetitor] Current competitors:', competitiveAdvantageData.competitors);
-
     setCompetitiveAdvantageData(prev => {
       const updated = {
         ...prev,
         competitors: prev.competitors.filter((_, i) => i !== index)
       };
-      console.log('[removeCompetitor] Updated competitors:', updated.competitors);
       return updated;
     });
 
@@ -334,15 +326,11 @@ function AdminPanelModals({
   };
 
   const removeActiveIngredient = (index) => {
-    console.log('[removeActiveIngredient] Removing ingredient at index:', index);
-    console.log('[removeActiveIngredient] Current ingredients:', competitiveAdvantageData.activeIngredients);
-
     setCompetitiveAdvantageData(prev => {
       const updated = {
         ...prev,
         activeIngredients: prev.activeIngredients.filter((_, i) => i !== index)
       };
-      console.log('[removeActiveIngredient] Updated ingredients:', updated.activeIngredients);
       return updated;
     });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Stethoscope, Settings, LogOut, Menu, X } from 'lucide-react';
 import DiagnosisWizard from './DiagnosisWizard';
 import AdminPanel from './AdminPanel';
@@ -14,8 +14,8 @@ import ThemeToggle from './ThemeToggle';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { loadConditionsFromSupabase, loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase';
-import { supabase } from '../supabaseClient';
+import { useConditions } from '../hooks/useConditions';
+import { loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase';
 import useResponsive from '../hooks/useResponsive';
 
 function ClinicalChartMockup() {
@@ -26,16 +26,30 @@ function ClinicalChartMockup() {
   const { isDarkMode } = useTheme();
   
   // Responsive design
-  const { 
-    isMobile, 
-    isTablet, 
-    isDesktop, 
+  const {
+    isMobile,
+    isTablet,
+    isDesktop,
     getResponsiveValue,
     getButtonSize
   } = useResponsive();
-  
+
+  // Data fetching with React Query
+  const {
+    data: conditionsData = [],
+    isLoading: isLoadingData,
+    error: conditionsError,
+    refetch: refetchConditions
+  } = useConditions();
+
+  // Stabilize conditions reference to prevent infinite loops
+  // Only create new reference when the number of conditions changes
+  const conditions = useMemo(() => {
+    return conditionsData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditionsData.length]);
+
   // State management
-  const [conditions, setConditions] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState(['All']);
   const [ddsTypeOptions, setDdsTypeOptions] = useState(['All']);
@@ -48,16 +62,15 @@ function ClinicalChartMockup() {
   const [patientTypes, setPatientTypes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   const [researchModalOpen, setResearchModalOpen] = useState(false);
   const [selectedResearchProduct, setSelectedResearchProduct] = useState(null);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(true);
   
   // Mobile responsive navigation state
   const [mobileView, setMobileView] = useState('list'); // 'list' or 'detail'
@@ -71,126 +84,121 @@ function ClinicalChartMockup() {
     }
   }, [isDesktop]);
 
-  const loadChartData = useCallback(async (forceRefresh = false) => {
-    setIsLoadingData(true);
-    
-    try {
-      // Store current selected condition ID before reloading data
-      const currentSelectedId = selectedCondition?.db_id;
-
-      
-      // Parallelize fetching - only force refresh when needed (e.g., after admin saves)
-      const [newConditions, productsResult, dbPatientTypes] = await Promise.all([
-          loadConditionsFromSupabase(forceRefresh),
-          loadProductsFromSupabase(),
-          supabase.from('patient_types').select('id, name, description').order('name', { ascending: true })
-      ]);
-
-      
-      // Debug: Log first condition to see its structure
-      if (newConditions && newConditions.length > 0) {
+  // Initialize data when conditions are loaded - run only once when conditions first load
+  useEffect(() => {
+    const initializeData = async () => {
+      if (!conditions || conditions.length === 0) {
+        return;
       }
 
-      if (dbPatientTypes.error) {
-          console.error("CHART_LOAD: Error fetching patient types:", dbPatientTypes.error);
-          return;
-      }
+      try {
+        // Store current selected condition ID before processing data
+        const currentSelectedId = selectedCondition?.db_id;
 
-      if (!productsResult.success) {
+        // Fetch additional data
+        const productsResult = await loadProductsFromSupabase();
+
+        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name,description&order=name.asc`;
+
+        const ptResponse = await fetch(patientTypesUrl, {
+          headers: {
+            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
+
+        const dbPatientTypes = await ptResponse.json();
+
+        if (!productsResult.success) {
           console.error("CHART_LOAD: Error fetching products:", productsResult.error);
           // Continue without products for now
+        }
+
+        const uniqueCategories = ['All', ...new Set(conditions.map(c => c.category).filter(Boolean))];
+        const allDdsTypes = ['All', ...new Set(conditions.flatMap(c => c.dds || []))];
+
+        // DON'T set filteredConditions here - let the filter useEffect handle that
+        // setFilteredConditions(conditions); // REMOVED - this was causing infinite loop
+        setCategoryOptions(uniqueCategories);
+        setDdsTypeOptions(allDdsTypes);
+        setPatientTypes(dbPatientTypes || []);
+
+        const productsToSet = productsResult.success ? productsResult.data : [];
+        setAllProducts(productsToSet);
+
+        // After reload, try to re-select the same condition
+        const reSelectedCondition = conditions.find(c => c.db_id === currentSelectedId);
+
+        if (reSelectedCondition) {
+          setSelectedCondition(reSelectedCondition);
+        } else if (conditions.length > 0 && !selectedCondition) {
+          // Only set default condition if no condition is selected
+          setSelectedCondition(conditions[0]);
+          setActiveTab(conditions[0].phases && conditions[0].phases.length > 0 ? conditions[0].phases[0] : '');
+        }
+      } catch (error) {
+        console.error("CHART_LOAD: Critical error during chart data loading:", error);
+        console.error("Error stack:", error.stack);
+        // Set fallback empty state - but DON'T set filteredConditions
+        setCategoryOptions(['All']);
+        setDdsTypeOptions(['All']);
+        setPatientTypes([]);
+        setSelectedCondition(null);
       }
+    };
 
-      if (!newConditions || newConditions.length === 0) {
-          console.warn("CHART_LOAD: No conditions loaded from Supabase");
-      }
-      
-      const uniqueCategories = ['All', ...new Set(newConditions.map(c => c.category).filter(Boolean))];
-      const allDdsTypes = ['All', ...new Set(newConditions.flatMap(c => c.dds || []))];
-
-
-      setConditions(newConditions);
-      setFilteredConditions(newConditions);
-      setCategoryOptions(uniqueCategories);
-      setDdsTypeOptions(allDdsTypes);
-      setPatientTypes(dbPatientTypes.data || []); // Set the patient types from DB
-      
-      // Debug: Log products being set
-      const productsToSet = productsResult.success ? productsResult.data : [];
-      setAllProducts(productsToSet); // Set the products with availability info
-
-      // After reload, try to re-select the same condition
-      const reSelectedCondition = newConditions.find(c => c.db_id === currentSelectedId);
-
-      if (reSelectedCondition) {
-        setSelectedCondition(reSelectedCondition);
-      } else if (newConditions.length > 0) {
-        // Fallback to the first condition if the old one doesn't exist anymore
-        setSelectedCondition(newConditions[0]);
-        setActiveTab(newConditions[0].phases && newConditions[0].phases.length > 0 ? newConditions[0].phases[0] : '');
-      } else {
-        setSelectedCondition(null); // No conditions left
-      }
-      
-      
-    } catch (error) {
-      console.error("CHART_LOAD: Critical error during chart data loading:", error);
-      // Set fallback empty state
-      setConditions([]);
-      setFilteredConditions([]);
-      setCategoryOptions(['All']);
-      setDdsTypeOptions(['All']);
-      setPatientTypes([]);
-      setSelectedCondition(null);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, []); // Empty dependencies - selectedCondition is only read, not a dependency
-
-  // Load conditions on component mount
-  useEffect(() => {
-    loadChartData();
-  }, [loadChartData]);
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditions.length]); // Only re-run when the NUMBER of conditions changes, not the array reference
 
   // Filter conditions based on selected filters and search query
   useEffect(() => {
     let filtered = [...conditions];
-    
+
     // Filter by category
     if (categoryFilter !== 'All') {
       filtered = filtered.filter(condition => condition.category === categoryFilter);
     }
-    
+
     // Filter by DDS type
     if (ddsTypeFilter !== 'All') {
-      filtered = filtered.filter(condition => condition.dds.includes(ddsTypeFilter));
+      filtered = filtered.filter(condition => condition.dds && condition.dds.includes(ddsTypeFilter));
     }
-    
+
     // Filter by patient type
     if (patientTypeFilter !== 'All') {
         // The condition object has a `patientTypeNames` array from the loader function.
         // The `patientTypeFilter` is now the name string from the dropdown.
-        filtered = filtered.filter(condition => 
+        filtered = filtered.filter(condition =>
             condition.patientTypeNames && condition.patientTypeNames.includes(patientTypeFilter)
         );
     }
-    
+
     // Filter by search query
     if (searchQuery) {
-      filtered = filtered.filter(condition => 
+      filtered = filtered.filter(condition =>
         condition.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     setFilteredConditions(filtered);
-    
+
     // Update selected condition if it's no longer in filtered results
-    if (filtered.length > 0 && (!selectedCondition || 
-        !filtered.find(c => c.name === selectedCondition.name))) {
-      setSelectedCondition(filtered[0]);
-      setActiveTab(filtered[0].phases[0]);
+    // IMPORTANT: Check if current selection is valid BEFORE updating to avoid infinite loop
+    if (filtered.length > 0) {
+      const isCurrentSelectionInFiltered = selectedCondition && filtered.find(c => c.db_id === selectedCondition.db_id);
+
+      if (!isCurrentSelectionInFiltered) {
+        // Only update if necessary - this breaks the infinite loop
+        setSelectedCondition(filtered[0]);
+        if (filtered[0].phases && filtered[0].phases.length > 0) {
+          setActiveTab(filtered[0].phases[0]);
+        }
+      }
     }
-  }, [conditions, categoryFilter, ddsTypeFilter, patientTypeFilter, searchQuery, selectedCondition]);
+    // REMOVED selectedCondition from dependencies to prevent infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditions, categoryFilter, ddsTypeFilter, patientTypeFilter, searchQuery]);
 
   // Generate patient-specific product recommendations when selectedCondition changes
 useEffect(() => {
@@ -251,14 +259,9 @@ useEffect(() => {
   // Handle product selection for modal - this is not used by ConditionDetails
   // ConditionDetails manages its own product selection internally
   const handleProductSelect = useCallback((product) => {
-    // This function is kept for compatibility but should not automatically show additional info
-    
-    // Store the selected product for potential future use
-    setSelectedProduct({
-      name: product,
-      details: selectedCondition.productDetails[product.replace(' (Type 3/4 Only)', '')]
-    });
-  }, [selectedCondition]);
+    // This function is kept for compatibility but currently does nothing
+    // as ConditionDetails manages its own product selection internally
+  }, []);
 
   // Simple handler to show additional info
   const handleShowAdditionalInfo = useCallback(() => {
@@ -359,7 +362,7 @@ useEffect(() => {
 
   // When AdminPanel saves, we just need to reload our data.
   const handleSaveChangesSuccess = async () => {
-    await loadChartData(true); // Force refresh after admin saves
+    await refetchConditions(); // Refetch conditions after admin saves
   };
 
   // Register auto-logout callback to close admin panel
@@ -487,7 +490,29 @@ useEffect(() => {
           <div className="flex justify-center items-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600 text-lg">Loading clinical data from database...</p>
+              <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-lg`}>Loading clinical data from database...</p>
+            </div>
+          </div>
+        ) : conditionsError ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center max-w-md">
+              <div className={`rounded-lg ${isDarkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'} border p-6`}>
+                <svg className="mx-auto h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className={`text-lg font-medium ${isDarkMode ? 'text-red-400' : 'text-red-800'} mb-2`}>
+                  Error Loading Data
+                </h3>
+                <p className={`${isDarkMode ? 'text-red-300' : 'text-red-600'} mb-4`}>
+                  {conditionsError.message || 'Failed to load clinical data. Please try again.'}
+                </p>
+                <button
+                  onClick={() => refetchConditions()}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           </div>
         ) : (

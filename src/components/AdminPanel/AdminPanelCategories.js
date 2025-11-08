@@ -12,14 +12,11 @@ function AdminPanelCategories({
   setConditions,
   saveStatus,
   executeUpdate,
-  ToastContainer
+  ToastContainer,
+  confirmDelete,
+  showToast
 }) {
   const [newCategoryInput, setNewCategoryInput] = useState('');
-
-  // Toast helper
-  const showToast = (message, type) => {
-    // If ToastContainer is available, use it (implementation may vary)
-  };
 
   // Add new category with real-time update
   const handleAddCategory = async () => {
@@ -57,46 +54,15 @@ function AdminPanelCategories({
     );
   };
 
-  // Delete category with real-time update
-  const handleDeleteCategory = async (categoryName) => {
+  // Delete category - trigger confirmation modal
+  const handleDeleteCategory = (categoryName) => {
     if (categoryName === 'All') {
       showToast('Cannot delete "All" category', 'error');
       return;
     }
 
-    if (!window.confirm(`Delete category "${categoryName}"? This will remove the category from all conditions using it.`)) {
-      return;
-    }
-
-    const operationId = `category-delete-${categoryName}`;
-
-    await executeUpdate(
-      operationId,
-      // Optimistic update
-      () => {
-        const oldCategories = [...categories];
-        const oldConditions = [...conditions];
-
-        setCategories(prev => prev.filter(c => c !== categoryName));
-        // Update conditions that use this category
-        setConditions(prev => prev.map(c =>
-          c.category === categoryName ? { ...c, category: null } : c
-        ));
-
-        // Rollback
-        return () => {
-          setCategories(oldCategories);
-          setConditions(oldConditions);
-        };
-      },
-      // Database update
-      async () => {
-        const { deleteCategoryRealtime } = await import('./AdminPanelSupabase');
-        return await deleteCategoryRealtime(categoryName);
-      },
-      `Deleted category "${categoryName}"`,
-      `Failed to delete category "${categoryName}"`
-    );
+    // Trigger the modal confirmation (handled by AdminPanelCore)
+    confirmDelete('category', categoryName);
   };
 
   return (

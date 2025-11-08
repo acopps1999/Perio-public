@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import ClinicalChartMockup from './components/ClinicalChartMockup';
+import { QueryProvider } from './providers/QueryProvider';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -10,11 +11,13 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <ThemeProvider>
-        <AuthProvider>
-          <ClinicalChartMockup />
-        </AuthProvider>
-      </ThemeProvider>
+      <QueryProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ClinicalChartMockup />
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

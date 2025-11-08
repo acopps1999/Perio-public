@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
-import { Plus, Trash2, X, ChevronDown, ChevronRight, Info, User } from 'lucide-react';
+import { Plus, Trash2, X, ChevronDown, ChevronRight, Info, User, ArrowLeft } from 'lucide-react';
 import clsx from 'clsx';
 import DynamicTextarea from './DynamicTextarea';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
@@ -53,6 +53,8 @@ function AdminPanelConditions({
 const [expandedProducts, setExpandedProducts] = useState({});
 // State for new phase input
 const [newPhase, setNewPhase] = useState('');
+// State for view mode: 'list' or 'detail'
+const [viewMode, setViewMode] = useState('list');
 
 // Debounced callback for condition field updates
 const debouncedUpdateConditionField = useDebouncedCallback(async (conditionId, field, value) => {
@@ -349,68 +351,115 @@ const renderPatientTypeProductConfig = (phase) => {
   );
 };
 
+// Handler for selecting a condition and switching to detail view
+const handleConditionClick = (condition) => {
+  handleConditionSelect(condition);
+  setViewMode('detail');
+};
+
+// Handler for going back to list view
+const handleBackToList = () => {
+  setViewMode('list');
+  setSelectedCondition(null);
+};
+
 return (
   <div className="flex-grow overflow-auto">
-    <div className="flex h-full">
-      {/* Conditions List */}
-      <div className="w-1/3 border-r p-4" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-medium">All Conditions & Surgical Procedures</h3>
+    {viewMode === 'list' ? (
+      // LIST VIEW - Show only the conditions list
+      <div className="p-6" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-800">All Conditions & Surgical Procedures</h3>
           <button
             onClick={handleAddCondition}
-            className="p-1 text-[#15396c] hover:text-[#15396c]/80 inline-flex items-center text-sm"
+            className="px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 inline-flex items-center text-sm font-medium transition-colors"
           >
-            <Plus size={16} className="mr-1" />
-            Add New
+            <Plus size={18} className="mr-2" />
+            Add New Condition
           </button>
         </div>
-        
-        <ul className="space-y-1">
+
+        <ul className="space-y-2">
           {conditions.map((condition) => (
-            <li 
+            <li
               key={condition.name}
-              className={clsx(
-                "px-3 py-2 rounded-md cursor-pointer flex justify-between items-center group transition-colors border-l-4",
-                selectedCondition && selectedCondition.name === condition.name
-                  ? "bg-[#15396c] border-[#15396c]"
-                  : "hover:bg-gray-50 border-transparent"
-              )}
-              onClick={() => handleConditionSelect(condition)}
+              className="px-4 py-4 rounded-lg cursor-pointer flex justify-between items-center group transition-all border-2 border-gray-200 hover:border-[#15396c] hover:bg-gray-50"
+              onClick={() => handleConditionClick(condition)}
             >
-              <div>
-                <div className={clsx(
-                  "font-medium text-sm",
-                  selectedCondition && selectedCondition.name === condition.name ? "text-white" : "text-black"
-                )}>
+              <div className="flex-1">
+                <div className="font-semibold text-base text-gray-900 mb-1">
                   {condition.name}
                 </div>
-                <div className={clsx(
-                  "text-xs",
-                  selectedCondition && selectedCondition.name === condition.name ? "text-gray-200" : "text-gray-500"
-                )}>
-                  {condition.category}
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
+                    {condition.category}
+                  </span>
+                  {condition.phases && condition.phases.length > 0 && (
+                    <span className="text-xs text-gray-500">
+                      {condition.phases.length} {condition.phases.length === 1 ? 'phase' : 'phases'}
+                    </span>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  confirmDelete('condition', condition);
-                }}
-                className={clsx(
-                  "opacity-0 group-hover:opacity-100 hover:text-red-700 p-1",
-                  selectedCondition && selectedCondition.name === condition.name ? "text-red-300" : "text-red-500"
-                )}
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete('condition', condition);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded transition-all"
+                  title="Delete condition"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <ChevronRight size={20} className="text-gray-400 group-hover:text-[#15396c]" />
+              </div>
             </li>
           ))}
         </ul>
+
+        {conditions.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">No conditions yet</p>
+            <p className="text-sm">Click "Add New Condition" to get started</p>
+          </div>
+        )}
       </div>
-      
-      {/* Condition Editor */}
-      <div className="w-2/3 p-4" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
-        {selectedCondition ? (
+    ) : (
+      // DETAIL VIEW - Show the full editor for selected condition
+      <div className="flex flex-col" style={{ height: "calc(90vh - 160px)" }}>
+        {/* Header with back button and condition name */}
+        <div className="flex-shrink-0 bg-white border-b px-6 py-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleBackToList}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to list"
+            >
+              <ArrowLeft size={20} className="text-gray-700" />
+            </button>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900">
+                {selectedCondition?.name || 'Edit Condition'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {selectedCondition?.category}
+              </p>
+            </div>
+            <button
+              onClick={(e) => {
+                confirmDelete('condition', selectedCondition);
+              }}
+              className="px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-md text-sm font-medium transition-colors"
+            >
+              Delete Condition
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable editor content */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+          {selectedCondition ? (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               {/* Condition Name */}
@@ -1047,7 +1096,7 @@ return (
                                   debouncedUpdateProductDetail(
                                     selectedCondition.db_id,
                                     productName,
-                                    'handling_objections',
+                                    'objection_handling',
                                     e.target.value
                                   );
                                 }}
@@ -1111,9 +1160,10 @@ return (
             Select a condition to edit or create a new one
           </div>
         )}
+        </div>
       </div>
-    </div>
-    {ToastContainer && <ToastContainer />}
+    )}
+    <ToastContainer />
   </div>
 );
 }

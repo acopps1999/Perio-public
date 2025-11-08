@@ -43,10 +43,9 @@ export function Toast({ message, type = 'info', duration = 3000, onClose }) {
   return (
     <div
       className={`
-        fixed bottom-4 right-4 z-50
         flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg
         transition-all duration-300 ease-in-out
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}
         ${styles[type]}
         max-w-md
       `}
@@ -86,8 +85,8 @@ export function useToast() {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
-  const ToastContainer = useCallback(() => (
-    <div className="fixed bottom-0 right-0 z-50 p-4 space-y-2 pointer-events-none">
+  const ToastContainer = () => (
+    <div className="fixed top-0 right-0 z-50 p-4 space-y-2 pointer-events-none">
       {toasts.map(toast => (
         <div key={toast.id} className="pointer-events-auto">
           <Toast
@@ -99,7 +98,7 @@ export function useToast() {
         </div>
       ))}
     </div>
-  ), [toasts, removeToast]);
+  );
 
   return { showToast, ToastContainer };
 }

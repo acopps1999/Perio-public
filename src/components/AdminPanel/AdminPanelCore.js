@@ -18,6 +18,7 @@ import {
   updateProductDetailRealtime,
   addCategoryRealtime,
   deleteCategoryRealtime,
+  deleteCategoryFromSupabase,
   addDdsTypeRealtime,
   deleteDdsTypeRealtime,
   addProductRealtime,
@@ -73,7 +74,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       setIsLoading(false);
       return;
     }
-    
+
     setIsLoading(true);
     
     try {
@@ -99,14 +100,26 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         setAllProducts(productsResult.data.sort((a, b) => a.name.localeCompare(b.name)));
       }
       
-      // Load dynamic patient types
-      const { data: ptData, error: ptError } = await supabase.from('patient_types').select('id, name').order('name');
-      if (ptError) {
-        // TODO: Replace with proper error tracking (e.g., Sentry)
-        console.error("Failed to load patient types", ptError);
+      // Load dynamic patient types using raw fetch (bypass broken Supabase client)
+      try {
+        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name&order=name.asc`;
+        const ptResponse = await fetch(patientTypesUrl, {
+          headers: {
+            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+          }
+        });
+
+        if (!ptResponse.ok) {
+          console.error('❌ Failed to load patient types:', ptResponse.status);
+          setPatientTypes([]);
+        } else {
+          const ptData = await ptResponse.json();
+          setPatientTypes(ptData);
+        }
+      } catch (error) {
+        console.error('❌ Error loading patient types:', error);
         setPatientTypes([]);
-      } else {
-        setPatientTypes(ptData);
       }
 
       setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
@@ -424,130 +437,216 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   };
   
   // Add product to specific patient type and phase
-  const addProductToPatientType = (phase, patientType, productName) => {
-    setPatientSpecificProducts(prev => {
-        const newConfig = JSON.parse(JSON.stringify(prev));
-        
-        if (!newConfig[phase]) {
-            newConfig[phase] = { 'all': [], ...Object.fromEntries(patientTypes.map(pt => [pt.name, []])) };
-        }
+  const addProductToPatientType = async (phase, patientType, productName) => {
+    if (!selectedCondition || !selectedCondition.db_id) {
+      console.error('Cannot add product: no condition selected');
+      return;
+    }
 
-      if (patientType === 'all') {
-            // Add product to every patient type
-            patientTypes.forEach(type => {
-                newConfig[phase][type.name] = [...new Set([...(newConfig[phase][type.name] || []), productName])];
-            });
-      } else {
-            newConfig[phase][patientType] = [...new Set([...(newConfig[phase][patientType] || []), productName])];
-        }
+    // Optimistic UI update function
+    const optimisticUpdate = () => {
+      setPatientSpecificProducts(prev => {
+          const newConfig = JSON.parse(JSON.stringify(prev));
 
-        // Recalculate the 'all' list for UI display
-        const allProductsInPhase = new Set();
-        const commonProducts = [];
+          if (!newConfig[phase]) {
+              newConfig[phase] = { 'all': [], ...Object.fromEntries(patientTypes.map(pt => [pt.name, []])) };
+          }
 
-        patientTypes.forEach(pt => {
-            (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
-        });
+        if (patientType === 'all') {
+              // Add product to every patient type
+              patientTypes.forEach(type => {
+                  newConfig[phase][type.name] = [...new Set([...(newConfig[phase][type.name] || []), productName])];
+              });
+        } else {
+              newConfig[phase][patientType] = [...new Set([...(newConfig[phase][patientType] || []), productName])];
+          }
 
-        if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
-            allProductsInPhase.forEach(product => {
-                const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
-                if (isInAllTypes) {
-                    commonProducts.push(product);
-                }
-            });
-        }
-        newConfig[phase].all = [...new Set(commonProducts)];
+          // Recalculate the 'all' list for UI display
+          const allProductsInPhase = new Set();
+          const commonProducts = [];
 
-        // Immediately update conditions to ensure proper change detection
-        if (selectedCondition) {
-          const configToSave = {};
-          Object.keys(newConfig).forEach(phaseName => {
-            configToSave[phaseName] = {};
-            Object.keys(newConfig[phaseName]).forEach(ptName => {
-              if (ptName !== 'all') { // Exclude the 'all' property
-                configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
-              }
-            });
+          patientTypes.forEach(pt => {
+              (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
           });
 
-          setConditions(prevConditions =>
-            prevConditions.map(cond => {
-              if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-                return { ...cond, patientSpecificConfig: configToSave };
-              }
-              return cond;
-            })
-          );
-        }
+          if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
+              allProductsInPhase.forEach(product => {
+                  const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
+                  if (isInAllTypes) {
+                      commonProducts.push(product);
+                  }
+              });
+          }
+          newConfig[phase].all = [...new Set(commonProducts)];
 
-        return newConfig;
-    });
+          // Immediately update conditions to ensure proper change detection
+          if (selectedCondition) {
+            const configToSave = {};
+            Object.keys(newConfig).forEach(phaseName => {
+              configToSave[phaseName] = {};
+              Object.keys(newConfig[phaseName]).forEach(ptName => {
+                if (ptName !== 'all') { // Exclude the 'all' property
+                  configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
+                }
+              });
+            });
+
+            setConditions(prevConditions =>
+              prevConditions.map(cond => {
+                if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+                  return { ...cond, patientSpecificConfig: configToSave };
+                }
+                return cond;
+              })
+            );
+
+            // Also update selectedCondition to trigger immediate re-render of product details
+            setSelectedCondition(prev => ({
+              ...prev,
+              patientSpecificConfig: configToSave
+            }));
+          }
+
+          return newConfig;
+      });
+    };
+
+    // Database operation function
+    const dbOperation = async () => {
+      if (patientType === 'all') {
+        // Add to all patient types
+        const promises = patientTypes.map(type =>
+          addProductToPatientTypeRealtime(selectedCondition.db_id, phase, type.name, productName)
+        );
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+          throw new Error(`Failed to add product to ${failed.length} patient type(s)`);
+        }
+      } else {
+        // Add to specific patient type
+        const result = await addProductToPatientTypeRealtime(selectedCondition.db_id, phase, patientType, productName);
+        if (!result.success) {
+          throw result.error || new Error('Failed to add product');
+        }
+      }
+    };
+
+    // Execute with optimistic update
+    await executeUpdate(
+      `product-add-${selectedCondition.db_id}-${phase}-${patientType}-${productName}`,
+      optimisticUpdate,
+      dbOperation,
+      'Product added successfully'
+    );
   };
   
   // Remove product from specific patient type and phase
-  const removeProductFromPatientType = (phase, patientType, productName) => {
-    setPatientSpecificProducts(prev => {
-        const newConfig = JSON.parse(JSON.stringify(prev));
-      
-        if (!newConfig[phase]) return prev; // No change if phase doesn't exist
+  const removeProductFromPatientType = async (phase, patientType, productName) => {
+    if (!selectedCondition || !selectedCondition.db_id) {
+      console.error('Cannot remove product: no condition selected');
+      return;
+    }
 
-      if (patientType === 'all') {
-            // When removing from 'all', remove from every patient type
-            patientTypes.forEach(type => {
-                if (newConfig[phase][type.name]) {
-                    newConfig[phase][type.name] = newConfig[phase][type.name].filter(p => p !== productName);
-                }
-            });
-      } else {
-            // Just remove from the specific type
-            if (newConfig[phase][patientType]) {
-                newConfig[phase][patientType] = newConfig[phase][patientType].filter(p => p !== productName);
-            }
-        }
+    // Optimistic UI update function
+    const optimisticUpdate = () => {
+      setPatientSpecificProducts(prev => {
+          const newConfig = JSON.parse(JSON.stringify(prev));
 
-        // Recalculate the 'all' list since a product was removed
-        const allProductsInPhase = new Set();
-        const commonProducts = [];
+          if (!newConfig[phase]) return prev; // No change if phase doesn't exist
 
-        patientTypes.forEach(pt => {
-            (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
-        });
-        
-        if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
-            allProductsInPhase.forEach(product => {
-                const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
-                if (isInAllTypes) {
-                    commonProducts.push(product);
-      }
-            });
-        }
-        newConfig[phase].all = [...new Set(commonProducts)];
-
-        // Immediately update conditions to ensure proper change detection
-        if (selectedCondition) {
-          const configToSave = {};
-          Object.keys(newConfig).forEach(phaseName => {
-            configToSave[phaseName] = {};
-            Object.keys(newConfig[phaseName]).forEach(ptName => {
-              if (ptName !== 'all') { // Exclude the 'all' property
-                configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
+        if (patientType === 'all') {
+              // When removing from 'all', remove from every patient type
+              patientTypes.forEach(type => {
+                  if (newConfig[phase][type.name]) {
+                      newConfig[phase][type.name] = newConfig[phase][type.name].filter(p => p !== productName);
+                  }
+              });
+        } else {
+              // Just remove from the specific type
+              if (newConfig[phase][patientType]) {
+                  newConfig[phase][patientType] = newConfig[phase][patientType].filter(p => p !== productName);
               }
-            });
+          }
+
+          // Recalculate the 'all' list since a product was removed
+          const allProductsInPhase = new Set();
+          const commonProducts = [];
+
+          patientTypes.forEach(pt => {
+              (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
           });
 
-          setConditions(prevConditions =>
-            prevConditions.map(cond => {
-              if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-                return { ...cond, patientSpecificConfig: configToSave };
-              }
-              return cond;
-            })
-          );
+          if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
+              allProductsInPhase.forEach(product => {
+                  const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
+                  if (isInAllTypes) {
+                      commonProducts.push(product);
         }
-      
-        return newConfig;
-    });
+              });
+          }
+          newConfig[phase].all = [...new Set(commonProducts)];
+
+          // Immediately update conditions to ensure proper change detection
+          if (selectedCondition) {
+            const configToSave = {};
+            Object.keys(newConfig).forEach(phaseName => {
+              configToSave[phaseName] = {};
+              Object.keys(newConfig[phaseName]).forEach(ptName => {
+                if (ptName !== 'all') { // Exclude the 'all' property
+                  configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
+                }
+              });
+            });
+
+            setConditions(prevConditions =>
+              prevConditions.map(cond => {
+                if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
+                  return { ...cond, patientSpecificConfig: configToSave };
+                }
+                return cond;
+              })
+            );
+
+            // Also update selectedCondition to trigger immediate re-render of product details
+            setSelectedCondition(prev => ({
+              ...prev,
+              patientSpecificConfig: configToSave
+            }));
+          }
+
+          return newConfig;
+      });
+    };
+
+    // Database operation function
+    const dbOperation = async () => {
+      if (patientType === 'all') {
+        // Remove from all patient types
+        const promises = patientTypes.map(type =>
+          removeProductFromPatientTypeRealtime(selectedCondition.db_id, phase, type.name, productName)
+        );
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+          throw new Error(`Failed to remove product from ${failed.length} patient type(s)`);
+        }
+      } else {
+        // Remove from specific patient type
+        const result = await removeProductFromPatientTypeRealtime(selectedCondition.db_id, phase, patientType, productName);
+        if (!result.success) {
+          throw result.error || new Error('Failed to remove product');
+        }
+      }
+    };
+
+    // Execute with optimistic update
+    await executeUpdate(
+      `product-remove-${selectedCondition.db_id}-${phase}-${patientType}-${productName}`,
+      dbOperation,
+      optimisticUpdate,
+      () => loadInitialData(true)
+    );
   };
   // Add new condition
   const handleAddCondition = () => {
@@ -596,11 +695,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   
   // Submit new item from modal
   const handleSubmitNewItem = async () => {
-    console.log('handleSubmitNewItem called, modalType:', modalType, 'newItemData:', newItemData);
     const itemName = newItemData.name ? newItemData.name.trim() : '';
 
     if (!itemName) {
-      console.log('No item name provided, closing modal');
       setShowAddModal(false);
       setNewItemData({});
       setEditingProductId(null);
@@ -610,7 +707,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     let success = false;
 
     if (modalType === 'product') {
-      console.log('Product modalType detected, editingProductId:', editingProductId);
       const productName = itemName;
       if (editingProductId) { // Editing existing product (rename)
         if (editingProductId !== productName) {
@@ -654,9 +750,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
         }
       } else { // Adding new product
         // Add product to database
-        console.log('Calling addProductRealtime with productName:', productName);
         const result = await addProductRealtime(productName);
-        console.log('addProductRealtime result:', result);
         if (result.success && result.data) {
           // Add to local state with id from database
           if (!allProducts.some(p => p.name === productName)) {
@@ -666,7 +760,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           success = true;
         } else {
           const errorMsg = result.error?.message || 'Failed to add product';
-          console.log('Product add failed, error:', errorMsg);
           showToast(errorMsg, 'error');
           success = false;
         }
@@ -818,15 +911,26 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           setIsDeleting(false);
           return;
         }
-        setCategories(prev => prev.filter(c => c !== item));
-        // When a category is deleted, conditions using it should be updated to have no category.
-        setConditions(prev => prev.map(cond => {
-          if (cond.category === item) {
-            return { ...cond, category: null };
-          }
-          return cond;
-        }));
-        success = true;
+
+        // Delete from database
+        const result = await deleteCategoryFromSupabase(item);
+        if (result.success) {
+          setCategories(prev => prev.filter(c => c !== item));
+          // When a category is deleted, conditions using it should be updated to have no category.
+          setConditions(prev => prev.map(cond => {
+            if (cond.category === item) {
+              return { ...cond, category: null };
+            }
+            return cond;
+          }));
+          invalidateConditionsCache();
+          showToast('Category deleted successfully', 'success');
+          success = true;
+        } else {
+          const errorMsg = result.error?.message || 'Failed to delete category';
+          showToast(errorMsg, 'error');
+          success = false;
+        }
       } else if (type === 'ddsType') {
         if (item === 'All') { // 'All' DDS type should not be deleted
           setShowDeleteModal(false);
@@ -883,6 +987,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     saveStatus,
     executeUpdate,
     ToastContainer,
+    showToast,
 
     // Patient-specific products
     patientTypes,
