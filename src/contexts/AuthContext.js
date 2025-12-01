@@ -20,27 +20,36 @@ export const AuthProvider = ({ children }) => {
   // Check if user is already logged in on app start using Supabase session
   useEffect(() => {
     console.log('🔄 AuthContext initializing...');
-    
-    // ONE-TIME CLEANUP: Remove old custom session format if it exists
-    const cleanupFlag = 'auth_cleanup_done_v2';
-    if (!localStorage.getItem(cleanupFlag)) {
-      const oldKeys = ['supabase.auth.token', 'admin_authenticated', 'admin_user'];
-      let cleaned = false;
-      
-      oldKeys.forEach(key => {
-        if (localStorage.getItem(key)) {
-          console.log(`🧹 One-time cleanup: removing ${key}`);
-          localStorage.removeItem(key);
-          cleaned = true;
+
+    // Clear any stale sessions if they cause issues
+    const clearStaleSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Verify session is valid by checking if user exists
+          const { data: profile, error } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          // If profile doesn't exist or query fails, clear session
+          if (error || !profile) {
+            console.warn('⚠️ Stale session detected, clearing...');
+            await supabase.auth.signOut();
+            return false;
+          }
         }
-      });
-      
-      if (cleaned) {
-        console.log('✅ Old session data cleaned up');
+        return true;
+      } catch (err) {
+        console.error('❌ Session validation error:', err);
+        await supabase.auth.signOut();
+        return false;
       }
-      
-      localStorage.setItem(cleanupFlag, 'true');
-    }
+    };
+
+    // Run session validation
+    clearStaleSession();
 
     // Set a timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
