@@ -21,61 +21,42 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔄 AuthContext initializing...');
 
-    // Clear any stale sessions if they cause issues
-    const clearStaleSession = async () => {
+    // Clear session on every page refresh to prevent JWT timeout issues
+    const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+
         if (session) {
-          // Verify session is valid by checking if user exists
-          const { data: profile, error } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-
-          // If profile doesn't exist or query fails, clear session
-          if (error || !profile) {
-            console.warn('⚠️ Stale session detected, clearing...');
-            await supabase.auth.signOut();
-            return false;
-          }
-        }
-        return true;
-      } catch (err) {
-        console.error('❌ Session validation error:', err);
-        await supabase.auth.signOut();
-        return false;
-      }
-    };
-
-    // Run session validation
-    clearStaleSession();
-
-    // Set a timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      console.warn('⚠️ Auth initialization timeout - setting loading to false');
-      setLoading(false);
-    }, 3000); // 3 second timeout
-
-    // Listen for auth state changes - this includes initial session restoration
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 Auth state change:', event, session ? 'with session' : 'no session');
-      
-      // Clear the timeout since we got an auth event
-      clearTimeout(loadingTimeout);
-      
-      // Handle session restoration on page load
-      if (event === 'INITIAL_SESSION') {
-        if (!session) {
-          console.log('ℹ️ No initial session found');
+          console.log('🔄 Page refresh detected with existing session - clearing to force fresh login');
+          await supabase.auth.signOut();
           setIsAuthenticated(false);
           setAdminUser(null);
           setLoading(false);
           return;
         }
-        
-        console.log('✅ Restoring session for user:', session.user?.email);
-        
+
+        // No session, proceed normally
+        setLoading(false);
+      } catch (err) {
+        console.error('❌ Auth initialization error:', err);
+        await supabase.auth.signOut();
+        setIsAuthenticated(false);
+        setAdminUser(null);
+        setLoading(false);
+      }
+    };
+
+    // Run auth initialization
+    initializeAuth();
+
+    // Listen for login events only (no session restoration)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state change:', event, session ? 'with session' : 'no session');
+
+      // Only handle fresh logins
+      if (event === 'SIGNED_IN' && session) {
+        console.log('✅ User signed in:', session.user?.email);
+
         // Verify admin status using user_profiles.role
         const { data: userProfile, error: profileError } = await supabase
           .from('user_profiles')
@@ -92,44 +73,21 @@ export const AuthProvider = ({ children }) => {
           });
         } else {
           console.warn('⚠️ User is not an admin');
+          await supabase.auth.signOut();
           setIsAuthenticated(false);
           setAdminUser(null);
         }
-        
-        setLoading(false);
       }
       // Handle logout
-      else if (event === 'SIGNED_OUT' || !session) {
+      else if (event === 'SIGNED_OUT') {
         console.log('👋 User signed out');
         setIsAuthenticated(false);
         setAdminUser(null);
-        setLoading(false);
-      }
-      // Handle login and token refresh
-      else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('✅ Session active for user:', session.user?.email);
-        
-        // Verify admin status using user_profiles.role
-        const { data: userProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (userProfile && !profileError && userProfile.role === 'admin') {
-          console.log('✅ Admin verified:', userProfile.email);
-          setIsAuthenticated(true);
-          setAdminUser({
-            ...userProfile,
-            auth_user: session.user
-          });
-        }
       }
     });
 
     return () => {
       console.log('🧹 AuthContext cleanup');
-      clearTimeout(loadingTimeout);
       subscription?.unsubscribe();
     };
   }, []);
