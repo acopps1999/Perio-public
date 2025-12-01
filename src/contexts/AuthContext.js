@@ -67,18 +67,18 @@ export const AuthProvider = ({ children }) => {
         
         console.log('✅ Restoring session for user:', session.user?.email);
         
-        // Verify admin status
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
+        // Verify admin status using user_profiles.role
+        const { data: userProfile, error: profileError } = await supabase
+          .from('user_profiles')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('id', session.user.id)
           .single();
 
-        if (adminData && !adminError) {
-          console.log('✅ Admin verified:', adminData.email);
+        if (userProfile && !profileError && userProfile.role === 'admin') {
+          console.log('✅ Admin verified:', userProfile.email);
           setIsAuthenticated(true);
           setAdminUser({
-            ...adminData,
+            ...userProfile,
             auth_user: session.user
           });
         } else {
@@ -100,18 +100,18 @@ export const AuthProvider = ({ children }) => {
       else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         console.log('✅ Session active for user:', session.user?.email);
         
-        // Verify admin status
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
+        // Verify admin status using user_profiles.role
+        const { data: userProfile, error: profileError } = await supabase
+          .from('user_profiles')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('id', session.user.id)
           .single();
 
-        if (adminData && !adminError) {
-          console.log('✅ Admin verified:', adminData.email);
+        if (userProfile && !profileError && userProfile.role === 'admin') {
+          console.log('✅ Admin verified:', userProfile.email);
           setIsAuthenticated(true);
           setAdminUser({
-            ...adminData,
+            ...userProfile,
             auth_user: session.user
           });
         }
@@ -195,22 +195,22 @@ export const AuthProvider = ({ children }) => {
       console.log('✅ Auth successful, checking admin status...');
       console.log('User ID:', authData.user.id);
 
-      // Verify the user is in the admins table
-      const { data: adminData, error: adminError } = await supabase
-        .from('admins')
+      // Verify the user has admin role in user_profiles table
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
         .select('*')
-        .eq('user_id', authData.user.id)
+        .eq('id', authData.user.id)
         .maybeSingle();
 
-      console.log('✅ Admin check response:', adminData);
+      console.log('✅ User profile check response:', userProfile);
 
-      if (adminError) {
-        console.error('❌ Admin check error:', adminError);
+      if (profileError) {
+        console.error('❌ User profile check error:', profileError);
         await supabase.auth.signOut();
-        throw new Error('Failed to verify admin status');
+        throw new Error('Failed to verify user profile');
       }
 
-      if (!adminData) {
+      if (!userProfile || userProfile.role !== 'admin') {
         await supabase.auth.signOut();
         throw new Error('Access denied - admin privileges required');
       }
@@ -219,7 +219,7 @@ export const AuthProvider = ({ children }) => {
       // Session is automatically stored by Supabase client
       setIsAuthenticated(true);
       setAdminUser({
-        ...adminData,
+        ...userProfile,
         auth_user: authData.user
       });
 
