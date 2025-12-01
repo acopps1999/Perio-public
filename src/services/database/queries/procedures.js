@@ -46,6 +46,15 @@ import { DatabaseError } from '../errors/DatabaseError';
  * // Returns array of procedures with all related data in ~200-500ms
  */
 export const loadProcedures = async () => {
+  // TEMPORARY: Skip materialized view and use fallback directly
+  // This avoids 5-second timeout while we fix the view
+  const USE_MATERIALIZED_VIEW = false; // Set to true once view is fixed in Supabase
+  
+  if (!USE_MATERIALIZED_VIEW) {
+    console.log('⚡ Using direct query (materialized view bypassed for speed)');
+    return await loadProceduresFallback();
+  }
+  
   try {
     console.log('🚀 Loading procedures from materialized view...');
 
@@ -120,14 +129,110 @@ export const loadProcedures = async () => {
  */
 async function loadProceduresFallback() {
   try {
-    // Query base procedures table with category join
-    const { data: procedures, error: proceduresError } = await supabase
-      .from('procedures')
-      .select(`
-        *,
-        categories:category_id (name)
-      `)
-      .order('name');
+    console.log('📊 Fallback: Querying base procedures table...');
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+    
+    console.log('📊 Supabase URL:', supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'NOT SET');
+    console.log('📊 Supabase Key:', supabaseKey ? 'Set (length: ' + supabaseKey.length + ')' : 'NOT SET');
+    
+    // DIRECT FETCH TEST - bypasses Supabase client to test raw connectivity
+    console.log('🔍 Testing direct fetch to Supabase...');
+    const testStartTime = Date.now();
+    
+    try {
+      const testResponse = await Promise.race([
+        fetch(`${supabaseUrl}/rest/v1/procedures?select=id,name&limit=1`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Direct fetch timeout after 10s')), 10000)
+        )
+      ]);
+      
+      console.log('✅ Direct fetch completed in', Date.now() - testStartTime, 'ms');
+      console.log('📊 Response status:', testResponse.status);
+      
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        console.log('✅ Direct fetch returned', testData.length, 'records');
+        console.log('📊 Sample:', testData[0]?.name || 'no data');
+      } else {
+        const errorText = await testResponse.text();
+        console.error('❌ Direct fetch failed:', testResponse.status, errorText);
+      }
+    } catch (fetchError) {
+      console.error('❌ Direct fetch error:', fetchError.message);
+      console.error('🔴 This indicates Supabase connectivity issue!');
+      console.error('🔴 Check: 1) Is your Supabase project paused? 2) Is the URL correct? 3) Network issues?');
+    }
+    
+    // Now try the Supabase client queries with individual error handling
+    console.log('📊 Now trying Supabase client queries (full data load)...');
+    const queryStartTime = Date.now();
+    
+    // Helper to safely query a table with timeout and error handling
+    const safeQuery = async (tableName, query) => {
+      const start = Date.now();
+      try {
+        const result = await Promise.race([
+          query,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`Timeout querying ${tableName}`)), 10000)
+          )
+        ]);
+        console.log(`  ✅ ${tableName}: ${result.data?.length || 0} records (${Date.now() - start}ms)`);
+        return result;
+      } catch (err) {
+        console.error(`  ❌ ${tableName}: ${err.message}`);
+        return { data: [], error: err };
+      }
+    };
+    
+    // Load all data in parallel with individual error handling
+    console.log('📊 Querying tables...');
+    const [
+      proceduresResult,
+      procedurePhasesResult,
+      phasesResult,
+      procedurePhaseProductsResult,
+      productsResult,
+      productDetailsResult,
+      patientTypesResult,
+      procedurePatientTypesResult,
+      phaseSpecificUsageResult,
+      researchArticlesResult,
+      patientSpecificConfigsResult
+    ] = await Promise.all([
+      safeQuery('procedures', supabase.from('procedures').select('*, categories:category_id (name)').order('name')),
+      safeQuery('procedure_phases', supabase.from('procedure_phases').select('*')),
+      safeQuery('phases', supabase.from('phases').select('*')),
+      safeQuery('procedure_phase_products', supabase.from('procedure_phase_products').select('*')),
+      safeQuery('products', supabase.from('products').select('*')),
+      safeQuery('product_details', supabase.from('product_details').select('*')),
+      safeQuery('patient_types', supabase.from('patient_types').select('*')),
+      safeQuery('procedure_patient_types', supabase.from('procedure_patient_types').select('*')),
+      safeQuery('phase_specific_usage', supabase.from('phase_specific_usage').select('*')),
+      safeQuery('condition_product_research_articles', supabase.from('condition_product_research_articles').select('*')),
+      safeQuery('patient_specific_configs', supabase.from('patient_specific_configs').select('*'))
+    ]);
+    
+    console.log('📊 All queries completed in', Date.now() - queryStartTime, 'ms');
+    
+    const { data: procedures, error: proceduresError } = proceduresResult;
+    const { data: procedurePhases } = procedurePhasesResult;
+    const { data: phases } = phasesResult;
+    const { data: procedurePhaseProducts } = procedurePhaseProductsResult;
+    const { data: products } = productsResult;
+    const { data: productDetails } = productDetailsResult;
+    const { data: patientTypes } = patientTypesResult;
+    const { data: procedurePatientTypes } = procedurePatientTypesResult;
+    const { data: phaseSpecificUsage } = phaseSpecificUsageResult;
+    const { data: researchArticles } = researchArticlesResult;
+    const { data: patientSpecificConfigs } = patientSpecificConfigsResult;
 
     if (proceduresError) {
       console.error('❌ Failed to load procedures from base table:', proceduresError);
@@ -138,27 +243,214 @@ async function loadProceduresFallback() {
       console.warn('⚠️  No procedures found in database');
       return [];
     }
+    
+    // Build lookup maps for efficiency
+    const phasesMap = new Map((phases || []).map(p => [p.id, p.name]));
+    const productsMap = new Map((products || []).map(p => [p.id, p]));
+    const patientTypesMap = new Map((patientTypes || []).map(p => [p.id, p.name]));
+    
+    // Group procedure_phases by procedure_id
+    const procedurePhasesMap = new Map();
+    (procedurePhases || []).forEach(pp => {
+      if (!procedurePhasesMap.has(pp.procedure_id)) {
+        procedurePhasesMap.set(pp.procedure_id, []);
+      }
+      procedurePhasesMap.get(pp.procedure_id).push({
+        phaseId: pp.phase_id,
+        phaseName: pp.phase_name || phasesMap.get(pp.phase_id) || 'Unknown Phase'
+      });
+    });
+    
+    // Group procedure_phase_products by procedure_id
+    const procedurePhaseProductsMap = new Map();
+    (procedurePhaseProducts || []).forEach(ppp => {
+      if (!procedurePhaseProductsMap.has(ppp.procedure_id)) {
+        procedurePhaseProductsMap.set(ppp.procedure_id, []);
+      }
+      const product = productsMap.get(ppp.product_id);
+      procedurePhaseProductsMap.get(ppp.procedure_id).push({
+        phaseId: ppp.phase_id,
+        phaseName: phasesMap.get(ppp.phase_id) || 'Unknown Phase',
+        productId: ppp.product_id,
+        productName: product?.name || 'Unknown Product',
+        patientTypeId: ppp.patient_type_id,
+        patientTypeName: patientTypesMap.get(ppp.patient_type_id) || null
+      });
+    });
+    
+    // Group procedure_patient_types by procedure_id
+    const procedurePatientTypesMap = new Map();
+    (procedurePatientTypes || []).forEach(ppt => {
+      if (!procedurePatientTypesMap.has(ppt.procedure_id)) {
+        procedurePatientTypesMap.set(ppt.procedure_id, []);
+      }
+      procedurePatientTypesMap.get(ppt.procedure_id).push(
+        patientTypesMap.get(ppt.patient_type_id) || 'Unknown'
+      );
+    });
+    
+    // Group product_details by procedure_id (using procedure_name or procedure_id)
+    const productDetailsMap = new Map();
+    (productDetails || []).forEach(pd => {
+      const key = pd.procedure_id || pd.procedure_name;
+      if (key) {
+        if (!productDetailsMap.has(key)) {
+          productDetailsMap.set(key, []);
+        }
+        productDetailsMap.get(key).push(pd);
+      }
+    });
+    
+    // Group phase_specific_usage by procedure_id
+    const phaseUsageMap = new Map();
+    (phaseSpecificUsage || []).forEach(psu => {
+      if (!phaseUsageMap.has(psu.procedure_id)) {
+        phaseUsageMap.set(psu.procedure_id, {});
+      }
+      const phaseName = phasesMap.get(psu.phase_id) || 'Unknown';
+      const product = productsMap.get(psu.product_id);
+      const productName = product?.name || 'Unknown';
+      if (!phaseUsageMap.get(psu.procedure_id)[productName]) {
+        phaseUsageMap.get(psu.procedure_id)[productName] = {};
+      }
+      phaseUsageMap.get(psu.procedure_id)[productName][phaseName] = psu.instructions;
+    });
+    
+    // Group research_articles by procedure_id
+    const researchMap = new Map();
+    (researchArticles || []).forEach(ra => {
+      if (!researchMap.has(ra.procedure_id)) {
+        researchMap.set(ra.procedure_id, {});
+      }
+      const product = productsMap.get(ra.product_id);
+      const productName = product?.name || 'Unknown';
+      if (!researchMap.get(ra.procedure_id)[productName]) {
+        researchMap.get(ra.procedure_id)[productName] = [];
+      }
+      researchMap.get(ra.procedure_id)[productName].push({
+        title: ra.title,
+        author: ra.author,
+        abstract: ra.abstract,
+        url: ra.url
+      });
+    });
 
-    // Return procedures with basic structure
-    // This allows the app to at least show condition names
-    return procedures.map(proc => ({
-      db_id: proc.id,
-      name: proc.name,
-      pitchPoints: proc.pitch_points || '',
-      patientType: proc.patient_type || '',
-      category: proc.categories?.name || null,
-      phases: [], // Empty - need materialized view for full data
-      dds: [], // Empty - need materialized view for full data
-      patientTypeNames: [],
-      patientSpecificConfig: {},
-      productDetails: {},
-      conditionSpecificResearch: {},
-      phaseSpecificUsage: {},
-      competitiveAdvantage: {},
-      // Add warning flag so UI can show migration message
-      _isFallbackData: true,
-      _migrationNeeded: true
-    }));
+    // Reconstruct patientSpecificConfig from procedure_phase_products and patient_specific_configs
+    const patientConfigMap = new Map();
+    
+    // Initialize with procedure IDs
+    procedures.forEach(p => patientConfigMap.set(p.id, {}));
+    
+    // Populate from procedure_phase_products (normalized data)
+    (procedurePhaseProducts || []).forEach(ppp => {
+      const procConfig = patientConfigMap.get(ppp.procedure_id);
+      if (!procConfig) return;
+
+      const phaseName = phasesMap.get(ppp.phase_id);
+      const productName = productsMap.get(ppp.product_id)?.name;
+      const patientTypeName = patientTypesMap.get(ppp.patient_type_id) || 'All'; // Default to 'All' if null
+      
+      if (phaseName && productName) {
+        if (!procConfig[phaseName]) {
+          procConfig[phaseName] = {};
+        }
+        if (!procConfig[phaseName][patientTypeName]) {
+          procConfig[phaseName][patientTypeName] = [];
+        }
+        // Add product if not already present
+        if (!procConfig[phaseName][patientTypeName].includes(productName)) {
+          procConfig[phaseName][patientTypeName].push(productName);
+        }
+      }
+    });
+
+    // Merge any overrides from patient_specific_configs (JSON data)
+    (patientSpecificConfigs || []).forEach(psc => {
+       const procConfig = patientConfigMap.get(psc.procedure_id);
+       if (!procConfig) return;
+
+       const phaseName = phasesMap.get(psc.phase_id);
+       const patientTypeName = patientTypesMap.get(psc.patient_type_id);
+       
+       if (phaseName && patientTypeName && psc.config) {
+         if (!procConfig[phaseName]) {
+            procConfig[phaseName] = {};
+         }
+         // If config has products array, use it
+         if (Array.isArray(psc.config.products)) {
+            procConfig[phaseName][patientTypeName] = psc.config.products;
+         } 
+         // If config is the array itself (legacy format check)
+         else if (Array.isArray(psc.config)) {
+            procConfig[phaseName][patientTypeName] = psc.config;
+         }
+       }
+    });
+    
+    console.log('✅ Fallback: Loaded', procedures.length, 'procedures with full data');
+    console.log('📊 First procedure:', procedures[0]?.name || 'N/A');
+
+    // Transform to expected format
+    return procedures.map(proc => {
+      const procPhases = procedurePhasesMap.get(proc.id) || [];
+      const procProducts = procedurePhaseProductsMap.get(proc.id) || [];
+      const procPatientTypes = procedurePatientTypesMap.get(proc.id) || [];
+      const procDetails = productDetailsMap.get(proc.id) || productDetailsMap.get(proc.name) || [];
+      const procPhaseUsage = phaseUsageMap.get(proc.id) || {};
+      const procResearch = researchMap.get(proc.id) || {};
+      const procPatientSpecificConfig = patientConfigMap.get(proc.id) || {};
+      
+      // Get unique phase names
+      const phaseNames = [...new Set(procPhases.map(p => p.phaseName))];
+      
+      // Build productDetails object keyed by product name
+      const productDetailsObj = {};
+      procDetails.forEach(pd => {
+        const prodName = pd.product_name || productsMap.get(pd.product_id)?.name;
+        if (prodName) {
+          productDetailsObj[prodName] = {
+            rationale: pd.rationale || '',
+            rationale_2: pd.rationale_2 || '',
+            clinicalEvidence: pd.clinical_evidence || '',
+            pitchPoints: pd.pitch_points || '',
+            objectionHandling: pd.objection_handling || '',
+            factSheetUrl: pd.fact_sheet_url || ''
+          };
+        }
+      });
+      
+      return {
+        db_id: proc.id,
+        name: proc.name,
+        pitchPoints: proc.pitch_points || '',
+        patientType: proc.patient_type || '',
+        category: proc.categories?.name || proc.category || null,
+        phases: phaseNames,
+        dds: [], // TODO: Load from procedure_dentists if needed
+        patientTypeNames: procPatientTypes,
+        patientSpecificConfig: procPatientSpecificConfig,
+        productDetails: productDetailsObj,
+        conditionSpecificResearch: procResearch,
+        phaseSpecificUsage: procPhaseUsage,
+        competitiveAdvantage: {},
+        // Products by phase for easy access
+        productsByPhase: procProducts.reduce((acc, p) => {
+          if (!acc[p.phaseName]) acc[p.phaseName] = [];
+          acc[p.phaseName].push({
+            id: p.productId,
+            name: p.productName,
+            patientTypeId: p.patientTypeId,
+            patientTypeName: p.patientTypeName
+          });
+          return acc;
+        }, {}),
+        // Cache optimization: Include metadata to avoid duplicate fetches
+        _metadata: {
+          allProducts: products || [],
+          allPatientTypes: patientTypes || []
+        }
+      };
+    });
 
   } catch (error) {
     console.error('❌ Fallback query failed:', error);
@@ -248,25 +540,6 @@ export const loadProcedureById = async (procedureId) => {
  * invalidateConditionsCache();
  */
 export const refreshProceduresView = async () => {
-  try {
-    console.log('🔄 Refreshing procedures_complete materialized view...');
-
-    // Use the Supabase RPC to call the refresh function
-    const { error } = await supabaseDirectImport.rpc('refresh_procedures_complete');
-
-    if (error) {
-      console.error('❌ Failed to refresh materialized view:', error);
-      throw new DatabaseError('Failed to refresh materialized view', {
-        cause: error,
-        operation: 'refreshProceduresView'
-      });
-    }
-
-    console.log('✅ Materialized view refreshed successfully');
-
-  } catch (error) {
-    // Non-critical error - log warning but don't throw
-    // The view will be refreshed on next scheduled refresh
-    console.warn('⚠️ Could not refresh materialized view:', error.message);
-  }
+  // No-op: Materialized view has been scrapped, using direct table queries instead
+  return;
 };
