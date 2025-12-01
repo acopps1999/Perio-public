@@ -7,14 +7,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(`Missing Supabase environment variables: URL=${!!supabaseUrl}, KEY=${!!supabaseAnonKey}`);
 }
 
-// Production configuration with proper session management
+// Production configuration - sessions do NOT persist across page refreshes
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,        // Enable session persistence
-    autoRefreshToken: true,       // Enable automatic token refresh
-    detectSessionInUrl: true,     // Handle OAuth redirects
-    storage: window.localStorage, // Use localStorage for sessions
-    storageKey: 'prism-auth',     // Custom key to avoid conflicts
+    persistSession: false,        // DISABLE session persistence (user logs out on refresh)
+    autoRefreshToken: false,      // No need to refresh tokens (sessions don't persist)
+    detectSessionInUrl: true,     // Still handle OAuth redirects if needed
   },
   db: {
     schema: 'public'
