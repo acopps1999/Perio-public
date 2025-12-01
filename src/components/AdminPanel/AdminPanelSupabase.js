@@ -1,6 +1,35 @@
 import { supabase } from '../../supabaseClient';
 import { loadProcedures, refreshProceduresView } from '../../services/database';
 
+// Helper function to get authenticated headers
+const getAuthHeaders = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error('❌ Error getting session:', error);
+  }
+
+  if (!session) {
+    // Debug: Check what's in localStorage
+    const allKeys = Object.keys(localStorage).filter(k => k.includes('auth') || k.includes('supabase') || k.includes('sb-'));
+    console.warn('⚠️ No active session - using anon key. Auth keys in localStorage:', allKeys);
+    
+    return {
+      'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  // Session found - use authenticated access token
+  console.log('✅ Using authenticated session:', session.user?.email);
+  return {
+    'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json'
+  };
+};
+
 // NEW Supabase helper for adding a single category
 const addCategoryToSupabase = async (categoryName) => {
     try {
@@ -165,13 +194,24 @@ const addCategoryToSupabase = async (categoryName) => {
   
   const deleteProductFromSupabase = async (productName) => {
     try {
+      // Helper function to add timeout to promises
+      const withTimeout = (promise, timeoutMs, operationName) => {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`${operationName} timed out after ${timeoutMs}ms`)), timeoutMs)
+        );
+        return Promise.race([promise, timeoutPromise]);
+      };
 
       // Step 0: Get the product ID first
-      const { data: productData, error: productFetchError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('name', productName)
-        .maybeSingle();
+      const { data: productData, error: productFetchError } = await withTimeout(
+        supabase
+          .from('products')
+          .select('id')
+          .eq('name', productName)
+          .maybeSingle(),
+        5000,
+        'Fetch product ID'
+      );
 
       if (productFetchError) {
         console.error('Error fetching product ID:', productFetchError);
@@ -186,10 +226,14 @@ const addCategoryToSupabase = async (categoryName) => {
       const productId = productData.id;
 
       // Step 1: Delete from procedure_phase_products (uses product_id, not product_name)
-      const { error: pppError } = await supabase
-        .from('procedure_phase_products')
-        .delete()
-        .eq('product_id', productId);
+      const { error: pppError } = await withTimeout(
+        supabase
+          .from('procedure_phase_products')
+          .delete()
+          .eq('product_id', productId),
+        5000,
+        'Delete from procedure_phase_products'
+      );
 
       if (pppError) {
         console.error('Error deleting from procedure_phase_products:', pppError);
@@ -197,10 +241,14 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 2: Delete from competitive_advantage_competitors (uses product_name)
-      const { error: compError } = await supabase
-        .from('competitive_advantage_competitors')
-        .delete()
-        .eq('product_name', productName);
+      const { error: compError } = await withTimeout(
+        supabase
+          .from('competitive_advantage_competitors')
+          .delete()
+          .eq('product_name', productName),
+        5000,
+        'Delete from competitive_advantage_competitors'
+      );
 
       if (compError) {
         console.error('Error deleting from competitive_advantage_competitors:', compError);
@@ -208,10 +256,14 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 3: Delete from competitive_advantage_active_ingredients (uses product_name)
-      const { error: ingError } = await supabase
-        .from('competitive_advantage_active_ingredients')
-        .delete()
-        .eq('product_name', productName);
+      const { error: ingError } = await withTimeout(
+        supabase
+          .from('competitive_advantage_active_ingredients')
+          .delete()
+          .eq('product_name', productName),
+        5000,
+        'Delete from competitive_advantage_active_ingredients'
+      );
 
       if (ingError) {
         console.error('Error deleting from competitive_advantage_active_ingredients:', ingError);
@@ -219,11 +271,15 @@ const addCategoryToSupabase = async (categoryName) => {
       }
 
       // Step 4: Finally delete the product itself
-      const { data, error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId)
-        .select();
+      const { data, error } = await withTimeout(
+        supabase
+          .from('products')
+          .delete()
+          .eq('id', productId)
+          .select(),
+        5000,
+        'Delete product'
+      );
 
       if (error) {
         console.error('Error deleting product:', error);
@@ -241,14 +297,10 @@ const addCategoryToSupabase = async (categoryName) => {
   
   const loadProductsFromSupabase = async () => {
     try {
-      // Use raw fetch to bypass broken Supabase client
+      // Use raw fetch with authenticated headers
       const productsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/products?select=id,name,is_available&order=name.asc`;
-      const response = await fetch(productsUrl, {
-        headers: {
-          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-        }
-      });
+      const headers = await getAuthHeaders();
+      const response = await fetch(productsUrl, { headers });
 
       if (!response.ok) {
         return { success: false, error: `HTTP ${response.status}` };
@@ -290,37 +342,28 @@ const addCategoryToSupabase = async (categoryName) => {
   // Supabase functions for categories
   const loadCategoriesFromSupabase = async () => {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('name')
-        .order('name');
-      if (error) {
+      const categoriesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/categories?select=name&order=name.asc`;
+      const headers = await getAuthHeaders();
+      const response = await fetch(categoriesUrl, { headers });
+
+      if (!response.ok) {
+        console.error('Failed to load categories:', response.status);
         return [];
       }
+
+      const data = await response.json();
       return data.map(c => c.name);
     } catch (error) {
-      // TODO: Replace with proper error tracking (e.g., Sentry)
-      console.error('Error loading categories from Supabase:', error);
+      console.error('Error loading categories:', error);
       return [];
     }
   };
 
-  // Supabase functions for DDS Types (using 'dentists' table)
+  // DDS Types - table removed, returning empty array
+  // TODO: Remove DDS functionality entirely or re-implement if needed
   const loadDdsTypesFromSupabase = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('dentists') // Assuming table name is 'dentists' as per CSV
-        .select('name')
-        .order('name');
-      if (error) {
-        return [];
-      }
-      return data.map(d => d.name);
-    } catch (error) {
-      // TODO: Replace with proper error tracking (e.g., Sentry)
-      console.error('Error loading DDS types from Supabase:', error);
-      return [];
-    }
+    console.log('ℹ️ DDS types table removed - returning empty array');
+    return [];
   };
 
   // Helper to build a map from patient type name to ID and vice-versa
@@ -357,24 +400,67 @@ const addCategoryToSupabase = async (categoryName) => {
   let conditionsCache = null;
   let cacheTimestamp = null;
   let loadingPromise = null; // Track the ongoing load promise
-  const CACHE_DURATION = 30000; // 30 seconds cache
+  let loadingPromiseTimeout = null; // Timeout to reset stale promise
+  const CACHE_DURATION = 300000; // 5 minutes cache (increased from 30s for better performance)
+  const LOADING_TIMEOUT = 15000; // 15 second timeout to prevent stuck promises
   
-  // Cache invalidation helper
+  // Cache invalidation helper - also invalidates React Query cache if available
   const invalidateConditionsCache = () => {
+    console.log('🔄 Invalidating conditions cache');
     conditionsCache = null;
     cacheTimestamp = null;
+    loadingPromise = null; // Also clear any stuck loading promise
+    if (loadingPromiseTimeout) {
+      clearTimeout(loadingPromiseTimeout);
+      loadingPromiseTimeout = null;
+    }
+    
+    // If React Query's queryClient is available globally, invalidate it too
+    // This ensures the main app gets fresh data after admin changes
+    try {
+      const { queryClient } = require('../../providers/QueryProvider');
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ['conditions'] });
+        console.log('✅ React Query cache invalidated');
+      }
+    } catch (e) {
+      // QueryClient not available, that's OK
+    }
   };
   
   const loadConditionsFromSupabase = async (forceRefresh = false) => {
     // Check cache first
     if (!forceRefresh && conditionsCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
+      console.log('📦 Using cached conditions data');
       return conditionsCache;
     }
 
-    // If already loading, return the existing promise
+    // If force refresh, clear any existing promise to avoid returning stale data
+    if (forceRefresh) {
+      loadingPromise = null;
+      if (loadingPromiseTimeout) {
+        clearTimeout(loadingPromiseTimeout);
+        loadingPromiseTimeout = null;
+      }
+    }
+
+    // If already loading, return the existing promise (but only if it's recent)
     if (loadingPromise && !forceRefresh) {
+      console.log('⏳ Returning existing loading promise');
       return loadingPromise;
     }
+
+    console.log('🔄 Starting fresh conditions load...');
+
+    // Set a timeout to reset the promise if it takes too long
+    // This prevents the "stuck promise" issue
+    loadingPromiseTimeout = setTimeout(() => {
+      if (loadingPromise) {
+        console.warn('⚠️ Loading promise timed out, resetting...');
+        loadingPromise = null;
+        loadingPromiseTimeout = null;
+      }
+    }, LOADING_TIMEOUT);
 
     // Create and store the loading promise
     loadingPromise = (async () => {
@@ -386,15 +472,24 @@ const addCategoryToSupabase = async (categoryName) => {
         // Cache the results
         conditionsCache = conditions;
         cacheTimestamp = Date.now();
+        
+        console.log('✅ Loaded', conditions?.length || 0, 'conditions from database');
 
         return conditions;
 
       } catch (error) {
         // TODO: Replace with proper error tracking (e.g., Sentry)
         console.error('Critical error loading conditions:', error);
+        // Clear cache on error so next attempt is fresh
+        conditionsCache = null;
+        cacheTimestamp = null;
         return [];
       } finally {
         loadingPromise = null; // Reset loading promise
+        if (loadingPromiseTimeout) {
+          clearTimeout(loadingPromiseTimeout);
+          loadingPromiseTimeout = null;
+        }
       }
     })(); // Execute the async IIFE
 
@@ -420,8 +515,10 @@ const addCategoryToSupabase = async (categoryName) => {
       const { data: phasesData, error: phaseError } = await supabase.from('phases').select('id, name');
       if (!phaseError) phaseNameToId = Object.fromEntries(phasesData.map(ph => [ph.name, ph.id]));
 
-      const { data: ddsData, error: ddsError } = await supabase.from('dentists').select('id, name');
-      if (!ddsError) ddsTypeNameToId = Object.fromEntries(ddsData.map(d => [d.name, d.id]));
+      // Dentists table removed - DDS type functionality deprecated
+      // const { data: ddsData, error: ddsError } = await supabase.from('dentists').select('id, name');
+      // if (!ddsError) ddsTypeNameToId = Object.fromEntries(ddsData.map(d => [d.name, d.id]));
+      ddsTypeNameToId = {}; // Empty map since dentists table no longer exists
 
       const patientTypeMaps = await buildPatientTypeMaps();
       patientTypeNameToIdMap = patientTypeMaps.nameToId;
@@ -514,16 +611,8 @@ const addCategoryToSupabase = async (categoryName) => {
       // Consider rollback or cleanup if critical
     }
   
-    // 3. Insert into 'procedure_dentists'
-    const procedureDentistRecords = condition.dds
-      .map(ddsName => ({
-        procedure_id: newProcedureId,
-        dentist_id: ddsTypeNameToId[ddsName],
-      }))
-      .filter(pd => pd.dentist_id);
-    if (!await batchInsert('procedure_dentists', procedureDentistRecords, `procedure ${newProcedureId}`)) {
-      // Consider rollback
-    }
+    // 3. Insert into 'procedure_dentists' (SKIPPED - table removed)
+    // const procedureDentistRecords = condition.dds...
     
     // 4. Insert into 'product_details' (and related phase_specific_usage, condition_product_research_articles)
     for (const productName of Object.keys(condition.productDetails)) {
@@ -542,7 +631,6 @@ const addCategoryToSupabase = async (categoryName) => {
               fact_sheet_url: details.factSheetUrl,
               clinical_evidence: details.clinicalEvidence,
               pitch_points: details.pitchPoints, // Ensure this is the product-specific one
-              scientific_rationale: details.scientificRationale,
               rationale: details.rationale,
           }])
           .select()
@@ -620,7 +708,6 @@ const addCategoryToSupabase = async (categoryName) => {
             fact_sheet_url: '#',
             clinical_evidence: `Clinical evidence for ${productName} in ${condition.name}`,
             pitch_points: `Key benefits of ${productName}`,
-            scientific_rationale: `Scientific rationale for using ${productName}`,
             rationale: `Recommended for use in ${condition.name} treatment`,
           }]);
         if (pdError) {
@@ -726,8 +813,8 @@ const addCategoryToSupabase = async (categoryName) => {
     // 2. Sync 'procedure_phases'
     await syncSimpleJoinTable('procedure_phases', procedureId, condition.phases, phaseNameToId, 'phase_id');
   
-    // 3. Sync 'procedure_dentists'
-    await syncSimpleJoinTable('procedure_dentists', procedureId, condition.dds, ddsTypeNameToId, 'dentist_id');
+    // 3. Sync 'procedure_dentists' (SKIPPED - table removed)
+    // await syncSimpleJoinTable('procedure_dentists', procedureId, condition.dds, ddsTypeNameToId, 'dentist_id');
     
     // 4. Sync 'product_details' and their sub-tables.
     // This remains delete-then-insert due to its complexity, but the simpler joins above are now efficient.
@@ -750,7 +837,6 @@ const addCategoryToSupabase = async (categoryName) => {
               fact_sheet_url: details.factSheetUrl,
               clinical_evidence: details.clinicalEvidence,
               pitch_points: details.pitchPoints,
-              scientific_rationale: details.scientificRationale,
               rationale: details.rationale,
           }]);
 
@@ -827,7 +913,6 @@ const addCategoryToSupabase = async (categoryName) => {
               fact_sheet_url: '#',
               clinical_evidence: `Clinical evidence for ${productName} in ${condition.name}`,
               pitch_points: `Key benefits of ${productName}`,
-              scientific_rationale: `Scientific rationale for using ${productName}`,
               rationale: `Recommended for use in ${condition.name} treatment`,
             }]);
           if (pdError) {
@@ -985,7 +1070,8 @@ const addCategoryToSupabase = async (categoryName) => {
         'procedure_phase_products',       // Product recommendations per phase/patient type
         'product_details',               // Product details and rationales
         'procedure_phases',              // Phase associations
-        'procedure_dentists',            // DDS type associations
+        'procedure_patient_types'        // Patient type associations (missing from original list!)
+        // 'procedure_dentists' removed as table is deleted
       ];
 
       // Perform cascading deletion with detailed logging
@@ -1116,6 +1202,67 @@ const addCategoryToSupabase = async (categoryName) => {
  */
 const updateConditionFieldRealtime = async (conditionId, field, value) => {
   try {
+    // Special handling for conditionSpecificResearch - stored in condition_product_research_articles table
+    if (field === 'conditionSpecificResearch') {
+      // First, delete all existing research articles for this condition
+      const { error: deleteError } = await supabase
+        .from('condition_product_research_articles')
+        .delete()
+        .eq('procedure_id', conditionId);
+
+      if (deleteError) {
+        return { success: false, error: deleteError };
+      }
+
+      // Get product name->id map
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name');
+
+      if (productsError) {
+        return { success: false, error: productsError };
+      }
+
+      const productNameToId = Object.fromEntries(productsData.map(p => [p.name, p.id]));
+
+      // Insert new research articles
+      if (value && typeof value === 'object') {
+        const articlesToInsert = [];
+
+        for (const productName of Object.keys(value)) {
+          const productId = productNameToId[productName];
+          if (!productId) continue;
+
+          const articles = value[productName];
+          if (Array.isArray(articles)) {
+            for (const article of articles) {
+              articlesToInsert.push({
+                procedure_id: conditionId,
+                product_id: productId,
+                title: article.title || '',
+                author: article.author || '',
+                abstract: article.abstract || '',
+                url: article.url || ''
+              });
+            }
+          }
+        }
+
+        if (articlesToInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from('condition_product_research_articles')
+            .insert(articlesToInsert);
+
+          if (insertError) {
+            return { success: false, error: insertError };
+          }
+        }
+      }
+
+      invalidateConditionsCache();
+      return { success: true };
+    }
+
     // Special handling for category_id - need to convert category name to ID
     if (field === 'category_id') {
       // Get category ID from category name
@@ -1336,6 +1483,42 @@ const addProductToPatientTypeRealtime = async (conditionId, phaseName, patientTy
 
     if (error) {
       return { success: false, error };
+    }
+
+    // Check if product_details entry exists for this product/procedure combination
+    const { data: existingDetail } = await supabase
+      .from('product_details')
+      .select('id')
+      .eq('procedure_id', conditionId)
+      .eq('product_id', productData.id)
+      .maybeSingle();
+
+    // Create basic product_details entry if it doesn't exist
+    if (!existingDetail) {
+      const { data: procedureData } = await supabase
+        .from('procedures')
+        .select('name')
+        .eq('id', conditionId)
+        .single();
+
+      const conditionName = procedureData?.name || 'this condition';
+
+      const { error: pdError } = await supabase
+        .from('product_details')
+        .insert([{
+          procedure_id: conditionId,
+          product_id: productData.id,
+          objection_handling: `Basic objection handling for ${productName}`,
+          fact_sheet_url: '#',
+          clinical_evidence: `Clinical evidence for ${productName} in ${conditionName}`,
+          pitch_points: `Key benefits of ${productName}`,
+          rationale: `Recommended for use in ${conditionName} treatment`
+        }]);
+
+      if (pdError) {
+        console.error('Error creating product_details:', pdError);
+        // Don't fail the whole operation, just log it
+      }
     }
 
     await refreshProceduresView();

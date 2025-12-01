@@ -3,6 +3,8 @@ import { supabase } from '../../supabaseClient';
 import { useOptimisticUpdate } from '../../hooks/useOptimisticUpdate';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
 import { useToast } from './Toast';
+import { queryClient } from '../../providers/QueryProvider';
+import { conditionKeys } from '../../hooks/useConditions';
 import {
   loadConditionsFromSupabase,
   loadCategoriesFromSupabase,
@@ -28,6 +30,18 @@ import {
   deleteConditionFromSupabase,
   getEntityIdMaps
 } from './AdminPanelSupabase';
+
+// Helper to invalidate both caches (manual + React Query)
+const invalidateAllConditionCaches = () => {
+  console.log('🔄 Invalidating all condition caches...');
+  // Invalidate the manual cache in AdminPanelSupabase
+  invalidateConditionsCache();
+  // Also invalidate React Query cache so main app gets fresh data
+  if (queryClient) {
+    queryClient.invalidateQueries({ queryKey: conditionKeys.all });
+    console.log('✅ Both manual and React Query caches invalidated');
+  }
+};
 
 function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const [activeTab, setActiveTab] = useState('conditions');
@@ -76,59 +90,75 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     }
 
     setIsLoading(true);
+    const startTime = performance.now();
     
     try {
-      // Load conditions from Supabase (use cache when possible)
-      const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
+      // Load patient types query function
+      const loadPatientTypes = async () => {
+        try {
+          const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name&order=name.asc`;
+          const ptResponse = await fetch(patientTypesUrl, {
+            headers: {
+              'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
+            }
+          });
+
+          if (!ptResponse.ok) {
+            console.error('❌ Failed to load patient types:', ptResponse.status);
+            return [];
+          }
+          return await ptResponse.json();
+        } catch (error) {
+          console.error('❌ Error loading patient types:', error);
+          return [];
+        }
+      };
+
+      // Load ALL data in parallel for maximum speed
+      const [
+        supabaseConditions,
+        supabaseCategories,
+        supabaseDdsTypes,
+        productsResult,
+        ptData
+      ] = await Promise.all([
+        loadConditionsFromSupabase(forceRefresh),
+        loadCategoriesFromSupabase(),
+        loadDdsTypesFromSupabase(),
+        loadProductsFromSupabase(),
+        loadPatientTypes()
+      ]);
+
+      // Process results
       setConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
       
       // Auto-select the first condition
       if (supabaseConditions.length > 0) {
-          setSelectedCondition(supabaseConditions[0]);
+        setSelectedCondition(supabaseConditions[0]);
       } else {
-          setSelectedCondition(null);
+        setSelectedCondition(null);
       }
 
-      // Load categories, DDS types, and products directly into AdminPanel state
-      const supabaseCategories = await loadCategoriesFromSupabase();
-      const supabaseDdsTypes = await loadDdsTypesFromSupabase();
-      const productsResult = await loadProductsFromSupabase();
-      
       setCategories(supabaseCategories.sort());
       setDdsTypes(supabaseDdsTypes.sort());
+      setPatientTypes(ptData);
+
       if (productsResult.success) {
         setAllProducts(productsResult.data.sort((a, b) => a.name.localeCompare(b.name)));
-      }
-      
-      // Load dynamic patient types using raw fetch (bypass broken Supabase client)
-      try {
-        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name&order=name.asc`;
-        const ptResponse = await fetch(patientTypesUrl, {
-          headers: {
-            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
-
-        if (!ptResponse.ok) {
-          console.error('❌ Failed to load patient types:', ptResponse.status);
-          setPatientTypes([]);
-        } else {
-          const ptData = await ptResponse.json();
-          setPatientTypes(ptData);
-        }
-      } catch (error) {
-        console.error('❌ Error loading patient types:', error);
-        setPatientTypes([]);
+      } else {
+        console.error('❌ Products failed to load:', productsResult.error);
       }
 
-      setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
-      setIsLoading(false); // Data loaded successfully
+      const loadTime = performance.now() - startTime;
+      console.log(`✅ Admin panel data loaded in ${loadTime.toFixed(0)}ms`);
+
+      setHasLoadedInitialData(true);
+      setIsLoading(false);
     } catch (error) {
-      // TODO: Replace with proper error tracking (e.g., Sentry)
       console.error("Error loading data:", error);
-      setHasLoadedInitialData(true); // Still mark as loaded to prevent infinite retries
-      setIsLoading(false); // Stop loading even on error
+      setHasLoadedInitialData(true);
+      setIsLoading(false);
     }
   }, [hasLoadedInitialData]); // Include hasLoadedInitialData dependency
 
@@ -139,6 +169,10 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       loadInitialData();
     }
   }, [loadInitialData]); // Include loadInitialData dependency
+
+  // Note: Cache invalidation on unmount removed to prevent timeout issues
+  // Cache is already invalidated after each mutation (add/edit/delete)
+  // No need to refetch everything when closing admin panel
 
   // Initialize patient-specific products for a condition
   const initializePatientSpecificProducts = useCallback((condition) => {
@@ -280,59 +314,45 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     initializePatientSpecificProducts(condition);
   };
   
-  // Update condition field with real-time save (debounced for text fields)
-  const updateConditionFieldDebounced = useDebouncedCallback(async (db_id, field, value) => {
+  // Debounced database update only (state updates happen immediately)
+  const debouncedDatabaseUpdate = useDebouncedCallback(async (db_id, field, value) => {
     const operationId = `condition-${db_id}-${field}`;
 
-    await executeUpdate(
-      operationId,
-      // Optimistic update
-      () => {
-        const oldConditions = [...conditions];
-        setConditions(prev => prev.map(c =>
-          c.db_id === db_id ? { ...c, [field]: value } : c
-        ));
-        if (selectedCondition?.db_id === db_id) {
-          setSelectedCondition(prev => ({ ...prev, [field]: value }));
-        }
-        // Rollback function
-        return () => {
-          setConditions(oldConditions);
-          if (selectedCondition?.db_id === db_id) {
-            const original = oldConditions.find(c => c.db_id === db_id);
-            if (original) setSelectedCondition(original);
-          }
-        };
-      },
-      // Database update
-      () => updateConditionFieldRealtime(db_id, field, value),
-      null,
-      `Failed to update ${field}`
-    );
+    // Only do the database update, no state changes (state already updated immediately)
+    const result = await updateConditionFieldRealtime(db_id, field, value);
+
+    if (!result.success) {
+      console.error(`Failed to update ${field}:`, result.error);
+      // TODO: Show error toast to user
+    }
   }, 500); // 500ms debounce
 
   // Wrapper for immediate updates (non-text fields)
   const updateConditionField = (db_id, field, value) => {
-    if (field === 'name' || field === 'description') {
-      // Debounced for text inputs
-      updateConditionFieldDebounced(db_id, field, value);
-    } else {
-      // Immediate for dropdowns/selects
-      const operationId = `condition-${db_id}-${field}`;
+    // Map database field names to local state field names
+    const localField = field === 'category_id' ? 'category' : field;
 
-      // Map database field names to local state field names
-      const localField = field === 'category_id' ? 'category' : field;
+    // Always update local state immediately for responsive UI
+    setConditions(prev => prev.map(c =>
+      c.db_id === db_id ? { ...c, [localField]: value } : c
+    ));
+    if (selectedCondition?.db_id === db_id) {
+      setSelectedCondition(prev => ({ ...prev, [localField]: value }));
+    }
+
+    // Database update: debounced for text fields, immediate for others
+    if (field === 'name' || field === 'description' || field === 'conditionSpecificResearch') {
+      // Debounced database update for text inputs and research articles
+      debouncedDatabaseUpdate(db_id, field, value);
+    } else {
+      // Immediate database update for dropdowns/selects
+      const operationId = `condition-${db_id}-${field}`;
 
       executeUpdate(
         operationId,
         () => {
+          // State already updated above, just return a no-op rollback
           const oldConditions = [...conditions];
-          setConditions(prev => prev.map(c =>
-            c.db_id === db_id ? { ...c, [localField]: value } : c
-          ));
-          if (selectedCondition?.db_id === db_id) {
-            setSelectedCondition(prev => ({ ...prev, [localField]: value }));
-          }
           return () => {
             setConditions(oldConditions);
             if (selectedCondition?.db_id === db_id) {
@@ -790,7 +810,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       // Add to local state with db_id from database
       const savedCondition = { ...newConditionObject, db_id: result.data.db_id };
       setConditions(prev => [...prev, savedCondition]);
-      invalidateConditionsCache();
+      invalidateAllConditionCaches();
       showToast('Condition added successfully', 'success');
       success = true;
     } else {
@@ -891,7 +911,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
               const remainingConditions = conditions.filter(c => c.db_id !== conditionId);
               setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
             }
-            invalidateConditionsCache();
+            invalidateAllConditionCaches();
             showToast('Condition deleted successfully', 'success');
             success = true;
           } else {
@@ -923,7 +943,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
             }
             return cond;
           }));
-          invalidateConditionsCache();
+          invalidateAllConditionCaches();
           showToast('Category deleted successfully', 'success');
           success = true;
         } else {

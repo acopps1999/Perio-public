@@ -8,7 +8,7 @@ import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import FeedbackWidget from './FeedbackWidget';
-import DatabaseChatbot from './DatabaseChatbot';
+// import DatabaseChatbot from './DatabaseChatbot'; // Disabled per user request
 import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
 
@@ -95,24 +95,11 @@ function ClinicalChartMockup() {
         // Store current selected condition ID before processing data
         const currentSelectedId = selectedCondition?.db_id;
 
-        // Fetch additional data
-        const productsResult = await loadProductsFromSupabase();
-
-        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name,description&order=name.asc`;
-
-        const ptResponse = await fetch(patientTypesUrl, {
-          headers: {
-            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
-
-        const dbPatientTypes = await ptResponse.json();
-
-        if (!productsResult.success) {
-          console.error("CHART_LOAD: Error fetching products:", productsResult.error);
-          // Continue without products for now
-        }
+        // Cache optimization: Extract metadata from conditions response
+        // This avoids duplicate database queries for products and patient_types
+        const metadata = conditions[0]?._metadata || {};
+        const productsData = metadata.allProducts || [];
+        const patientTypesData = metadata.allPatientTypes || [];
 
         const uniqueCategories = ['All', ...new Set(conditions.map(c => c.category).filter(Boolean))];
         const allDdsTypes = ['All', ...new Set(conditions.flatMap(c => c.dds || []))];
@@ -121,10 +108,8 @@ function ClinicalChartMockup() {
         // setFilteredConditions(conditions); // REMOVED - this was causing infinite loop
         setCategoryOptions(uniqueCategories);
         setDdsTypeOptions(allDdsTypes);
-        setPatientTypes(dbPatientTypes || []);
-
-        const productsToSet = productsResult.success ? productsResult.data : [];
-        setAllProducts(productsToSet);
+        setPatientTypes(patientTypesData);
+        setAllProducts(productsData);
 
         // After reload, try to re-select the same condition
         const reSelectedCondition = conditions.find(c => c.db_id === currentSelectedId);
@@ -608,9 +593,9 @@ useEffect(() => {
       
       {/* Feedback Widget - always visible */}
       <FeedbackWidget />
-      
-      {/* Database Chatbot - always visible for authenticated users */}
-      <DatabaseChatbot />
+
+      {/* Database Chatbot - disabled per user request */}
+      {/* <DatabaseChatbot /> */}
     </div>
   );
 }

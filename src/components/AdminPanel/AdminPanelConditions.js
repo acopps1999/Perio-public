@@ -289,7 +289,7 @@ const renderPatientTypeProductConfig = (phase) => {
         </div>
       </div>
       
-      {activePatientType !== 'all' && (
+      {activePatientType !== 'All' && (
         <div className="mb-4 p-2 bg-slate-100 border border-slate-200 rounded text-sm text-slate-700 flex items-center">
           <Info size={15} className="mr-1 flex-shrink-0 text-[#15396c]" />
           <span>
@@ -300,18 +300,20 @@ const renderPatientTypeProductConfig = (phase) => {
       )}
       
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'all' ? 'All Treatment Modifiers' : `${activePatientType}`}</span>
+        <span className="text-sm font-medium text-gray-700">Products for {activePatientType === 'All' ? 'All Treatment Modifiers' : `${activePatientType}`}</span>
         <select
           onChange={(e) => {
-            if (e.target.value) {
+            if (e.target.value && activePatientType !== 'All') {
               addProductToPatientType(phase, activePatientType, e.target.value);
               e.target.value = ''; // Reset select
             }
           }}
-          className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+          disabled={activePatientType === 'All'}
+          className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          title={activePatientType === 'All' ? 'Select a specific treatment modifier to add products' : ''}
         >
-          <option value="">Add product...</option>
-          {allProducts
+          <option value="">{activePatientType === 'All' ? 'Select a treatment modifier first...' : 'Add product...'}</option>
+          {activePatientType !== 'All' && allProducts
             .filter(product => {
               // Only show products that aren't already added for this patient type
               if (!patientSpecificProducts[phase]) return true;
@@ -491,7 +493,7 @@ return (
                 </label>
                 <div className="relative">
                   <select
-                    value={selectedCondition.category}
+                    value={selectedCondition.category ?? ''}
                     onChange={(e) => {
                       // Update database with category_id (will convert name to ID and update local state)
                       updateConditionField(selectedCondition.db_id, 'category_id', e.target.value);
@@ -640,6 +642,8 @@ return (
             <div className="mt-6">
               <h3 className="font-medium text-lg mb-3">Products by Phase</h3>
               
+              {/* Only show tabs if there are phases */}
+              {selectedCondition.phases && selectedCondition.phases.length > 0 ? (
               <Tabs.Root defaultValue={selectedCondition.phases[0]} className="border rounded-md">
                 <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
                   {selectedCondition.phases.map((phase, index) => {
@@ -677,6 +681,17 @@ return (
                   </Tabs.Content>
                 ))}
               </Tabs.Root>
+              ) : (
+                <div className="p-4 text-center text-gray-500 bg-gray-100 rounded-md border">
+                  <p className="mb-2">No phases configured for this condition.</p>
+                  <p className="text-sm">Add treatment phases above to configure products.</p>
+                  {selectedCondition._isFallbackData && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      ⚠️ Using fallback data - some features may be limited until database migrations are run.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Condition-Specific Research */}
@@ -709,7 +724,7 @@ return (
                             setSelectedResearchProduct(e.target.value);
                           }
                         }}
-                        value={selectedResearchProduct || ''}
+                        value={selectedResearchProduct ?? ''}
                       >
                         <option value="">Select a product...</option>
                         {recommendedProducts.map(prod => (
@@ -729,8 +744,8 @@ return (
                   
                   {/* Initialize condition-specific research if it doesn't exist */}
                   {!selectedCondition.conditionSpecificResearch && updateConditionField(
-                    selectedCondition.name, 
-                    'conditionSpecificResearch', 
+                    selectedCondition.db_id,
+                    'conditionSpecificResearch',
                     {}
                   )}
                   
@@ -750,10 +765,10 @@ return (
                             updatedArticles[index].title = e.target.value;
                             
                             updatedResearch[selectedResearchProduct] = updatedArticles;
-                            
+
                             updateConditionField(
-                              selectedCondition.name, 
-                              'conditionSpecificResearch', 
+                              selectedCondition.db_id,
+                              'conditionSpecificResearch',
                               updatedResearch
                             );
                           }}
@@ -770,10 +785,10 @@ return (
                             updatedArticles[index].author = e.target.value;
                             
                             updatedResearch[selectedResearchProduct] = updatedArticles;
-                            
+
                             updateConditionField(
-                              selectedCondition.name, 
-                              'conditionSpecificResearch', 
+                              selectedCondition.db_id,
+                              'conditionSpecificResearch',
                               updatedResearch
                             );
                           }}
@@ -791,10 +806,10 @@ return (
                             updatedArticles[index].abstract = e.target.value;
                             
                             updatedResearch[selectedResearchProduct] = updatedArticles;
-                            
+
                             updateConditionField(
-                              selectedCondition.name, 
-                              'conditionSpecificResearch', 
+                              selectedCondition.db_id,
+                              'conditionSpecificResearch',
                               updatedResearch
                             );
                           }}
@@ -811,10 +826,10 @@ return (
                             updatedArticles[index].url = e.target.value;
                             
                             updatedResearch[selectedResearchProduct] = updatedArticles;
-                            
+
                             updateConditionField(
-                              selectedCondition.name, 
-                              'conditionSpecificResearch', 
+                              selectedCondition.db_id,
+                              'conditionSpecificResearch',
                               updatedResearch
                             );
                           }}
@@ -829,10 +844,10 @@ return (
                           updatedArticles.splice(index, 1);
                           
                           updatedResearch[selectedResearchProduct] = updatedArticles;
-                          
+
                           updateConditionField(
-                            selectedCondition.name, 
-                            'conditionSpecificResearch', 
+                            selectedCondition.db_id,
+                            'conditionSpecificResearch',
                             updatedResearch
                           );
                         }}
@@ -849,10 +864,10 @@ return (
                       const updatedArticles = [...(updatedResearch[selectedResearchProduct] || []), { title: '', author: '', abstract: '', url: '' }];
                       
                       updatedResearch[selectedResearchProduct] = updatedArticles;
-                      
+
                       updateConditionField(
-                        selectedCondition.name, 
-                        'conditionSpecificResearch', 
+                        selectedCondition.db_id,
+                        'conditionSpecificResearch',
                         updatedResearch
                       );
                     }}

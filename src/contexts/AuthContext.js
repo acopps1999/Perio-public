@@ -19,17 +19,55 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is already logged in on app start using Supabase session
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Get current session from Supabase (stored in httpOnly cookies)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('🔄 AuthContext initializing...');
+    
+    // ONE-TIME CLEANUP: Remove old custom session format if it exists
+    const cleanupFlag = 'auth_cleanup_done_v2';
+    if (!localStorage.getItem(cleanupFlag)) {
+      const oldKeys = ['supabase.auth.token', 'admin_authenticated', 'admin_user'];
+      let cleaned = false;
+      
+      oldKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          console.log(`🧹 One-time cleanup: removing ${key}`);
+          localStorage.removeItem(key);
+          cleaned = true;
+        }
+      });
+      
+      if (cleaned) {
+        console.log('✅ Old session data cleaned up');
+      }
+      
+      localStorage.setItem(cleanupFlag, 'true');
+    }
 
-        if (sessionError || !session) {
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ Auth initialization timeout - setting loading to false');
+      setLoading(false);
+    }, 3000); // 3 second timeout
+
+    // Listen for auth state changes - this includes initial session restoration
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state change:', event, session ? 'with session' : 'no session');
+      
+      // Clear the timeout since we got an auth event
+      clearTimeout(loadingTimeout);
+      
+      // Handle session restoration on page load
+      if (event === 'INITIAL_SESSION') {
+        if (!session) {
+          console.log('ℹ️ No initial session found');
+          setIsAuthenticated(false);
+          setAdminUser(null);
           setLoading(false);
           return;
         }
-
-        // Verify user is an admin
+        
+        console.log('✅ Restoring session for user:', session.user?.email);
+        
+        // Verify admin status
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('*')
@@ -37,35 +75,40 @@ export const AuthProvider = ({ children }) => {
           .single();
 
         if (adminData && !adminError) {
+          console.log('✅ Admin verified:', adminData.email);
           setIsAuthenticated(true);
           setAdminUser({
             ...adminData,
             auth_user: session.user
           });
+        } else {
+          console.warn('⚠️ User is not an admin');
+          setIsAuthenticated(false);
+          setAdminUser(null);
         }
-      } catch (error) {
-        console.error('Session check error:', error);
-      } finally {
+        
         setLoading(false);
       }
-    };
-
-    checkAuth();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
+      // Handle logout
+      else if (event === 'SIGNED_OUT' || !session) {
+        console.log('👋 User signed out');
         setIsAuthenticated(false);
         setAdminUser(null);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setLoading(false);
+      }
+      // Handle login and token refresh
+      else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        console.log('✅ Session active for user:', session.user?.email);
+        
         // Verify admin status
-        const { data: adminData } = await supabase
+        const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('*')
           .eq('user_id', session.user.id)
           .single();
 
-        if (adminData) {
+        if (adminData && !adminError) {
+          console.log('✅ Admin verified:', adminData.email);
           setIsAuthenticated(true);
           setAdminUser({
             ...adminData,
@@ -76,128 +119,112 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => {
+      console.log('🧹 AuthContext cleanup');
+      clearTimeout(loadingTimeout);
       subscription?.unsubscribe();
     };
   }, []);
 
-  // Auto-logout after 10 minutes of inactivity
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  // Auto-logout disabled - no inactivity timeout
+  // (Previously set to 10 minutes, disabled per user request)
+  // useEffect(() => {
+  //   if (!isAuthenticated) return;
 
-    let inactivityTimeout;
+  //   let inactivityTimeout;
 
-    // Function to perform logout
-    const performLogout = async () => {
-      // Call the callback before logout (if set) to close admin panels
-      if (onAutoLogoutCallback) {
-        onAutoLogoutCallback();
-      }
+  //   // Function to perform logout
+  //   const performLogout = async () => {
+  //     // Call the callback before logout (if set) to close admin panels
+  //     if (onAutoLogoutCallback) {
+  //       onAutoLogoutCallback();
+  //     }
 
-      // Clear localStorage session
-      localStorage.removeItem('supabase.auth.token');
+  //     // Sign out from Supabase (clears session automatically)
+  //     await supabase.auth.signOut();
 
-      // Try to sign out from Supabase (may hang, so don't await)
-      supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
+  //     setIsAuthenticated(false);
+  //     setAdminUser(null);
+  //   };
 
-      setIsAuthenticated(false);
-      setAdminUser(null);
-    };
+  //   // Reset the inactivity timer
+  //   const resetInactivityTimer = () => {
+  //     if (inactivityTimeout) {
+  //       clearTimeout(inactivityTimeout);
+  //     }
+  //     inactivityTimeout = setTimeout(() => {
+  //       performLogout();
+  //     }, 600000); // 10 minutes = 600,000 ms
+  //   };
 
-    // Reset the inactivity timer
-    const resetInactivityTimer = () => {
-      if (inactivityTimeout) {
-        clearTimeout(inactivityTimeout);
-      }
-      inactivityTimeout = setTimeout(() => {
-        performLogout();
-      }, 600000); // 10 minutes = 600,000 ms
-    };
+  //   // Events that indicate user activity
+  //   const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
-    // Events that indicate user activity
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  //   // Add event listeners for user activity
+  //   activityEvents.forEach(event => {
+  //     document.addEventListener(event, resetInactivityTimer, true);
+  //   });
 
-    // Add event listeners for user activity
-    activityEvents.forEach(event => {
-      document.addEventListener(event, resetInactivityTimer, true);
-    });
+  //   // Start the initial timer
+  //   resetInactivityTimer();
 
-    // Start the initial timer
-    resetInactivityTimer();
-
-    // Cleanup function
-    return () => {
-      if (inactivityTimeout) {
-        clearTimeout(inactivityTimeout);
-      }
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, resetInactivityTimer, true);
-      });
-    };
-  }, [isAuthenticated, onAutoLogoutCallback]);
+  //   // Cleanup function
+  //   return () => {
+  //     if (inactivityTimeout) {
+  //       clearTimeout(inactivityTimeout);
+  //     }
+  //     activityEvents.forEach(event => {
+  //       document.removeEventListener(event, resetInactivityTimer, true);
+  //     });
+  //   };
+  // }, [isAuthenticated, onAutoLogoutCallback]);
 
   const login = async (email, password) => {
     try {
-      console.log('🔐 Attempting login with raw fetch...');
+      console.log('🔐 Attempting login with Supabase client...');
 
-      // Use raw fetch to bypass broken Supabase client
-      const authUrl = `${process.env.REACT_APP_SUPABASE_URL}/auth/v1/token?grant_type=password`;
-      const authResponse = await fetch(authUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
+      // Use Supabase client for proper session management
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
 
-      if (!authResponse.ok) {
-        const errorData = await authResponse.json();
-        throw new Error(errorData.error_description || 'Invalid credentials');
+      if (authError || !authData.user) {
+        throw new Error(authError?.message || 'Invalid credentials');
       }
 
-      const authData = await authResponse.json();
       console.log('✅ Auth successful, checking admin status...');
+      console.log('User ID:', authData.user.id);
 
-      if (!authData.user) {
-        throw new Error('Invalid credentials');
-      }
+      // Verify the user is in the admins table
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .maybeSingle();
 
-      // Now verify the user is in the admins table using raw fetch
-      const adminUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/admins?select=*&user_id=eq.${authData.user.id}`;
-      const adminResponse = await fetch(adminUrl, {
-        headers: {
-          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${authData.access_token}`
-        }
-      });
-
-      const adminData = await adminResponse.json();
       console.log('✅ Admin check response:', adminData);
 
-      if (!adminData || adminData.length === 0) {
+      if (adminError) {
+        console.error('❌ Admin check error:', adminError);
+        await supabase.auth.signOut();
+        throw new Error('Failed to verify admin status');
+      }
+
+      if (!adminData) {
+        await supabase.auth.signOut();
         throw new Error('Access denied - admin privileges required');
       }
 
-      // Store the session manually in localStorage for persistence
-      const session = {
-        access_token: authData.access_token,
-        refresh_token: authData.refresh_token,
-        user: authData.user,
-        expires_at: authData.expires_at
-      };
-      localStorage.setItem('supabase.auth.token', JSON.stringify(session));
-
       // Set authentication state
+      // Session is automatically stored by Supabase client
       setIsAuthenticated(true);
       setAdminUser({
-        ...adminData[0],
+        ...adminData,
         auth_user: authData.user
       });
 
       console.log('✅ Login successful!');
+      console.log('Session token:', authData.session?.access_token?.substring(0, 20) + '...');
       return { success: true };
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -208,11 +235,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     console.log('🔓 Logging out...');
 
-    // Clear localStorage session
-    localStorage.removeItem('supabase.auth.token');
-
-    // Try to sign out from Supabase (may hang, so don't await)
-    supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
+    // Sign out from Supabase (clears session automatically)
+    await supabase.auth.signOut();
 
     setIsAuthenticated(false);
     setAdminUser(null);
