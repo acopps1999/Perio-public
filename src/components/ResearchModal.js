@@ -29,52 +29,52 @@ function ResearchModal({
       if (!researchArticles || researchArticles.length === 0) {
         return (
           <div className="text-center py-16">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 max-w-md mx-auto">
-              <BookOpen size={64} className="mx-auto mb-4 text-gray-300" />
-              <h4 className="text-xl font-semibold text-gray-700 mb-3">No Research Articles Found</h4>
-              <p className="text-gray-500 mb-2">No research articles are available for this product.</p>
-              <p className="text-sm text-gray-400">Research articles can be added through the Admin Panel.</p>
+            <div className="bg-white dark:bg-prism-dark-bg-secondary rounded-lg border border-prism-light-border-subtle dark:border-prism-dark-border-subtle shadow-light-sm dark:shadow-sm p-8 max-w-md mx-auto">
+              <BookOpen size={64} className="mx-auto mb-4 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary" />
+              <h4 className="text-xl font-semibold text-prism-light-text-primary dark:text-prism-dark-text-primary mb-3">No Research Articles Found</h4>
+              <p className="text-prism-light-text-secondary dark:text-prism-dark-text-secondary mb-2">No research articles are available for this product.</p>
+              <p className="text-sm text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary">Research articles can be added through the Admin Panel.</p>
             </div>
           </div>
         );
       }
       return researchArticles.map((article, index) => (
-        <div key={index} className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
+        <div key={index} className="bg-white dark:bg-prism-dark-bg-secondary rounded-lg border border-prism-light-border-subtle dark:border-prism-dark-border-subtle shadow-light-sm dark:shadow-sm p-6 hover:shadow-light-md dark:hover:shadow-md transition-all duration-250">
           <div className="flex items-start justify-between mb-3">
-            <h3 className="font-semibold text-lg text-[#15396c] hover:text-[#15396c]/80 flex-1 pr-4">
-              <span className="text-gray-400 mr-3 font-normal">{index + 1}.</span>
+            <h3 className="font-semibold text-lg text-prism-primary hover:text-prism-light flex-1 pr-4 transition-colors duration-250">
+              <span className="text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary mr-3 font-normal">{index + 1}.</span>
               {article.title}
             </h3>
             {article.url && (
-              <a 
-                href={article.url} 
-                target="_blank" 
+              <a
+                href={article.url}
+                target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 inline-flex items-center px-3 py-1.5 bg-[#15396c] text-white text-xs font-medium rounded-md hover:bg-[#15396c]/90 transition-colors"
+                className="flex-shrink-0 inline-flex items-center px-3 py-1.5 bg-prism-primary text-white text-xs font-medium rounded-lg hover:bg-prism-hover transition-all duration-250"
               >
                 <span>View Article</span>
                 <ExternalLink size={12} className="ml-1" />
               </a>
             )}
           </div>
-          
+
           {article.author && (
-            <div className="text-gray-600 text-sm mb-4 border-b border-gray-100 pb-3">
+            <div className="text-prism-light-text-secondary dark:text-prism-dark-text-secondary text-sm mb-4 border-b border-prism-light-border-subtle dark:border-prism-dark-border-subtle pb-3">
               <p className="flex items-center">
-                <span className="font-medium text-gray-700 mr-2">Authors:</span>
+                <span className="font-medium text-prism-light-text-primary dark:text-prism-dark-text-primary mr-2">Authors:</span>
                 <span>{article.author}</span>
               </p>
             </div>
           )}
-          
+
           {article.abstract && (
             <div className="mt-4">
-              <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <FileText size={16} className="mr-2 text-[#15396c]" />
+              <h5 className="font-semibold text-prism-light-text-primary dark:text-prism-dark-text-primary mb-3 flex items-center">
+                <FileText size={16} className="mr-2 text-prism-primary" />
                 Abstract
               </h5>
-              <div className="bg-gradient-to-r from-[#15396c]/5 to-transparent border-l-4 border-[#15396c] p-4 rounded-r-md">
-                <div className="text-gray-700 leading-relaxed text-justify">
+              <div className="border-l-4 border-prism-primary bg-white dark:bg-prism-dark-bg-primary p-4 rounded-r-lg">
+                <div className="text-prism-light-text-primary dark:text-prism-dark-text-primary leading-relaxed text-justify">
                   {article.abstract.split('\n').map((paragraph, pIndex) => (
                     <p key={pIndex} className={pIndex > 0 ? "mt-3" : ""}>
                       {paragraph.trim()}
@@ -92,10 +92,10 @@ function ResearchModal({
     if (!filteredProducts || filteredProducts.length === 0) {
       return (
         <div className="text-center py-16">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 max-w-md mx-auto">
-            <BookOpen size={64} className="mx-auto mb-4 text-gray-300" />
-            <h4 className="text-xl font-semibold text-gray-700 mb-3">No Research Available</h4>
-            <p className="text-gray-500">No products selected or no research available for the current selection.</p>
+          <div className="bg-white dark:bg-prism-dark-bg-secondary rounded-lg border border-prism-light-border-subtle dark:border-prism-dark-border-subtle shadow-light-sm dark:shadow-sm p-8 max-w-md mx-auto">
+            <BookOpen size={64} className="mx-auto mb-4 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary" />
+            <h4 className="text-xl font-semibold text-prism-light-text-primary dark:text-prism-dark-text-primary mb-3">No Research Available</h4>
+            <p className="text-prism-light-text-secondary dark:text-prism-dark-text-secondary">No products selected or no research available for the current selection.</p>
           </div>
         </div>
       );
@@ -104,11 +104,11 @@ function ResearchModal({
     return filteredProducts.map((product) => {
       const productResearch = getProductResearch(product);
       if (!productResearch || productResearch.length === 0) return null;
-      
+
       return (
         <div key={product} className="mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-[#15396c] text-white p-4">
+          <div className="bg-white dark:bg-prism-dark-bg-secondary rounded-lg border border-prism-light-border-subtle dark:border-prism-dark-border-subtle shadow-light-sm dark:shadow-sm overflow-hidden">
+            <div className="bg-prism-primary text-white p-4">
               <h3 className="text-lg font-semibold flex items-center">
                 <FileText size={20} className="mr-3" />
                 {product.replace(' (Type 3/4 Only)', '')}
@@ -116,37 +116,37 @@ function ResearchModal({
             </div>
             <div className="p-6 space-y-6">
               {productResearch.map((article, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div key={index} className="bg-white dark:bg-prism-dark-bg-primary rounded-lg border border-prism-light-border-subtle dark:border-prism-dark-border-subtle p-6 hover:shadow-light-md dark:hover:shadow-md transition-all duration-250">
                   <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-lg text-[#15396c] hover:text-[#15396c]/80 flex-1 pr-4">
-                      <span className="text-gray-400 mr-3 font-normal">{index + 1}.</span>
+                    <h4 className="font-semibold text-lg text-prism-primary hover:text-prism-light flex-1 pr-4 transition-colors duration-250">
+                      <span className="text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary mr-3 font-normal">{index + 1}.</span>
                       {article.title}
                     </h4>
                     {article.url && (
-                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 inline-flex items-center px-3 py-1.5 bg-[#15396c] text-white text-xs font-medium rounded-md hover:bg-[#15396c]/90 transition-colors">
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 inline-flex items-center px-3 py-1.5 bg-prism-primary text-white text-xs font-medium rounded-lg hover:bg-prism-hover transition-all duration-250">
                         <span>View Article</span>
                         <ExternalLink size={12} className="ml-1" />
                       </a>
                     )}
                   </div>
-                  
+
                   {article.author && (
-                    <div className="text-gray-600 text-sm mb-4 border-b border-gray-200 pb-3">
+                    <div className="text-prism-light-text-secondary dark:text-prism-dark-text-secondary text-sm mb-4 border-b border-prism-light-border-subtle dark:border-prism-dark-border-subtle pb-3">
                       <p className="flex items-center">
-                        <span className="font-medium text-gray-700 mr-2">Authors:</span>
+                        <span className="font-medium text-prism-light-text-primary dark:text-prism-dark-text-primary mr-2">Authors:</span>
                         <span>{article.author}</span>
                       </p>
                     </div>
                   )}
-                  
+
                   {article.abstract && (
                     <div className="mt-4">
-                      <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                        <FileText size={16} className="mr-2 text-[#15396c]" />
+                      <h5 className="font-semibold text-prism-light-text-primary dark:text-prism-dark-text-primary mb-3 flex items-center">
+                        <FileText size={16} className="mr-2 text-prism-primary" />
                         Abstract
                       </h5>
-                      <div className="bg-gradient-to-r from-[#15396c]/5 to-transparent border-l-4 border-[#15396c] p-4 rounded-r-md">
-                        <div className="text-gray-700 leading-relaxed text-justify">
+                      <div className="border-l-4 border-prism-primary bg-white dark:bg-prism-dark-bg-primary p-4 rounded-r-lg">
+                        <div className="text-prism-light-text-primary dark:text-prism-dark-text-primary leading-relaxed text-justify">
                           {article.abstract.split('\n').map((paragraph, pIndex) => (
                             <p key={pIndex} className={pIndex > 0 ? "mt-3" : ""}>
                               {paragraph.trim()}
@@ -168,30 +168,30 @@ function ResearchModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-4xl w-[90vw] bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden z-50 flex flex-col">
-          <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-[#15396c] text-white rounded-t-lg">
+        <Dialog.Overlay className="fixed inset-0 bg-black/75 z-40" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-4xl w-[90vw] bg-white dark:bg-prism-dark-bg-secondary rounded-xl shadow-light-xl dark:shadow-xl max-h-[90vh] overflow-hidden z-50 flex flex-col transition-all duration-250">
+          <div className="flex justify-between items-center p-8 border-b border-prism-light-border-subtle dark:border-prism-dark-border-subtle bg-prism-primary text-white rounded-t-xl">
             <Dialog.Title className="text-xl font-semibold flex items-center">
               <BookOpen size={24} className="mr-3 text-white" />
               {getResearchTitle()}
             </Dialog.Title>
-            <Dialog.Close className="text-white/80 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
+            <Dialog.Close className="text-white/80 hover:text-white transition-all duration-250 p-1 rounded-lg hover:bg-white/10">
               <X size={24} />
             </Dialog.Close>
           </div>
-          <Dialog.Description className="text-sm text-gray-500 p-6 pb-3 bg-gray-50 border-b border-gray-200">
+          <Dialog.Description className="text-sm text-prism-light-text-secondary dark:text-prism-dark-text-secondary p-6 pb-3 bg-white dark:bg-prism-dark-bg-primary border-b border-prism-light-border-subtle dark:border-prism-dark-border-subtle">
             Scientific articles and studies supporting clinical recommendations
           </Dialog.Description>
-          
-          <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+
+          <div className="flex-1 overflow-y-auto p-8 bg-white dark:bg-prism-dark-bg-primary">
             <div className="space-y-6">
               {renderResearchContent()}
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-200 bg-white text-right rounded-b-lg">
+          <div className="p-8 border-t border-prism-light-border-subtle dark:border-prism-dark-border-subtle bg-white dark:bg-prism-dark-bg-secondary text-right rounded-b-xl">
             <Dialog.Close asChild>
-              <button className="inline-flex items-center px-6 py-2.5 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 transition-colors font-medium">
+              <button className="inline-flex items-center px-6 py-2.5 bg-prism-primary text-white rounded-lg hover:bg-prism-hover focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 dark:focus:ring-offset-prism-dark-bg-secondary transition-all duration-250 font-medium">
                 <X size={18} className="mr-2" />
                 Close
               </button>

@@ -7,15 +7,16 @@
  * Database Format (JSONB from materialized view):
  * - phases: JSONB array of { id, name }
  * - dentists: JSONB array of { id, name }
- * - procedure_phase_products: JSONB array with phase/patient/product info
+ * - procedure_phase_products: JSONB array with phase/product/rank info
  * - product_details: JSONB array with product information
  * - phase_specific_usage: JSONB array with usage instructions
  * - research_articles: JSONB array with research data
+ * - custom_phase_labels: JSONB object { phaseId: customName }
  *
  * App Format (used by ClinicalChartMockup and components):
- * - phases: String array of phase names
+ * - phases: String array of phase names (with custom labels applied)
  * - dds: String array of dentist type names
- * - patientSpecificConfig: Nested object { phaseName: { patientTypeName: [productNames] } }
+ * - products: Object { phaseName: [productNames] } - ranked product lists per phase
  * - productDetails: Object map { productName: { details, usage, researchArticles } }
  * - conditionSpecificResearch: Object map { productName: [articles] }
  *
@@ -49,30 +50,29 @@
 export const transformProcedure = (raw) => {
   if (!raw) return null;
 
-  // Extract phase names from JSONB array
-  const phases = Array.isArray(raw.phases)
-    ? raw.phases.map(p => p.name)
+  // Extract phase info with custom labels applied
+  const customLabels = raw.custom_phase_labels || {};
+  const phasesWithIds = Array.isArray(raw.phases)
+    ? raw.phases.map(p => ({
+        id: p.id,
+        name: customLabels[p.id] || p.name // Use custom label if available
+      }))
     : [];
+
+  // Extract just phase names for backward compatibility
+  const phases = phasesWithIds.map(p => p.name);
 
   // Extract dentist type names from JSONB array
   const dds = Array.isArray(raw.dentists)
     ? raw.dentists.map(d => d.name)
     : [];
 
-  // Build patient-specific product configuration
-  // Structure: { phaseName: { patientTypeName: [productNames] } }
-  const patientSpecificConfig = buildPatientSpecificConfig(
+  // Build ranked product lists per phase (no patient type grouping)
+  // Structure: { phaseName: [productNames] } ordered by rank
+  const products = buildRankedProducts(
     raw.procedure_phase_products || [],
-    phases
+    phasesWithIds
   );
-
-  // Debug logging
-  console.log(`🔍 Transformer for "${raw.name}":`, {
-    phases,
-    pppCount: raw.procedure_phase_products?.length || 0,
-    pppSample: raw.procedure_phase_products?.[0],
-    patientSpecificConfig
-  });
 
   // Build product details map with usage instructions and research articles
   // Structure: { productName: { scientificRationale, usage, researchArticles, ... } }
@@ -89,17 +89,22 @@ export const transformProcedure = (raw) => {
     raw.product_details || []
   );
 
+  // Build legacy patientSpecificConfig for backward compatibility
+  // TODO: Remove this once all UI components are updated
+  const patientSpecificConfig = buildLegacyPatientSpecificConfig(products);
+
   return {
     name: raw.name,
     db_id: raw.id,
     category: raw.category_name || null,
     pitchPoints: raw.pitch_points || '',
-    patientType: raw.patient_type || '',
+    patientType: raw.patient_type || '', // Deprecated field
     phases,
+    phasesWithIds, // New: includes id for custom label editing
     dds,
-    products: {}, // Legacy format - kept for backward compatibility, can be removed later
+    products, // New simplified structure: { phaseName: [productNames] }
     productDetails,
-    patientSpecificConfig,
+    patientSpecificConfig, // Deprecated: for backward compatibility
     conditionSpecificResearch,
     // Condition-level fields extracted from first product
     scientificRationale: extractFirstProductField(raw.product_details, 'scientific_rationale'),
@@ -109,6 +114,90 @@ export const transformProcedure = (raw) => {
 };
 
 /**
+ * Build ranked product lists per phase from procedure_phase_products JSONB array
+ *
+ * Phase 3 simplified structure - no patient type grouping, just ranked products per phase.
+ *
+ * @param {Array} phaseProducts - Array of procedure_phase_product records from JSONB
+ * @param {Array} phasesWithIds - Array of { id, name } phase objects
+ * @returns {Object} Map of phase names to ranked product name arrays
+ *
+ * @example
+ * phaseProducts = [
+ *   { phase_name: 'Prep', product_name: 'Product A', rank: 1 },
+ *   { phase_name: 'Prep', product_name: 'Product B', rank: 2 },
+ *   { phase_name: 'Acute', product_name: 'Product C', rank: 1 }
+ * ]
+ *
+ * Returns:
+ * {
+ *   'Prep': ['Product A', 'Product B'],
+ *   'Acute': ['Product C']
+ * }
+ */
+const buildRankedProducts = (phaseProducts, phasesWithIds) => {
+  const products = {};
+
+  // Initialize structure with all phases
+  phasesWithIds.forEach(phase => {
+    products[phase.name] = [];
+  });
+
+  if (!Array.isArray(phaseProducts)) {
+    return products;
+  }
+
+  // Group products by phase with their ranks
+  const phaseProductsMap = {};
+  phaseProducts.forEach(item => {
+    const phaseName = item.phase_name;
+    const productName = item.product_name;
+    const rank = item.rank || 999; // Default high rank for unranked items
+
+    if (phaseName && productName) {
+      if (!phaseProductsMap[phaseName]) {
+        phaseProductsMap[phaseName] = [];
+      }
+      // Avoid duplicates
+      if (!phaseProductsMap[phaseName].some(p => p.name === productName)) {
+        phaseProductsMap[phaseName].push({ name: productName, rank });
+      }
+    }
+  });
+
+  // Sort by rank and extract just the product names
+  Object.keys(phaseProductsMap).forEach(phaseName => {
+    products[phaseName] = phaseProductsMap[phaseName]
+      .sort((a, b) => a.rank - b.rank)
+      .map(p => p.name);
+  });
+
+  return products;
+};
+
+/**
+ * Build legacy patientSpecificConfig for backward compatibility
+ *
+ * Converts the new simplified products structure back to the old nested format
+ * so existing UI components continue to work during migration.
+ *
+ * @param {Object} products - New format { phaseName: [productNames] }
+ * @returns {Object} Legacy format { phaseName: { 'All': [productNames] } }
+ */
+const buildLegacyPatientSpecificConfig = (products) => {
+  const config = {};
+
+  Object.keys(products).forEach(phaseName => {
+    config[phaseName] = {
+      'All': products[phaseName] || []
+    };
+  });
+
+  return config;
+};
+
+/**
+ * @deprecated Use buildRankedProducts instead
  * Build patient-specific product configuration from procedure_phase_products JSONB array
  *
  * Transforms flat array of product assignments into nested structure:
@@ -117,28 +206,10 @@ export const transformProcedure = (raw) => {
  * @param {Array} phaseProducts - Array of procedure_phase_product records from JSONB
  * @param {Array} phases - Array of phase names for this procedure
  * @returns {Object} Nested configuration object
- *
- * @example
- * phaseProducts = [
- *   { phase_name: 'Prep', patient_type_name: 'Type 1', product_name: 'Product A' },
- *   { phase_name: 'Prep', patient_type_name: 'Type 1', product_name: 'Product B' },
- *   { phase_name: 'Acute', patient_type_name: 'Type 2', product_name: 'Product C' }
- * ]
- *
- * Returns:
- * {
- *   'Prep': {
- *     'Type 1': ['Product A', 'Product B'],
- *     'Type 2': []
- *   },
- *   'Acute': {
- *     'Type 1': [],
- *     'Type 2': ['Product C']
- *   }
- * }
  */
 const buildPatientSpecificConfig = (phaseProducts, phases) => {
   const config = {};
+  const allProductNames = new Set();
 
   // Initialize structure with all phases
   phases.forEach(phaseName => {
@@ -151,6 +222,9 @@ const buildPatientSpecificConfig = (phaseProducts, phases) => {
     phaseProducts.forEach(item => {
       if (item.patient_type_name) {
         patientTypes.add(item.patient_type_name);
+      }
+      if (item.product_name) {
+        allProductNames.add(item.product_name);
       }
     });
   }
@@ -227,7 +301,9 @@ const buildProductDetailsMap = (productDetails, phaseUsage, research) => {
       const productName = pd.product_name;
       const productId = pd.product_id;
 
-      if (!productName) return; // Skip if no product name
+      if (!productName) {
+        return; // Skip if no product name
+      }
 
       // Build usage instructions organized by phase
       const usageByPhase = {};
@@ -253,7 +329,6 @@ const buildProductDetailsMap = (productDetails, phaseUsage, research) => {
         handlingObjections: pd.objection_handling || '',
         pitchPoints: pd.pitch_points || '',
         rationale: pd.rationale || '',
-        factSheetUrl: pd.fact_sheet_url || '',
         usage: usageByPhase,
         researchArticles: productResearch
       };
@@ -375,7 +450,9 @@ export const transformProcedureForDB = (procedureData) => {
 
 // Export helper functions for testing
 export const _testing = {
-  buildPatientSpecificConfig,
+  buildRankedProducts,
+  buildLegacyPatientSpecificConfig,
+  buildPatientSpecificConfig, // Deprecated
   buildProductDetailsMap,
   buildResearchMap,
   extractFirstProductField

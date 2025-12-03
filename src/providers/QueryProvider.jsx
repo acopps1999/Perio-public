@@ -17,7 +17,6 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Create QueryClient with optimized defaults for clinical app
 const queryClient = new QueryClient({
@@ -79,8 +78,8 @@ export function QueryProvider({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* Dev tools only in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* Dev tools disabled - island icon removed per user request */}
+      {/* {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools
           initialIsOpen={false}
           position="bottom-right"
@@ -91,7 +90,7 @@ export function QueryProvider({ children }) {
             },
           }}
         />
-      )}
+      )} */}
     </QueryClientProvider>
   );
 }

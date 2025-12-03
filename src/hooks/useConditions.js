@@ -214,7 +214,6 @@ export const useUpdateConditionField = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to update condition field:', err);
     },
 
     // After mutation completes (success or failure), refresh view and refetch
@@ -268,7 +267,6 @@ export const useAddPhaseToCondition = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to add phase:', err);
     },
 
     onSettled: async () => {
@@ -324,7 +322,6 @@ export const useRemovePhaseFromCondition = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to remove phase:', err);
     },
 
     onSettled: async () => {
@@ -397,7 +394,6 @@ export const useAddProductToPatientType = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to add product to patient type:', err);
     },
 
     onSettled: async () => {
@@ -458,7 +454,6 @@ export const useRemoveProductFromPatientType = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to remove product from patient type:', err);
     },
 
     onSettled: async () => {
@@ -523,7 +518,6 @@ export const useUpdateProductDetail = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to update product detail:', err);
     },
 
     onSettled: async () => {
@@ -559,11 +553,7 @@ export const useAddCategory = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to add category:', err);
-    },
+    }
   });
 };
 
@@ -589,11 +579,7 @@ export const useDeleteCategory = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to delete category:', err);
-    },
+    }
   });
 };
 
@@ -623,11 +609,7 @@ export const useAddDdsType = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to add DDS type:', err);
-    },
+    }
   });
 };
 
@@ -653,11 +635,7 @@ export const useDeleteDdsType = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to delete DDS type:', err);
-    },
+    }
   });
 };
 
@@ -687,11 +665,7 @@ export const useAddProduct = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to add product:', err);
-    },
+    }
   });
 };
 
@@ -720,11 +694,7 @@ export const useRenameProduct = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to rename product:', err);
-    },
+    }
   });
 };
 
@@ -754,11 +724,7 @@ export const useDeleteProduct = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to delete product:', err);
-    },
+    }
   });
 };
 
@@ -804,11 +770,7 @@ export const useAddCondition = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to add condition:', err);
-    },
+    }
   });
 };
 
@@ -844,11 +806,7 @@ export const useUpdateCondition = () => {
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
-
-    onError: (err) => {
-      console.error('Failed to update condition:', err);
-    },
+    }
   });
 };
 
@@ -900,13 +858,12 @@ export const useDeleteCondition = () => {
       if (context?.previous) {
         queryClient.setQueryData(conditionKeys.lists(), context.previous);
       }
-      console.error('Failed to delete condition:', err);
     },
 
     onSuccess: () => {
       invalidateConditionsCache();
       queryClient.invalidateQueries({ queryKey: conditionKeys.all });
-    },
+    }
   });
 };
 
@@ -914,7 +871,7 @@ export const useDeleteCondition = () => {
 // EXPORTS
 // ============================================================================
 
-export default {
+const conditionsHooks = {
   // Query hooks
   useConditions,
   useCondition,
@@ -950,3 +907,5 @@ export default {
   // Query keys
   conditionKeys,
 };
+
+export default conditionsHooks;

@@ -5,8 +5,6 @@
  * This includes fetching products, their associations with procedures and phases.
  */
 
-import supabase from '../client';
-
 /**
  * Fetch all products
  * @returns {Promise<Array>} Array of product objects

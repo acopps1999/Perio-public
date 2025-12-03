@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Stethoscope, Settings, LogOut, Menu, X } from 'lucide-react';
 import DiagnosisWizard from './DiagnosisWizard';
-import AdminPanel from './AdminPanel';
+import AdminDrawer from './AdminDrawer';
 import AdminLoginModal from './AdminLoginModal';
+import SocialLoginModal from './SocialLoginModal';
 import FiltersSection from './FiltersSection';
 import ConditionsList from './ConditionsList';
 import ConditionDetails from './ConditionDetails';
 import ResearchModal from './ResearchModal';
 import FeedbackWidget from './FeedbackWidget';
-import DatabaseChatbot from './DatabaseChatbot';
+import DatabaseChatbot from './AgenticSearchWidget';
 import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
 
@@ -17,11 +18,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useConditions } from '../hooks/useConditions';
 import { loadProductsFromSupabase } from './AdminPanel/AdminPanelSupabase';
 import useResponsive from '../hooks/useResponsive';
+import { useAdminNotifications } from '../hooks/useAdminNotifications';
 
 function ClinicalChartMockup() {
   // Authentication
-  const { isAuthenticated, logout, registerAutoLogoutCallback } = useAuth();
-  
+  const { isAuthenticated, loading: authLoading, logout, registerAutoLogoutCallback, userRole } = useAuth();
+
+  // Admin notifications
+  const { unreadCount } = useAdminNotifications();
+
   // Theme
   const { isDarkMode } = useTheme();
   
@@ -57,9 +62,7 @@ function ClinicalChartMockup() {
   const [selectedCondition, setSelectedCondition] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [ddsTypeFilter, setDdsTypeFilter] = useState('All');
-  const [patientTypeFilter, setPatientTypeFilter] = useState('All');
-  const [activePatientType, setActivePatientType] = useState('All');
-  const [patientTypes, setPatientTypes] = useState([]);
+  // Phase 3: Removed activePatientType and patientTypes - no longer using treatment modifiers
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
 
@@ -98,20 +101,10 @@ function ClinicalChartMockup() {
         // Fetch additional data
         const productsResult = await loadProductsFromSupabase();
 
-        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name,description&order=name.asc`;
-
-        const ptResponse = await fetch(patientTypesUrl, {
-          headers: {
-            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
-
-        const dbPatientTypes = await ptResponse.json();
+        // Phase 3: Removed patient types fetch - no longer using treatment modifiers
 
         if (!productsResult.success) {
-          console.error("CHART_LOAD: Error fetching products:", productsResult.error);
-          // Continue without products for now
+          // Continue without products if load fails
         }
 
         const uniqueCategories = ['All', ...new Set(conditions.map(c => c.category).filter(Boolean))];
@@ -121,7 +114,6 @@ function ClinicalChartMockup() {
         // setFilteredConditions(conditions); // REMOVED - this was causing infinite loop
         setCategoryOptions(uniqueCategories);
         setDdsTypeOptions(allDdsTypes);
-        setPatientTypes(dbPatientTypes || []);
 
         const productsToSet = productsResult.success ? productsResult.data : [];
         setAllProducts(productsToSet);
@@ -137,12 +129,10 @@ function ClinicalChartMockup() {
           setActiveTab(conditions[0].phases && conditions[0].phases.length > 0 ? conditions[0].phases[0] : '');
         }
       } catch (error) {
-        console.error("CHART_LOAD: Critical error during chart data loading:", error);
-        console.error("Error stack:", error.stack);
+        console.error('Critical error during chart data loading:', error);
         // Set fallback empty state - but DON'T set filteredConditions
         setCategoryOptions(['All']);
         setDdsTypeOptions(['All']);
-        setPatientTypes([]);
         setSelectedCondition(null);
       }
     };
@@ -163,15 +153,6 @@ function ClinicalChartMockup() {
     // Filter by DDS type
     if (ddsTypeFilter !== 'All') {
       filtered = filtered.filter(condition => condition.dds && condition.dds.includes(ddsTypeFilter));
-    }
-
-    // Filter by patient type
-    if (patientTypeFilter !== 'All') {
-        // The condition object has a `patientTypeNames` array from the loader function.
-        // The `patientTypeFilter` is now the name string from the dropdown.
-        filtered = filtered.filter(condition =>
-            condition.patientTypeNames && condition.patientTypeNames.includes(patientTypeFilter)
-        );
     }
 
     // Filter by search query
@@ -198,42 +179,49 @@ function ClinicalChartMockup() {
     }
     // REMOVED selectedCondition from dependencies to prevent infinite loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conditions, categoryFilter, ddsTypeFilter, patientTypeFilter, searchQuery]);
+  }, [conditions, categoryFilter, ddsTypeFilter, searchQuery]);
 
-  // Generate patient-specific product recommendations when selectedCondition changes
-useEffect(() => {
+  // Phase 3: Generate ranked product recommendations for selected phase
+  // Uses new `products` structure instead of patientSpecificConfig
+  useEffect(() => {
     if (!selectedCondition || !activeTab) {
-        setFilteredProducts([]);
-        return;
+      setFilteredProducts([]);
+      return;
     }
 
-    let productsToShow = [];
-    const config = selectedCondition.patientSpecificConfig;
+    // Phase 3: Use the new products structure { phaseName: [productNames] }
+    // Products are already ranked in order
+    const products = selectedCondition.products;
 
-    if (config && config[activeTab]) {
+    if (products && products[activeTab]) {
+      // Products are already sorted by rank in the transformer
+      setFilteredProducts(products[activeTab] || []);
+    } else {
+      // Fallback: try legacy patientSpecificConfig for backward compatibility
+      const config = selectedCondition.patientSpecificConfig;
+      if (config && config[activeTab]) {
         const phaseConfig = config[activeTab];
-
-      if (activePatientType !== 'All') {
-            // Get products for the specific patient type by NAME
-            productsToShow = phaseConfig[activePatientType] || [];
+        // For 'All' key or any key, flatten all products
+        const allProducts = [];
+        Object.keys(phaseConfig).forEach(key => {
+          if (phaseConfig[key] && Array.isArray(phaseConfig[key])) {
+            allProducts.push(...phaseConfig[key]);
+          }
+        });
+        setFilteredProducts([...new Set(allProducts)]);
       } else {
-            // For 'All', show only products that are explicitly configured for 'All' patient types
-            // This means products that were specifically saved for all patient types in the admin panel
-            productsToShow = phaseConfig['All'] || [];
-        }
+        setFilteredProducts([]);
+      }
     }
-
-    setFilteredProducts([...new Set(productsToShow)]); // Ensure unique products
-
-  }, [selectedCondition, activeTab, activePatientType]);
+  }, [selectedCondition, activeTab]);
 
   // Handle condition selection
   const handleConditionSelect = useCallback((condition) => {
     setSelectedCondition(condition);
-    setActiveTab(condition.phases[0]);
-    setActivePatientType('All'); // Reset patient type filter when changing condition
+    setActiveTab(condition.phases && condition.phases.length > 0 ? condition.phases[0] : '');
+    // Phase 3: Removed activePatientType reset - no longer using treatment modifiers
     setShowAdditionalInfo(false); // Hide additional info when selecting a new condition
-    
+
     // On mobile, navigate to detail view when condition is selected
     setMobileView('detail');
   }, []);
@@ -249,12 +237,7 @@ useEffect(() => {
     // The main useEffect will handle re-filtering products automatically.
   }, []);
 
-  // Handle patient type selection for product filtering
-  const handlePatientTypeSelect = useCallback((type) => {
-    setActivePatientType(type);
-    setShowAdditionalInfo(false); // Hide additional info when changing patient type
-    // The main useEffect will handle re-filtering products automatically.
-  }, []);
+  // Phase 3: Removed handlePatientTypeSelect - no longer using treatment modifiers
 
   // Handle product selection for modal - this is not used by ConditionDetails
   // ConditionDetails manages its own product selection internally
@@ -318,13 +301,22 @@ useEffect(() => {
   };
 
   // Determine if a phase has products for the selected condition
+  // Phase 3: Updated to use new products structure
   const hasProductsForPhase = useCallback((phase) => {
-    if (!selectedCondition || !selectedCondition.patientSpecificConfig || !selectedCondition.patientSpecificConfig[phase]) {
-      return false;
+    if (!selectedCondition) return false;
+
+    // Phase 3: Check new products structure first
+    if (selectedCondition.products && selectedCondition.products[phase]) {
+      return selectedCondition.products[phase].length > 0;
     }
-    // Check if any patient type within the phase has at least one product
-    const phaseConfig = selectedCondition.patientSpecificConfig[phase];
-    return Object.values(phaseConfig).some(products => Array.isArray(products) && products.length > 0);
+
+    // Fallback: check legacy patientSpecificConfig
+    if (selectedCondition.patientSpecificConfig && selectedCondition.patientSpecificConfig[phase]) {
+      const phaseConfig = selectedCondition.patientSpecificConfig[phase];
+      return Object.values(phaseConfig).some(products => Array.isArray(products) && products.length > 0);
+    }
+
+    return false;
   }, [selectedCondition]);
 
   // Get product availability information by name
@@ -339,18 +331,22 @@ useEffect(() => {
     setWizardOpen(!wizardOpen);
   };
   
-  // Toggle admin panel
+  // Toggle admin panel - only allow admin users
   const toggleAdmin = () => {
-    if (isAuthenticated) {
-    setAdminOpen(!adminOpen);
+    if (isAuthenticated && userRole === 'admin') {
+      setAdminOpen(!adminOpen);
+    } else if (isAuthenticated && userRole !== 'admin') {
+      // User is authenticated but not an admin
+      alert('Access denied. Admin privileges required.');
     } else {
+      // User is not authenticated - show admin login modal
       setLoginModalOpen(true);
     }
   };
 
   // Handle admin logout
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setAdminOpen(false);
   };
 
@@ -375,18 +371,177 @@ useEffect(() => {
   }, [registerAutoLogoutCallback]);
 
   // Close admin panel when user is no longer authenticated (backup safety)
+  // Only close if auth is NOT currently loading (to avoid closing during auth refresh)
   useEffect(() => {
-    if (!isAuthenticated && adminOpen) {
+    if (!isAuthenticated && adminOpen && !authLoading) {
       setAdminOpen(false);
     }
-  }, [isAuthenticated, adminOpen]);
+  }, [isAuthenticated, adminOpen, authLoading]);
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-prism-dark-bg-primary' : 'bg-prism-light-bg-primary'}`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-prism-primary mx-auto mb-4"></div>
+          <p className={`${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'} text-lg`}>
+            Checking authentication...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login modal if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <>
+        {/* Add the PRISM background styles */}
+        <style>
+          {`
+            @keyframes prismaticRotation1 {
+              0% { transform: rotate(0deg) scale(1); filter: hue-rotate(0deg) brightness(1); }
+              25% { transform: rotate(90deg) scale(1.1); filter: hue-rotate(90deg) brightness(1.3); }
+              50% { transform: rotate(180deg) scale(1.05); filter: hue-rotate(180deg) brightness(1.1); }
+              75% { transform: rotate(270deg) scale(1.15); filter: hue-rotate(270deg) brightness(1.4); }
+              100% { transform: rotate(360deg) scale(1); filter: hue-rotate(360deg) brightness(1); }
+            }
+
+            @keyframes prismaticRotation2 {
+              0% { transform: rotate(0deg) scale(1.1) skew(5deg); filter: hue-rotate(180deg) brightness(0.8); }
+              20% { transform: rotate(72deg) scale(0.9) skew(-2deg); filter: hue-rotate(144deg) brightness(1.2); }
+              40% { transform: rotate(144deg) scale(1.2) skew(3deg); filter: hue-rotate(108deg) brightness(0.9); }
+              60% { transform: rotate(216deg) scale(0.95) skew(-4deg); filter: hue-rotate(72deg) brightness(1.5); }
+              80% { transform: rotate(288deg) scale(1.1) skew(1deg); filter: hue-rotate(36deg) brightness(1.1); }
+              100% { transform: rotate(360deg) scale(1.1) skew(5deg); filter: hue-rotate(0deg) brightness(0.8); }
+            }
+
+            .prism-login-bg {
+              position: relative;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: ${isDarkMode ? '#18181b' : '#ffffff'};
+              overflow: hidden;
+            }
+
+            .prism-login-bg::before {
+              content: '';
+              position: fixed;
+              top: -100%;
+              left: -100%;
+              width: 300%;
+              height: 300%;
+              background:
+                conic-gradient(from 0deg at 30% 40%,
+                  transparent 0deg,
+                  rgba(99, 102, 241, 0.4) 15deg,
+                  transparent 30deg,
+                  rgba(129, 140, 248, 0.3) 45deg,
+                  transparent 60deg,
+                  rgba(99, 102, 241, 0.6) 75deg,
+                  transparent 90deg
+                ),
+                conic-gradient(from 120deg at 70% 60%,
+                  transparent 0deg,
+                  rgba(99, 102, 241, 0.5) 20deg,
+                  transparent 40deg,
+                  rgba(165, 180, 252, 0.3) 60deg,
+                  transparent 80deg,
+                  rgba(129, 140, 248, 0.4) 100deg,
+                  transparent 120deg
+                ),
+                conic-gradient(from 240deg at 20% 80%,
+                  transparent 0deg,
+                  rgba(99, 102, 241, 0.7) 25deg,
+                  transparent 50deg,
+                  rgba(79, 70, 229, 0.4) 75deg,
+                  transparent 100deg
+                ),
+                radial-gradient(ellipse at 60% 20%,
+                  rgba(129, 140, 248, 0.8) 0%,
+                  rgba(99, 102, 241, 0.3) 20%,
+                  transparent 40%
+                ),
+                radial-gradient(ellipse at 15% 70%,
+                  rgba(165, 180, 252, 0.6) 0%,
+                  rgba(99, 102, 241, 0.2) 25%,
+                  transparent 50%
+                );
+              animation: prismaticRotation1 12s linear infinite;
+              z-index: 0;
+              pointer-events: none;
+            }
+
+            .prism-login-bg::after {
+              content: '';
+              position: fixed;
+              top: -50%;
+              left: -50%;
+              width: 200%;
+              height: 200%;
+              background:
+                conic-gradient(from 60deg at 80% 30%,
+                  transparent 0deg,
+                  rgba(129, 140, 248, 0.5) 10deg,
+                  transparent 20deg,
+                  rgba(99, 102, 241, 0.4) 30deg,
+                  transparent 40deg,
+                  rgba(165, 180, 252, 0.3) 50deg,
+                  transparent 60deg
+                ),
+                conic-gradient(from 180deg at 25% 50%,
+                  transparent 0deg,
+                  rgba(129, 140, 248, 0.6) 30deg,
+                  transparent 60deg,
+                  rgba(99, 102, 241, 0.4) 90deg,
+                  transparent 120deg
+                ),
+                linear-gradient(45deg,
+                  transparent 0%,
+                  rgba(99, 102, 241, 0.2) 25%,
+                  transparent 50%,
+                  rgba(165, 180, 252, 0.3) 75%,
+                  transparent 100%
+                ),
+                linear-gradient(-30deg,
+                  transparent 0%,
+                  rgba(129, 140, 248, 0.4) 20%,
+                  transparent 40%,
+                  rgba(99, 102, 241, 0.2) 60%,
+                  transparent 80%
+                ),
+                radial-gradient(ellipse at 45% 85%,
+                  rgba(165, 180, 252, 0.5) 0%,
+                  rgba(99, 102, 241, 0.1) 30%,
+                  transparent 60%
+                );
+              animation: prismaticRotation2 16s linear infinite reverse;
+              z-index: 1;
+              pointer-events: none;
+            }
+          `}
+        </style>
+        <div className="prism-login-bg">
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <SocialLoginModal
+              isOpen={true}
+              onClose={() => {}} // Prevent closing - user must login
+              onSuccess={() => {}} // Auth state will update automatically
+            />
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
-    
-    <div 
-      className="min-h-screen prism-app-background" 
-      style={{ 
-        fontFamily: '"Inter", "Helvetica Neue", "Arial", "Segoe UI", sans-serif' 
+
+    <div
+      className={`min-h-screen ${isDarkMode ? 'bg-prism-dark-bg-primary' : 'bg-prism-light-bg-primary'}`}
+      style={{
+        fontFamily: '"Inter", "Helvetica Neue", "Arial", "Segoe UI", sans-serif'
       }}
     >
       <header className="relative shadow-sm">
@@ -400,22 +555,31 @@ useEffect(() => {
               <ThemeToggle className="shadow-lg backdrop-blur-sm" />
               <button
                 onClick={toggleWizard}
-                className="inline-flex items-center px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+                className={`inline-flex items-center px-4 py-2 ${isDarkMode ? 'bg-prism-primary hover:bg-prism-primary-hover' : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 shadow-lg backdrop-blur-sm transition-all duration-250`}
               >
                 <Stethoscope size={18} className="mr-2" />
                 Therapeutic Wizard
               </button>
-              <button
-                onClick={toggleAdmin}
-                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 shadow-lg backdrop-blur-sm"
-              >
-                <Settings size={18} className="mr-2" />
-                Admin
-              </button>
+              {/* Only show Admin button if user is an admin */}
+              {userRole === 'admin' && (
+                <button
+                  onClick={toggleAdmin}
+                  className={`relative inline-flex items-center px-4 py-2 ${isDarkMode ? 'bg-prism-dark-bg-tertiary hover:bg-prism-dark-bg-hover border border-prism-dark-border-elevated' : 'bg-prism-light-bg-secondary hover:bg-prism-light-bg-hover border border-prism-light-border-elevated'} ${isDarkMode ? 'text-white' : 'text-prism-light-text-primary'} rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 shadow-lg backdrop-blur-sm transition-all duration-250`}
+                >
+                  <Settings size={18} className="mr-2" />
+                  Admin
+                  {/* Notification Badge */}
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-prism-error rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              )}
               {isAuthenticated && (
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+                  className="inline-flex items-center px-4 py-2 bg-prism-error hover:bg-prism-error/90 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-prism-error focus:ring-offset-2 shadow-lg backdrop-blur-sm transition-all duration-250"
                 >
                   <LogOut size={18} className="mr-2" />
                   Logout
@@ -432,7 +596,7 @@ useEffect(() => {
             <div className="absolute top-0 right-0 h-full flex items-center pr-4 z-20">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="inline-flex items-center p-3 bg-white text-[#15396c] rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 shadow-lg backdrop-blur-sm"
+                className={`inline-flex items-center p-3 ${isDarkMode ? 'bg-prism-dark-bg-secondary text-prism-primary' : 'bg-prism-light-bg-primary text-prism-primary-light'} rounded-lg hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 shadow-lg backdrop-blur-sm transition-all duration-250`}
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -441,9 +605,9 @@ useEffect(() => {
             
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
-              <div className={`absolute top-full left-0 right-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} shadow-lg z-30`}>
+              <div className={`absolute top-full left-0 right-0 ${isDarkMode ? 'bg-prism-dark-bg-secondary' : 'bg-prism-light-bg-primary'} border-t ${isDarkMode ? 'border-prism-dark-border-subtle' : 'border-prism-light-border-subtle'} shadow-lg z-30`}>
                 <div className="flex flex-col p-4 space-y-3">
-                  <div className="flex justify-center mb-2">
+                  <div className="flex justify-center items-center mb-2">
                     <ThemeToggle />
                   </div>
                   <button
@@ -451,28 +615,37 @@ useEffect(() => {
                       toggleWizard();
                       setMobileMenuOpen(false);
                     }}
-                    className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:ring-offset-2 w-full justify-center text-lg font-medium`}
+                    className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} ${isDarkMode ? 'bg-prism-primary hover:bg-prism-primary-hover' : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 w-full justify-center text-lg font-medium transition-all duration-250`}
                   >
                     <Stethoscope size={20} className="mr-3" />
                     Therapeutic Wizard
                   </button>
-                  <button
-                    onClick={() => {
-                      toggleAdmin();
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-gray-800 text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 w-full justify-center text-lg font-medium`}
-                  >
-                    <Settings size={20} className="mr-3" />
-                    Admin Panel
-                  </button>
+                  {/* Only show Admin button in mobile menu if user is an admin */}
+                  {userRole === 'admin' && (
+                    <button
+                      onClick={() => {
+                        toggleAdmin();
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`relative inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} ${isDarkMode ? 'bg-prism-dark-bg-tertiary hover:bg-prism-dark-bg-hover border border-prism-dark-border-elevated text-white' : 'bg-prism-light-bg-secondary hover:bg-prism-light-bg-hover border border-prism-light-border-elevated text-prism-light-text-primary'} rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-offset-2 w-full justify-center text-lg font-medium transition-all duration-250`}
+                    >
+                      <Settings size={20} className="mr-3" />
+                      Admin Panel
+                      {/* Notification Badge */}
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-prism-error rounded-full">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
                   {isAuthenticated && (
                     <button
                       onClick={() => {
                         handleLogout();
                         setMobileMenuOpen(false);
                       }}
-                      className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 w-full justify-center text-lg font-medium`}
+                      className={`inline-flex items-center ${getButtonSize() === 'lg' ? 'px-6 py-4' : 'px-4 py-3'} bg-prism-error hover:bg-prism-error/90 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-error focus:ring-offset-2 w-full justify-center text-lg font-medium transition-all duration-250`}
                     >
                       <LogOut size={20} className="mr-3" />
                       Logout
@@ -489,26 +662,26 @@ useEffect(() => {
         {isLoadingData ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-lg`}>Loading clinical data from database...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-prism-primary mx-auto mb-4"></div>
+              <p className={`${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'} text-lg`}>Loading clinical data from database...</p>
             </div>
           </div>
         ) : conditionsError ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-center max-w-md">
-              <div className={`rounded-lg ${isDarkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'} border p-6`}>
-                <svg className="mx-auto h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className={`rounded-lg ${isDarkMode ? 'bg-prism-error-bg-dark border-prism-error' : 'bg-prism-error-bg-light border-prism-error'} border p-6 ${isDarkMode ? 'shadow-md' : 'shadow-light-md'}`}>
+                <svg className="mx-auto h-12 w-12 text-prism-error mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <h3 className={`text-lg font-medium ${isDarkMode ? 'text-red-400' : 'text-red-800'} mb-2`}>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'} mb-2`}>
                   Error Loading Data
                 </h3>
-                <p className={`${isDarkMode ? 'text-red-300' : 'text-red-600'} mb-4`}>
+                <p className={`${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'} mb-4`}>
                   {conditionsError.message || 'Failed to load clinical data. Please try again.'}
                 </p>
                 <button
                   onClick={() => refetchConditions()}
-                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  className="inline-flex items-center px-4 py-2 bg-prism-error text-white rounded-lg hover:bg-prism-error/90 focus:outline-none focus:ring-2 focus:ring-prism-error focus:ring-offset-2 transition-all duration-250"
                 >
                   Retry
                 </button>
@@ -524,9 +697,6 @@ useEffect(() => {
               ddsTypeOptions={ddsTypeOptions}
               ddsTypeFilter={ddsTypeFilter}
               setDdsTypeFilter={setDdsTypeFilter}
-              patientTypes={patientTypes}
-              patientTypeFilter={patientTypeFilter}
-              setPatientTypeFilter={setPatientTypeFilter}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
             />
@@ -560,9 +730,7 @@ useEffect(() => {
                   activeTab={activeTab}
                   handleTabChange={handleTabChange}
                   filteredProducts={filteredProducts}
-                  patientTypes={patientTypes}
-                  activePatientType={activePatientType}
-                  handlePatientTypeSelect={handlePatientTypeSelect}
+                  // Phase 3: Removed patientTypes, activePatientType, handlePatientTypeSelect props
                   handleProductSelect={handleProductSelect}
                   handleShowAdditionalInfo={handleShowAdditionalInfo}
                   handleOpenResearch={handleOpenResearch}
@@ -586,10 +754,10 @@ useEffect(() => {
         getProductResearch={getProductResearch}
       />
       {wizardOpen && (
-        <DiagnosisWizard 
-          conditions={conditions} 
-          patientTypes={patientTypes}
-          onClose={toggleWizard} 
+        <DiagnosisWizard
+          conditions={conditions}
+          // Phase 3: Removed patientTypes prop - no longer using treatment modifiers
+          onClose={toggleWizard}
         />
       )}
       
@@ -599,12 +767,11 @@ useEffect(() => {
         onSuccess={handleLoginSuccess}
       />
       
-      {adminOpen && (
-        <AdminPanel 
-          onSaveChangesSuccess={handleSaveChangesSuccess}
-          onClose={toggleAdmin}
-        />
-      )}
+      <AdminDrawer
+        isOpen={adminOpen}
+        onClose={toggleAdmin}
+        onSaveChangesSuccess={handleSaveChangesSuccess}
+      />
       
       {/* Feedback Widget - always visible */}
       <FeedbackWidget />

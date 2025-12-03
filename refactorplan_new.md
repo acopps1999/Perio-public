@@ -1904,6 +1904,7 @@ export async function POST(req) {
     return result.toDataStreamResponse();
 
   } catch (error) {
+    
     console.error('Chat API error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

@@ -31,7 +31,6 @@ export const chatInputSchema = Yup.string()
       'EXEC(',
       'EXECUTE(',
       '<SCRIPT',
-      'JAVASCRIPT:',
       'ONERROR=',
       'ONCLICK='
     ];
@@ -44,7 +43,7 @@ export const conditionSchema = Yup.object().shape({
     .required('Condition name is required')
     .min(3, 'Name must be at least 3 characters')
     .max(100, 'Name must be less than 100 characters')
-    .matches(/^[a-zA-Z0-9\s\-\/()&,]+$/, 'Name contains invalid characters'),
+    .matches(/^[a-zA-Z0-9\s\-/()&,]+$/, 'Name contains invalid characters'),
 
   category: Yup.string()
     .required('Category is required')
@@ -61,7 +60,7 @@ export const productSchema = Yup.object().shape({
     .required('Product name is required')
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name must be less than 100 characters')
-    .matches(/^[a-zA-Z0-9\s\-\/()&,.™®]+$/, 'Name contains invalid characters'),
+    .matches(/^[a-zA-Z0-9\s\-/()&,.™®]+$/, 'Name contains invalid characters'),
 
   description: Yup.string()
     .max(1000, 'Description must be less than 1000 characters')
@@ -74,7 +73,7 @@ export const categorySchema = Yup.object().shape({
     .required('Category name is required')
     .min(2, 'Name must be at least 2 characters')
     .max(50, 'Name must be less than 50 characters')
-    .matches(/^[a-zA-Z0-9\s\-]+$/, 'Name can only contain letters, numbers, spaces, and hyphens')
+    .matches(/^[a-zA-Z0-9\s-]+$/, 'Name can only contain letters, numbers, spaces, and hyphens')
 });
 
 // Feedback validation schema

@@ -357,12 +357,17 @@ const addCategoryToSupabase = async (categoryName) => {
   let conditionsCache = null;
   let cacheTimestamp = null;
   let loadingPromise = null; // Track the ongoing load promise
-  const CACHE_DURATION = 30000; // 30 seconds cache
+  const CACHE_DURATION = 300000; // 5 minutes cache (increased from 30s for instant admin panel loads)
   
   // Cache invalidation helper
   const invalidateConditionsCache = () => {
     conditionsCache = null;
     cacheTimestamp = null;
+  };
+
+  // Check if cache is valid
+  const hasCachedConditions = () => {
+    return conditionsCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION);
   };
   
   const loadConditionsFromSupabase = async (forceRefresh = false) => {
@@ -1624,6 +1629,229 @@ const deleteProductRealtime = async (productName) => {
 };
 
 
+// ============================================================================
+// PHASE 3: RANK-BASED PRODUCT MANAGEMENT (replaces patient type approach)
+// ============================================================================
+
+/**
+ * Add a product to a phase with automatic rank assignment (Phase 3)
+ * Products are ranked per phase, no patient type grouping
+ */
+const addProductToPhaseRealtime = async (conditionId, phaseName, productName) => {
+  try {
+    // Get phase ID
+    const { data: phaseData } = await supabase
+      .from('phases')
+      .select('id')
+      .eq('name', phaseName)
+      .single();
+
+    if (!phaseData) {
+      return { success: false, error: 'Phase not found' };
+    }
+
+    // Get product ID
+    const { data: productData } = await supabase
+      .from('products')
+      .select('id')
+      .eq('name', productName)
+      .single();
+
+    if (!productData) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Get the current max rank for this procedure/phase
+    const { data: maxRankData } = await supabase
+      .from('procedure_phase_products')
+      .select('rank')
+      .eq('procedure_id', conditionId)
+      .eq('phase_id', phaseData.id)
+      .order('rank', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const newRank = (maxRankData?.rank || 0) + 1;
+
+    // Insert with the new rank
+    const { error } = await supabase
+      .from('procedure_phase_products')
+      .insert([{
+        procedure_id: conditionId,
+        phase_id: phaseData.id,
+        product_id: productData.id,
+        rank: newRank
+      }]);
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    await refreshProceduresView();
+    invalidateConditionsCache();
+    return { success: true, rank: newRank };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+/**
+ * Remove a product from a phase (Phase 3)
+ * Also reorders remaining products to fill the gap
+ */
+const removeProductFromPhaseRealtime = async (conditionId, phaseName, productName) => {
+  try {
+    // Get phase ID
+    const { data: phaseData } = await supabase
+      .from('phases')
+      .select('id')
+      .eq('name', phaseName)
+      .single();
+
+    if (!phaseData) {
+      return { success: false, error: 'Phase not found' };
+    }
+
+    // Get product ID
+    const { data: productData } = await supabase
+      .from('products')
+      .select('id')
+      .eq('name', productName)
+      .single();
+
+    if (!productData) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Delete the product assignment
+    const { error } = await supabase
+      .from('procedure_phase_products')
+      .delete()
+      .eq('procedure_id', conditionId)
+      .eq('phase_id', phaseData.id)
+      .eq('product_id', productData.id);
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    // Re-rank remaining products to fill gaps
+    const { data: remaining } = await supabase
+      .from('procedure_phase_products')
+      .select('id, rank')
+      .eq('procedure_id', conditionId)
+      .eq('phase_id', phaseData.id)
+      .order('rank', { ascending: true });
+
+    if (remaining && remaining.length > 0) {
+      // Update ranks to be sequential
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i].rank !== i + 1) {
+          await supabase
+            .from('procedure_phase_products')
+            .update({ rank: i + 1 })
+            .eq('id', remaining[i].id);
+        }
+      }
+    }
+
+    await refreshProceduresView();
+    invalidateConditionsCache();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+/**
+ * Reorder products within a phase (Phase 3 - for drag-and-drop)
+ * @param {number} conditionId - The procedure ID
+ * @param {string} phaseName - The phase name
+ * @param {Array} productRankings - Array of { productName, newRank } objects
+ */
+const reorderProductsRealtime = async (conditionId, phaseName, productRankings) => {
+  try {
+    // Get phase ID
+    const { data: phaseData } = await supabase
+      .from('phases')
+      .select('id')
+      .eq('name', phaseName)
+      .single();
+
+    if (!phaseData) {
+      return { success: false, error: 'Phase not found' };
+    }
+
+    // Get product ID map
+    const productNames = productRankings.map(p => p.productName);
+    const { data: productsData } = await supabase
+      .from('products')
+      .select('id, name')
+      .in('name', productNames);
+
+    if (!productsData) {
+      return { success: false, error: 'Products not found' };
+    }
+
+    const productNameToId = {};
+    productsData.forEach(p => {
+      productNameToId[p.name] = p.id;
+    });
+
+    // Update each product's rank
+    const updates = productRankings.map(async ({ productName, newRank }) => {
+      const productId = productNameToId[productName];
+      if (!productId) return { success: false };
+
+      const { error } = await supabase
+        .from('procedure_phase_products')
+        .update({ rank: newRank })
+        .eq('procedure_id', conditionId)
+        .eq('phase_id', phaseData.id)
+        .eq('product_id', productId);
+
+      return { success: !error, error };
+    });
+
+    const results = await Promise.all(updates);
+    const hasErrors = results.some(r => !r.success);
+
+    if (hasErrors) {
+      return { success: false, error: 'Some rank updates failed' };
+    }
+
+    await refreshProceduresView();
+    invalidateConditionsCache();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+/**
+ * Update custom phase labels for a procedure (Phase 3)
+ * @param {number} conditionId - The procedure ID
+ * @param {Object} customLabels - Object mapping phase IDs to custom names
+ */
+const updateCustomPhaseLabelsRealtime = async (conditionId, customLabels) => {
+  try {
+    const { error } = await supabase
+      .from('procedures')
+      .update({ custom_phase_labels: customLabels })
+      .eq('id', conditionId);
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    await refreshProceduresView();
+    invalidateConditionsCache();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
 // Export all functions
 export {
   // Legacy batch operations
@@ -1642,17 +1870,18 @@ export {
   addConditionToSupabase,
   updateConditionInSupabase,
   deleteConditionFromSupabase,
-  buildPatientTypeMaps,
+  buildPatientTypeMaps, // Deprecated - kept for backward compatibility
   getEntityIdMaps,
   invalidateConditionsCache,
+  hasCachedConditions,
   verifyDataIntegrity,
   CACHE_DURATION,
   // Real-time granular operations
   updateConditionFieldRealtime,
   addPhaseToConditionRealtime,
   removePhaseFromConditionRealtime,
-  addProductToPatientTypeRealtime,
-  removeProductFromPatientTypeRealtime,
+  addProductToPatientTypeRealtime, // Deprecated - use addProductToPhaseRealtime
+  removeProductFromPatientTypeRealtime, // Deprecated - use removeProductFromPhaseRealtime
   updateProductDetailRealtime,
   addCategoryRealtime,
   deleteCategoryRealtime,
@@ -1660,5 +1889,10 @@ export {
   deleteDdsTypeRealtime,
   addProductRealtime,
   renameProductRealtime,
-  deleteProductRealtime
+  deleteProductRealtime,
+  // Phase 3: Rank-based product management
+  addProductToPhaseRealtime,
+  removeProductFromPhaseRealtime,
+  reorderProductsRealtime,
+  updateCustomPhaseLabelsRealtime
 }; 

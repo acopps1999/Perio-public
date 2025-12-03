@@ -1,26 +1,26 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 // Custom hook for dynamic textarea sizing
 export const useDynamicTextarea = (initialRows = 2, maxRows = 8) => {
   const textareaRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  const adjustHeight = () => {
+  const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     // Reset height to calculate scrollHeight
     textarea.style.height = 'auto';
-    
+
     // Calculate required height
     const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
     const padding = parseInt(window.getComputedStyle(textarea).paddingTop) * 2 || 16;
     const minHeight = lineHeight * initialRows + padding;
     const maxHeight = lineHeight * maxRows + padding;
     const requiredHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
-    
+
     textarea.style.height = `${requiredHeight}px`;
-  };
+  }, [initialRows, maxRows]);
 
   const handleFocus = () => {
     setIsFocused(true);
@@ -90,6 +90,9 @@ export const useDynamicTextarea = (initialRows = 2, maxRows = 8) => {
 
 // Helper function that creates dynamic textarea behavior without using hooks
 export const createDynamicTextareaProps = (textareaRef, initialRows = 2, maxRows = 8) => {
+  // Store wheel handler reference for cleanup
+  let wheelHandler = null;
+
   const adjustHeight = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -101,16 +104,56 @@ export const createDynamicTextareaProps = (textareaRef, initialRows = 2, maxRows
     const maxHeight = lineHeight * maxRows + padding;
     const requiredHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
     textarea.style.height = `${requiredHeight}px`;
+
+    // Check if content exceeds max height (needs scrolling)
+    return textarea.scrollHeight > maxHeight;
   };
 
   const handleFocus = () => {
-    setTimeout(adjustHeight, 0);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    setTimeout(() => {
+      const needsScroll = adjustHeight();
+
+      // Enable scrolling inside textarea when focused and content overflows
+      if (needsScroll) {
+        textarea.style.overflow = 'auto';
+
+        // Prevent scroll from propagating to parent when textarea can scroll
+        wheelHandler = (e) => {
+          const { scrollTop, scrollHeight, clientHeight } = textarea;
+          const isAtTop = scrollTop === 0;
+          const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+          // Only prevent default if we can scroll in the direction of the wheel
+          if (e.deltaY < 0 && !isAtTop) {
+            e.stopPropagation();
+          } else if (e.deltaY > 0 && !isAtBottom) {
+            e.stopPropagation();
+          } else if (!isAtTop && !isAtBottom) {
+            e.stopPropagation();
+          }
+        };
+
+        textarea.addEventListener('wheel', wheelHandler, { passive: true });
+      }
+    }, 0);
   };
 
   const handleBlur = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    
+
+    // Remove wheel handler
+    if (wheelHandler) {
+      textarea.removeEventListener('wheel', wheelHandler);
+      wheelHandler = null;
+    }
+
+    // Reset overflow to hidden when blurred
+    textarea.style.overflow = 'hidden';
+
     const hasContent = textarea.value.trim().length > 0;
     if (hasContent) {
       adjustHeight();
@@ -123,7 +166,12 @@ export const createDynamicTextareaProps = (textareaRef, initialRows = 2, maxRows
   };
 
   const handleInput = () => {
-    adjustHeight();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const needsScroll = adjustHeight();
+    // Update overflow based on whether content exceeds max
+    textarea.style.overflow = needsScroll ? 'auto' : 'hidden';
   };
 
   // Initialize textarea on first render
@@ -134,7 +182,7 @@ export const createDynamicTextareaProps = (textareaRef, initialRows = 2, maxRows
     const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
     const padding = parseInt(window.getComputedStyle(textarea).paddingTop) * 2 || 16;
     const minHeight = lineHeight * initialRows + padding;
-    
+
     textarea.style.height = `${minHeight}px`;
     textarea.style.transition = 'height 0.2s ease';
     textarea.style.resize = 'none';

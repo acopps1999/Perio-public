@@ -920,6 +920,115 @@ AdminPanelSupabase.js acts as data access layer:
 
 ---
 
+## Phase 3 Changes (December 2024)
+
+### Overview
+Phase 3 simplified the product recommendation system and added role-based access control.
+
+### Database Schema Changes
+
+#### Removed: Patient Type Grouping
+Products are no longer grouped by patient type (Type 1-4). Instead, products are **ranked per phase** using a simple ordering system.
+
+**Before (Phase 2):**
+```
+procedure_phase_products: procedure_id + phase_id + patient_type_id + product_id
+```
+
+**After (Phase 3):**
+```
+procedure_phase_products: procedure_id + phase_id + product_id + rank
+```
+
+#### New: Product Ranking
+Products within each phase are now ordered by a `rank` column (1 = highest priority):
+```sql
+ALTER TABLE procedure_phase_products ADD COLUMN rank INTEGER DEFAULT 999;
+```
+
+#### New: Custom Phase Labels
+Procedures can have custom phase names instead of standard "Prep/Acute/Maintenance":
+```sql
+ALTER TABLE procedures ADD COLUMN custom_phase_labels JSONB DEFAULT '{}';
+-- Example: {"1": "Initial Assessment", "2": "Active Treatment", "3": "Follow-up"}
+```
+
+#### New: Role System
+Three user roles with distinct feature access:
+- **Admin** - Full access to all features
+- **Sales** - Sales features + clinical evidence
+- **Clinician** - Clinical evidence only (no sales features)
+
+```sql
+-- Updated user_role enum
+ALTER TYPE user_role ADD VALUE 'sales';
+ALTER TYPE user_role ADD VALUE 'clinician';
+
+-- Role tracking columns
+ALTER TABLE user_profiles ADD COLUMN role_assigned_by UUID;
+ALTER TABLE user_profiles ADD COLUMN role_assigned_at TIMESTAMPTZ;
+```
+
+### New Components
+
+#### Feature Visibility System
+Central configuration for role-based feature access:
+
+**File:** `src/config/featureVisibility.js`
+```javascript
+export const FEATURE_VISIBILITY = {
+  // Universal features
+  product_recommendations: ['admin', 'sales', 'clinician'],
+  clinical_evidence: ['admin', 'sales', 'clinician'],
+
+  // Sales-only features
+  competitive_advantage: ['admin', 'sales'],
+  objection_handling: ['admin', 'sales'],
+  pitch_points: ['admin', 'sales'],
+
+  // Admin-only features
+  admin_panel: ['admin'],
+};
+
+export function hasFeatureAccess(feature, userRole) { ... }
+```
+
+#### RoleBadge Component
+Color-coded badges for user roles:
+- Purple: Admin
+- Blue: Sales
+- Green: Clinician
+
+**File:** `src/components/AdminPanel/RoleBadge.js`
+
+#### ProductDrawer Role Filtering
+The ProductDrawer filters tabs based on user role:
+- Clinicians see: Usage, Scientific, Clinical, Research
+- Sales sees all tabs including: Competitive, Objections, Pitch Points
+- Admins see all tabs
+
+### Updated Components
+
+#### AuthContext Enhancements
+New role helper functions:
+- `isAdmin()` - Check if user is admin
+- `isSales()` - Check if user is sales rep
+- `isClinician()` - Check if user is clinician
+- `hasRole(roles)` - Check if user has any of specified roles
+
+#### Admin User Approvals
+Role selection dropdown during user approval process:
+- Default role: Sales
+- Admin can assign any role during approval
+
+### Materialized View Updates
+The `procedures_complete` view now includes:
+- Product ranking by phase
+- All product_details fields (clinical_evidence, pitch_points, objection_handling)
+- Custom phase labels
+
+---
+
 ## Future Architectural Considerations
 
 ### Scalability
@@ -955,6 +1064,6 @@ AdminPanelSupabase.js acts as data access layer:
 
 ---
 
-*Last Updated: January 2025*
-*Document Version: 1.0*
-*Architecture Status: Documented, Needs Refactoring*
+*Last Updated: December 2024*
+*Document Version: 2.0 (Phase 3 Updates)*
+*Architecture Status: Documented, Phase 3 Complete*

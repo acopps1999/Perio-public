@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../../supabaseClient';
 import { useOptimisticUpdate } from '../../hooks/useOptimisticUpdate';
 import { useDebouncedCallback } from '../../hooks/useDebounce';
 import { useToast } from './Toast';
@@ -10,20 +9,12 @@ import {
   loadProductsFromSupabase,
   updateProductAvailabilityInSupabase,
   invalidateConditionsCache,
+  hasCachedConditions,
   updateConditionFieldRealtime,
-  addPhaseToConditionRealtime,
-  removePhaseFromConditionRealtime,
-  addProductToPatientTypeRealtime,
-  removeProductFromPatientTypeRealtime,
-  updateProductDetailRealtime,
-  addCategoryRealtime,
-  deleteCategoryRealtime,
+  // Phase 3: Removed addProductToPatientTypeRealtime, removeProductFromPatientTypeRealtime
   deleteCategoryFromSupabase,
-  addDdsTypeRealtime,
-  deleteDdsTypeRealtime,
   addProductRealtime,
   renameProductRealtime,
-  deleteProductRealtime,
   addConditionToSupabase,
   deleteConditionFromSupabase,
   getEntityIdMaps
@@ -34,6 +25,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false); // Prevent duplicate loading
   const [isLoading, setIsLoading] = useState(true); // Track loading state for UI
   const hasInitialized = useRef(false); // Prevent duplicate initialization on the same component instance
+  const loadingTimeoutRef = useRef(null); // Track loading timeout
   const [conditions, setConditions] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null); // Stores the *original* name of the product being edited
@@ -46,12 +38,9 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   // Toast and optimistic update hooks
   const { showToast, ToastContainer } = useToast();
   const { executeUpdate, saveStatus } = useOptimisticUpdate(showToast);
-  
-  // Patient-specific products configuration
-  const [patientTypes, setPatientTypes] = useState([]); // To hold [{id, name}, ...] from DB
-  const [activePatientType, setActivePatientType] = useState('All'); // Holds the name or "All"
-  const [patientSpecificProducts, setPatientSpecificProducts] = useState({});
-  
+
+  // Phase 3: Removed patient-specific products configuration (patientTypes, activePatientType, patientSpecificProducts)
+
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -75,13 +64,19 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       return;
     }
 
-    setIsLoading(true);
-    
+    // Only show loading state if cache doesn't exist
+    // If cache exists, data will load instantly (< 1ms)
+    const hasCache = hasCachedConditions();
+    if (!hasCache || forceRefresh) {
+      setIsLoading(true);
+    }
+
     try {
       // Load conditions from Supabase (use cache when possible)
+      // This will be instant if cache exists (< 1ms)
       const supabaseConditions = await loadConditionsFromSupabase(forceRefresh);
       setConditions(JSON.parse(JSON.stringify(supabaseConditions || [])));
-      
+
       // Auto-select the first condition
       if (supabaseConditions.length > 0) {
           setSelectedCondition(supabaseConditions[0]);
@@ -89,46 +84,39 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           setSelectedCondition(null);
       }
 
-      // Load categories, DDS types, and products directly into AdminPanel state
-      const supabaseCategories = await loadCategoriesFromSupabase();
-      const supabaseDdsTypes = await loadDdsTypesFromSupabase();
-      const productsResult = await loadProductsFromSupabase();
-      
+      // Load remaining data in parallel for faster initial load
+      // Phase 3: Removed patient types fetch
+      const [supabaseCategories, supabaseDdsTypes, productsResult] = await Promise.all([
+        loadCategoriesFromSupabase(),
+        loadDdsTypesFromSupabase(),
+        loadProductsFromSupabase()
+      ]);
+
       setCategories(supabaseCategories.sort());
       setDdsTypes(supabaseDdsTypes.sort());
       if (productsResult.success) {
         setAllProducts(productsResult.data.sort((a, b) => a.name.localeCompare(b.name)));
       }
-      
-      // Load dynamic patient types using raw fetch (bypass broken Supabase client)
-      try {
-        const patientTypesUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/patient_types?select=id,name&order=name.asc`;
-        const ptResponse = await fetch(patientTypesUrl, {
-          headers: {
-            'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.REACT_APP_SUPABASE_ANON_KEY}`
-          }
-        });
-
-        if (!ptResponse.ok) {
-          console.error('❌ Failed to load patient types:', ptResponse.status);
-          setPatientTypes([]);
-        } else {
-          const ptData = await ptResponse.json();
-          setPatientTypes(ptData);
-        }
-      } catch (error) {
-        console.error('❌ Error loading patient types:', error);
-        setPatientTypes([]);
-      }
 
       setHasLoadedInitialData(true); // Mark as loaded to prevent duplicates
       setIsLoading(false); // Data loaded successfully
+
+      // Clear safety timeout on successful load
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     } catch (error) {
       // TODO: Replace with proper error tracking (e.g., Sentry)
-      console.error("Error loading data:", error);
+      console.error('Error loading AdminPanel data:', error);
       setHasLoadedInitialData(true); // Still mark as loaded to prevent infinite retries
       setIsLoading(false); // Stop loading even on error
+
+      // Clear safety timeout on error
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     }
   }, [hasLoadedInitialData]); // Include hasLoadedInitialData dependency
 
@@ -137,59 +125,23 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
       loadInitialData();
-    }
-  }, [loadInitialData]); // Include loadInitialData dependency
 
-  // Initialize patient-specific products for a condition
-  const initializePatientSpecificProducts = useCallback((condition) => {
-    if (!condition) {
-        return;
-    }
-    
-    const newPatientSpecificProducts = {};
-    const phases = condition.phases || [];
+      // Safety timeout: if still loading after 15 seconds, force stop loading state
+      loadingTimeoutRef.current = setTimeout(() => {
+        setIsLoading(false);
+        setHasLoadedInitialData(true);
+      }, 15000); // Increased to 15 seconds to allow for fallback query
 
-    phases.forEach(phase => {
-        // The config is already keyed by name, so this is simpler.
-        // We just ensure all patient types exist in the structure for the UI.
-        const phaseConfig = (condition.patientSpecificConfig && condition.patientSpecificConfig[phase])
-            ? JSON.parse(JSON.stringify(condition.patientSpecificConfig[phase])) // Deep copy
-            : {};
-
-        const fullPhaseConfig = {};
-        patientTypes.forEach(pt => {
-          fullPhaseConfig[pt.name] = phaseConfig[pt.name] || [];
-        });
-
-        // Derive the 'all' list for UI display. 'all' represents products common to all patient types.
-        const allProductsInPhase = new Set();
-        Object.values(fullPhaseConfig).forEach(prodList => {
-            prodList.forEach(prod => allProductsInPhase.add(prod));
-        });
-
-        const commonProducts = [];
-        if (allProductsInPhase.size > 0 && patientTypes.length > 0) {
-            allProductsInPhase.forEach(product => {
-                const isInAllTypes = patientTypes.every(pt => (fullPhaseConfig[pt.name] || []).includes(product));
-                if(isInAllTypes) {
-                    commonProducts.push(product);
-                }
-            });
+      return () => {
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
         }
-        
-        fullPhaseConfig.all = [...new Set(commonProducts)];
-        newPatientSpecificProducts[phase] = fullPhaseConfig;
-    });
-    
-    setPatientSpecificProducts(newPatientSpecificProducts);
-  }, [patientTypes, setPatientSpecificProducts]);
-
-  // Initialize patient-specific products when a condition is selected
-  useEffect(() => {
-    if (selectedCondition) {
-      initializePatientSpecificProducts(selectedCondition);
+      };
     }
-  }, [selectedCondition, initializePatientSpecificProducts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
+
+  // Phase 3: Removed initializePatientSpecificProducts - no longer needed with simplified products structure
 
   // Edit existing product
   const handleEditProduct = (product) => {
@@ -236,48 +188,41 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   };
 
 
-  // Get all products that should be shown in Product Details (both saved and newly added)
+  // Phase 3: Get all products configured for a condition (using simplified products structure)
   const getAllProductsForCondition = (condition) => {
     if (!condition) return {};
-      
-    // Start with saved product details
-    const allProducts = { ...(condition.productDetails || {}) };
 
-    // Add products from current session's patient-specific configuration
-    const currentConfig = patientSpecificProducts || {};
-    Object.keys(currentConfig).forEach(phase => {
-      if (phase && currentConfig[phase]) {
-        Object.keys(currentConfig[phase]).forEach(patientTypeName => {
-          if (patientTypeName !== 'all') {
-            const products = currentConfig[phase][patientTypeName] || [];
-            products.forEach(productName => {
-              if (!allProducts[productName]) {
-                // Create a basic product detail entry for newly added products
-                allProducts[productName] = {
-                  usage: {},
+    // Start with saved product details
+    const allProductDetails = { ...(condition.productDetails || {}) };
+
+    // Add products from the new simplified products structure { phaseName: [productNames] }
+    const productsMap = condition.products || {};
+    Object.keys(productsMap).forEach(phase => {
+      const products = productsMap[phase] || [];
+      products.forEach(productName => {
+        if (!allProductDetails[productName]) {
+          // Create a basic product detail entry for newly added products
+          allProductDetails[productName] = {
+            usage: {},
             rationale: '',
             handlingObjections: '',
             factSheetUrl: '#',
-                  researchArticles: [],
-                  clinicalEvidence: '',
-                  pitchPoints: '',
-                  scientificRationale: '',
-                };
-            }
-            });
+            researchArticles: [],
+            clinicalEvidence: '',
+            pitchPoints: '',
+            scientificRationale: '',
+          };
         }
       });
-      }
     });
-    
-    return allProducts;
+
+    return allProductDetails;
   };
-  
+
   // Handle condition selection
+  // Phase 3: Simplified - no longer initializes patient-specific products
   const handleConditionSelect = (condition) => {
     setSelectedCondition(condition);
-    setActivePatientType('All');
-    initializePatientSpecificProducts(condition);
   };
   
   // Update condition field with real-time save (debounced for text fields)
@@ -416,254 +361,24 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   }
 };
   
-  // Handle patient type selection for product configuration
-  const handlePatientTypeSelect = (type) => {
-    setActivePatientType(type);
-  };
-  
-  const updatePatientSpecificConfigForSelectedCondition = (newConfig) => {
-    if (!selectedCondition) return;
-
-    // This helper updates the `conditions` array, which is the single source of truth.
-    setConditions(prevConditions =>
-      prevConditions.map(cond => {
-        if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-          // Return a new condition object with the updated config
-          return { ...cond, patientSpecificConfig: newConfig };
-        }
-        return cond;
-      })
-    );
-  };
-  
-  // Add product to specific patient type and phase
-  const addProductToPatientType = async (phase, patientType, productName) => {
-    if (!selectedCondition || !selectedCondition.db_id) {
-      console.error('Cannot add product: no condition selected');
-      return;
-    }
-
-    // Optimistic UI update function
-    const optimisticUpdate = () => {
-      setPatientSpecificProducts(prev => {
-          const newConfig = JSON.parse(JSON.stringify(prev));
-
-          if (!newConfig[phase]) {
-              newConfig[phase] = { 'all': [], ...Object.fromEntries(patientTypes.map(pt => [pt.name, []])) };
-          }
-
-        if (patientType === 'all') {
-              // Add product to every patient type
-              patientTypes.forEach(type => {
-                  newConfig[phase][type.name] = [...new Set([...(newConfig[phase][type.name] || []), productName])];
-              });
-        } else {
-              newConfig[phase][patientType] = [...new Set([...(newConfig[phase][patientType] || []), productName])];
-          }
-
-          // Recalculate the 'all' list for UI display
-          const allProductsInPhase = new Set();
-          const commonProducts = [];
-
-          patientTypes.forEach(pt => {
-              (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
-          });
-
-          if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
-              allProductsInPhase.forEach(product => {
-                  const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
-                  if (isInAllTypes) {
-                      commonProducts.push(product);
-                  }
-              });
-          }
-          newConfig[phase].all = [...new Set(commonProducts)];
-
-          // Immediately update conditions to ensure proper change detection
-          if (selectedCondition) {
-            const configToSave = {};
-            Object.keys(newConfig).forEach(phaseName => {
-              configToSave[phaseName] = {};
-              Object.keys(newConfig[phaseName]).forEach(ptName => {
-                if (ptName !== 'all') { // Exclude the 'all' property
-                  configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
-                }
-              });
-            });
-
-            setConditions(prevConditions =>
-              prevConditions.map(cond => {
-                if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-                  return { ...cond, patientSpecificConfig: configToSave };
-                }
-                return cond;
-              })
-            );
-
-            // Also update selectedCondition to trigger immediate re-render of product details
-            setSelectedCondition(prev => ({
-              ...prev,
-              patientSpecificConfig: configToSave
-            }));
-          }
-
-          return newConfig;
-      });
-    };
-
-    // Database operation function
-    const dbOperation = async () => {
-      if (patientType === 'all') {
-        // Add to all patient types
-        const promises = patientTypes.map(type =>
-          addProductToPatientTypeRealtime(selectedCondition.db_id, phase, type.name, productName)
-        );
-        const results = await Promise.all(promises);
-        const failed = results.filter(r => !r.success);
-        if (failed.length > 0) {
-          throw new Error(`Failed to add product to ${failed.length} patient type(s)`);
-        }
-      } else {
-        // Add to specific patient type
-        const result = await addProductToPatientTypeRealtime(selectedCondition.db_id, phase, patientType, productName);
-        if (!result.success) {
-          throw result.error || new Error('Failed to add product');
-        }
-      }
-    };
-
-    // Execute with optimistic update
-    await executeUpdate(
-      `product-add-${selectedCondition.db_id}-${phase}-${patientType}-${productName}`,
-      optimisticUpdate,
-      dbOperation,
-      'Product added successfully'
-    );
-  };
-  
-  // Remove product from specific patient type and phase
-  const removeProductFromPatientType = async (phase, patientType, productName) => {
-    if (!selectedCondition || !selectedCondition.db_id) {
-      console.error('Cannot remove product: no condition selected');
-      return;
-    }
-
-    // Optimistic UI update function
-    const optimisticUpdate = () => {
-      setPatientSpecificProducts(prev => {
-          const newConfig = JSON.parse(JSON.stringify(prev));
-
-          if (!newConfig[phase]) return prev; // No change if phase doesn't exist
-
-        if (patientType === 'all') {
-              // When removing from 'all', remove from every patient type
-              patientTypes.forEach(type => {
-                  if (newConfig[phase][type.name]) {
-                      newConfig[phase][type.name] = newConfig[phase][type.name].filter(p => p !== productName);
-                  }
-              });
-        } else {
-              // Just remove from the specific type
-              if (newConfig[phase][patientType]) {
-                  newConfig[phase][patientType] = newConfig[phase][patientType].filter(p => p !== productName);
-              }
-          }
-
-          // Recalculate the 'all' list since a product was removed
-          const allProductsInPhase = new Set();
-          const commonProducts = [];
-
-          patientTypes.forEach(pt => {
-              (newConfig[phase][pt.name] || []).forEach(prod => allProductsInPhase.add(prod));
-          });
-
-          if (patientTypes.length > 0 && allProductsInPhase.size > 0) {
-              allProductsInPhase.forEach(product => {
-                  const isInAllTypes = patientTypes.every(pt => (newConfig[phase][pt.name] || []).includes(product));
-                  if (isInAllTypes) {
-                      commonProducts.push(product);
-        }
-              });
-          }
-          newConfig[phase].all = [...new Set(commonProducts)];
-
-          // Immediately update conditions to ensure proper change detection
-          if (selectedCondition) {
-            const configToSave = {};
-            Object.keys(newConfig).forEach(phaseName => {
-              configToSave[phaseName] = {};
-              Object.keys(newConfig[phaseName]).forEach(ptName => {
-                if (ptName !== 'all') { // Exclude the 'all' property
-                  configToSave[phaseName][ptName] = newConfig[phaseName][ptName];
-                }
-              });
-            });
-
-            setConditions(prevConditions =>
-              prevConditions.map(cond => {
-                if (cond.db_id ? cond.db_id === selectedCondition.db_id : cond.name === selectedCondition.name) {
-                  return { ...cond, patientSpecificConfig: configToSave };
-                }
-                return cond;
-              })
-            );
-
-            // Also update selectedCondition to trigger immediate re-render of product details
-            setSelectedCondition(prev => ({
-              ...prev,
-              patientSpecificConfig: configToSave
-            }));
-          }
-
-          return newConfig;
-      });
-    };
-
-    // Database operation function
-    const dbOperation = async () => {
-      if (patientType === 'all') {
-        // Remove from all patient types
-        const promises = patientTypes.map(type =>
-          removeProductFromPatientTypeRealtime(selectedCondition.db_id, phase, type.name, productName)
-        );
-        const results = await Promise.all(promises);
-        const failed = results.filter(r => !r.success);
-        if (failed.length > 0) {
-          throw new Error(`Failed to remove product from ${failed.length} patient type(s)`);
-        }
-      } else {
-        // Remove from specific patient type
-        const result = await removeProductFromPatientTypeRealtime(selectedCondition.db_id, phase, patientType, productName);
-        if (!result.success) {
-          throw result.error || new Error('Failed to remove product');
-        }
-      }
-    };
-
-    // Execute with optimistic update
-    await executeUpdate(
-      `product-remove-${selectedCondition.db_id}-${phase}-${patientType}-${productName}`,
-      dbOperation,
-      optimisticUpdate,
-      () => loadInitialData(true)
-    );
-  };
+  // Phase 3: Removed handlePatientTypeSelect, updatePatientSpecificConfigForSelectedCondition,
+  // addProductToPatientType, removeProductFromPatientType - no longer needed with simplified products structure
   // Add new condition
   const handleAddCondition = () => {
     setModalType('condition');
-    const defaultPhases = ['Prep', 'Acute', 'Maintenance']; // Example default phases
+    // Phase 3: Default to single "General Recommendation" phase
+    const defaultPhases = ['General Recommendation'];
     const defaultProducts = {};
     defaultPhases.forEach(phase => defaultProducts[phase] = []);
 
     setNewItemData({
       name: '',
       category: categories[0] || '',
-      phases: defaultPhases, 
+      phases: defaultPhases,
       dds: ['General Dentist'], // Default DDS to prevent validation errors
-      patientType: 'Types 1 to 4', // Default value
-      products: defaultProducts, 
+      // Phase 3: Removed patientType and patientSpecificConfig
+      products: defaultProducts,
       productDetails: {},
-      patientSpecificConfig: {}, // Initialize this
       conditionSpecificResearch: {}
       // db_id will be undefined, marking it as new
     });
@@ -946,7 +661,6 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
           }
           return cond;
         }));
-        success = true;
       }
     } catch (error) {
       showToast(`Error deleting: ${error.message}`, 'error');
@@ -989,13 +703,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     ToastContainer,
     showToast,
 
-    // Patient-specific products
-    patientTypes,
-    setPatientTypes,
-    activePatientType,
-    setActivePatientType,
-    patientSpecificProducts,
-    setPatientSpecificProducts,
+    // Phase 3: Removed patient-specific products props
 
     // Modal states
     showDeleteModal,
@@ -1025,10 +733,8 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     handleConditionSelect,
     updateConditionField,
     updateProductDetail,
-    handlePatientTypeSelect,
-    updatePatientSpecificConfigForSelectedCondition,
-    addProductToPatientType,
-    removeProductFromPatientType,
+    // Phase 3: Removed handlePatientTypeSelect, updatePatientSpecificConfigForSelectedCondition,
+    // addProductToPatientType, removeProductFromPatientType
     handleAddCondition,
     handleAddCategory,
     handleAddDdsType,

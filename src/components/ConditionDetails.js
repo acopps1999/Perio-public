@@ -1,23 +1,18 @@
 import React, { useState } from 'react';
-import * as Tabs from '@radix-ui/react-tabs';
-import * as Select from '@radix-ui/react-select';
-import { ChevronDown, Info, Filter, BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
+import { BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { useTheme } from '../contexts/ThemeContext';
-import CompetitiveAdvantageModal from './CompetitiveAdvantageModal';
-import ProductDetailsModal from './ProductDetailsModal';
+import ProductDrawer from './ProductDrawer';
 
 function ConditionDetails({
   selectedCondition,
   activeTab,
   handleTabChange,
-  filteredProducts, // The already filtered product list for the current phase/patient type
-  patientTypes, // Now an array of {id, name, description}
-  activePatientType,
-  handlePatientTypeSelect,
+  filteredProducts, // The already filtered product list for the current phase (ranked)
+  // Phase 3: Removed patientTypes, activePatientType, handlePatientTypeSelect props
   handleProductSelect, // Handler when a product card is clicked
   handleShowAdditionalInfo, // Handler to show additional info
-  handleOpenResearch, // Handler to open research modal (general or for a specific product)
+  // Note: Research is now handled via ProductDrawer, no separate modal needed
   hasProductsForPhase, // Function to check if a phase has any products
   showAdditionalInfo,
   onMobileBack, // Handler for mobile back navigation
@@ -28,25 +23,86 @@ function ConditionDetails({
   const { isDarkMode } = useTheme();
 
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [competitiveAdvantageModalOpen, setCompetitiveAdvantageModalOpen] = useState(false);
+
+  // Product drawer state
+  const [productDrawerOpen, setProductDrawerOpen] = useState(false);
+  const [drawerInitialTab, setDrawerInitialTab] = useState('scientific');
   const [competitiveAdvantageData, setCompetitiveAdvantageData] = useState(null);
 
-  // Product details modal state
-  const [productDetailsModalOpen, setProductDetailsModalOpen] = useState(false);
-  const [currentModalSection, setCurrentModalSection] = useState(null);
+  // Get the details for the selected product (define function first, use in useEffect)
+  const getProductDetails = React.useCallback((productName) => {
+    if (!productName || !selectedCondition) return null;
+    const cleanName = productName.replace(' (Type 3/4 Only)', '');
 
-  // Ensure patientTypes is always an array
-  const safePatientTypes = Array.isArray(patientTypes) ? patientTypes : [];
+    // Try exact match first
+    let details = selectedCondition.productDetails?.[cleanName];
 
-  const getPatientTypeDescription = (name) => {
-    if (name === 'All') return 'All Treatment Modifiers';
-    const pt = safePatientTypes.find(p => p.name === name);
-    return pt ? `${pt.name}: ${pt.description}` : name;
-  };
+    // If not found, try case-insensitive match
+    if (!details) {
+      const detailsKeys = Object.keys(selectedCondition.productDetails || {});
+      const matchingKey = detailsKeys.find(key =>
+        key.toLowerCase() === cleanName.toLowerCase()
+      );
+      if (matchingKey) {
+        details = selectedCondition.productDetails[matchingKey];
+      }
+    }
+
+    // If still not found, try trimmed match (remove extra whitespace)
+    if (!details) {
+      const detailsKeys = Object.keys(selectedCondition.productDetails || {});
+      const matchingKey = detailsKeys.find(key =>
+        key.trim() === cleanName.trim()
+      );
+      if (matchingKey) {
+        details = selectedCondition.productDetails[matchingKey];
+      }
+    }
+
+    // If still not found, try partial match (in case of suffix differences)
+    if (!details) {
+      const detailsKeys = Object.keys(selectedCondition.productDetails || {});
+      const matchingKey = detailsKeys.find(key =>
+        key.toLowerCase().trim().includes(cleanName.toLowerCase().trim()) ||
+        cleanName.toLowerCase().trim().includes(key.toLowerCase().trim())
+      );
+      if (matchingKey) {
+        details = selectedCondition.productDetails[matchingKey];
+      }
+    }
+
+    return details || null;
+  }, [selectedCondition]);
+
+  // Get the selected product details
+  const selectedProductDetails = getProductDetails(selectedProduct);
+
+  // DEBUG: Log what we're getting - MUST be before any early returns
+  React.useEffect(() => {
+    if (selectedProduct && selectedCondition) {
+      console.log('=== PRODUCT DRAWER DEBUG ===');
+      console.log('Selected product name:', selectedProduct);
+      console.log('Available products in productDetails:', Object.keys(selectedCondition.productDetails || {}));
+      console.log('Selected product details:', selectedProductDetails);
+      if (selectedProductDetails) {
+        console.log('Field Status:');
+        console.log('- scientificRationale:', selectedProductDetails.scientificRationale ? `HAS DATA (${selectedProductDetails.scientificRationale.substring(0, 50)}...)` : 'EMPTY');
+        console.log('- rationale:', selectedProductDetails.rationale ? `HAS DATA (${selectedProductDetails.rationale.substring(0, 50)}...)` : 'EMPTY');
+        console.log('- clinicalEvidence:', selectedProductDetails.clinicalEvidence ? `HAS DATA (${selectedProductDetails.clinicalEvidence.substring(0, 50)}...)` : 'EMPTY');
+        console.log('- handlingObjections:', selectedProductDetails.handlingObjections ? `HAS DATA` : 'EMPTY');
+      } else {
+        console.log('❌ selectedProductDetails is NULL - product name mismatch!');
+      }
+      console.log('Is fallback data?', selectedCondition._isFallbackData);
+      console.log('=========================');
+    }
+  }, [selectedProduct, selectedCondition, selectedProductDetails]);
+
+  // Phase 3: Removed safePatientTypes and getPatientTypeDescription - no longer using treatment modifiers
 
   if (!selectedCondition) {
     return (
-      <div className={`lg:col-span-3 ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500'} shadow rounded-lg p-8 text-center`}>
+      <div className={`lg:col-span-3 ${isDarkMode ? 'bg-prism-dark-bg-secondary text-prism-dark-text-secondary' : 'bg-prism-light-bg-primary text-prism-light-text-secondary'} shadow rounded-lg p-8 text-center`}>
         Select a condition or surgical procedure to view details
       </div>
     );
@@ -57,8 +113,9 @@ function ConditionDetails({
     // Set the selected product to display its details
     const cleanProductName = product.replace(' (Type 3/4 Only)', '');
     setSelectedProduct(cleanProductName);
-    // Show the additional information section
-    handleShowAdditionalInfo();
+    // Open the drawer with scientific tab by default
+    setDrawerInitialTab('scientific');
+    setProductDrawerOpen(true);
   };
   
   // Handle tab change and clear selected product
@@ -66,41 +123,45 @@ function ConditionDetails({
     setSelectedProduct(null); // Clear selected product when changing phases
     handleTabChange(tab); // Call the original tab change handler
   };
-  
-  // Handle patient type change and clear selected product
-  const handlePatientTypeSelectWithClear = (type) => {
-    setSelectedProduct(null); // Clear selected product when changing patient type
-    handlePatientTypeSelect(type); // Call the original patient type select handler
-  };
-  
-  // Get the details for the selected product
-  const getProductDetails = (productName) => {
-    if (!productName) return null;
-    const cleanName = productName.replace(' (Type 3/4 Only)', '');
-    return selectedCondition.productDetails?.[cleanName] || null;
-  };
-  
-  // Get the selected product details
-  const selectedProductDetails = getProductDetails(selectedProduct);
 
-  const handleOpenCompetitiveAdvantage = () => {
+  // Phase 3: Removed handlePatientTypeSelectWithClear - no longer using treatment modifiers
+
+  const handleOpenCompetitiveAdvantage = async () => {
     if (!selectedProduct) return;
-    
-    // Load competitive advantage data from Supabase
-    loadCompetitiveAdvantageData(selectedProduct);
+
+    // Load competitive advantage data from Supabase and WAIT for it
+    await loadCompetitiveAdvantageData(selectedProduct);
+
+    // Open drawer with competitive tab AFTER data is loaded
+    handleOpenProductDrawer('competitive');
   };
 
-  // Handle opening product details modal
-  const handleOpenProductDetailsModal = (sectionType) => {
-    setCurrentModalSection(sectionType);
-    setProductDetailsModalOpen(true);
+  // Handle opening product drawer with specific tab
+  const handleOpenProductDrawer = (initialTab = 'scientific') => {
+    setDrawerInitialTab(initialTab);
+    setProductDrawerOpen(true);
   };
 
   const loadCompetitiveAdvantageData = async (productName) => {
     try {
+      // Try multiple product name variants to handle mismatches
+      const variants = [
+        productName, // Original
+        productName.trim(), // Trimmed
+        `${productName} (Type 3/4 Only)`, // With suffix
+        productName.replace(' (Type 3/4 Only)', ''), // Without suffix (cleaned)
+      ];
+
+      // Remove duplicates from variants array
+      const uniqueVariants = [...new Set(variants)];
+
+      // Build OR query for all variants - Simple approach: just query the exact product name
+      // The database should have exact matches, let's not overcomplicate
+      const productNameParam = encodeURIComponent(productName);
+
       // Use raw fetch to bypass broken Supabase client
-      const competitorsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/competitive_advantage_competitors?select=competitor_name,advantages&product_name=eq.${encodeURIComponent(productName)}`;
-      const ingredientsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/competitive_advantage_active_ingredients?select=ingredient_name,advantages&product_name=eq.${encodeURIComponent(productName)}`;
+      const competitorsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/competitive_advantage_competitors?select=competitor_name,advantages&product_name=eq.${productNameParam}`;
+      const ingredientsUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/competitive_advantage_active_ingredients?select=ingredient_name,advantages&product_name=eq.${productNameParam}`;
 
       const [competitorsResponse, ingredientsResponse] = await Promise.all([
         fetch(competitorsUrl, {
@@ -120,6 +181,18 @@ function ConditionDetails({
       const competitorsData = await competitorsResponse.json();
       const ingredientsData = await ingredientsResponse.json();
 
+      // DEBUG: Log competitive advantage query results
+      console.log('=== COMPETITIVE ADVANTAGE DEBUG ===');
+      console.log('Product name searched:', productName);
+      console.log('Variants tried:', uniqueVariants);
+      console.log('Competitors URL:', competitorsUrl);
+      console.log('Ingredients URL:', ingredientsUrl);
+      console.log('Competitors response status:', competitorsResponse.status);
+      console.log('Ingredients response status:', ingredientsResponse.status);
+      console.log('Competitors response:', competitorsData);
+      console.log('Ingredients response:', ingredientsData);
+      console.log('====================================');
+
       // Format data for the component
       const competitors = (competitorsData || []).map(item => ({
         name: item.competitor_name,
@@ -136,261 +209,177 @@ function ConditionDetails({
         activeIngredients
       });
 
-      setCompetitiveAdvantageModalOpen(true);
-
     } catch (error) {
       console.error('Error loading competitive advantage:', error);
-      // Initialize with empty structure on error and open modal
+      // Initialize with empty structure on error
       setCompetitiveAdvantageData({
         competitors: [],
         activeIngredients: []
       });
-      setCompetitiveAdvantageModalOpen(true);
     }
   };
 
   return (
-    <div className={`lg:col-span-3 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow rounded-lg overflow-hidden`}>
-      <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+    <div className={`lg:col-span-3 ${isDarkMode ? 'bg-prism-dark-bg-secondary' : 'bg-prism-light-bg-primary'} shadow rounded-lg overflow-hidden`}>
+      <div className={`p-4 border-b ${isDarkMode ? 'border-prism-dark-border-elevated' : 'border-prism-light-border-subtle'}`}>
         {/* Mobile back button */}
         <div className="flex items-center mb-2 lg:hidden">
           <button
             onClick={onMobileBack}
-            className={`flex items-center transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`flex items-center transition-colors duration-250 ${isDarkMode ? 'text-prism-dark-text-secondary hover:text-prism-dark-text-primary' : 'text-prism-primary-light hover:text-prism-primary'}`}
           >
             <ArrowLeft size={20} className="mr-2" />
             <span className="text-sm font-medium">Back to Conditions</span>
           </button>
         </div>
 
-        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedCondition.name}</h2>
-        <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>{selectedCondition.name}</h2>
+        <div className={`text-sm mt-1 ${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'}`}>
           <span className="mr-2">{selectedCondition.category}</span>
           <span className="mr-2 hidden">|</span>
           <span className="hidden">{selectedCondition.dds.join(', ')}</span>
-          <span className="mr-2 hidden">|</span>
-          <span>{selectedCondition.patientType}</span>
+          {/* Phase 3: Removed patientType display - no longer using treatment modifiers */}
         </div>
 
         {/* Recommended Products Section */}
         <div className="mt-6 mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Recommended Products</h3>
-            <button
-              onClick={() => handleOpenResearch()} // Pass no product to open general research
-              className="py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center text-sm hidden"
-            >
-              <BookOpen size={16} className="mr-2" />
-              View Published Research
-            </button>
+          <div className="mb-3">
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>Recommended Products</h3>
           </div>
-          
-          {/* Treatment Modifier Filter for Products */}
-          <div className={`p-4 rounded-lg border mb-4 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex-shrink-0">
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Show Recommendations For:</span>
-              </div>
-              <div className="flex-grow">
-                <Select.Root value={activePatientType} onValueChange={handlePatientTypeSelectWithClear}>
-                  <Select.Trigger className={`flex justify-between items-center px-3 py-2 text-sm rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                    <div className="flex items-center">
-                      <Filter size={16} className="mr-2 text-[#15396c]" />
-                      <Select.Value placeholder="Select Treatment Modifier" />
-                    </div>
-                    <Select.Icon><ChevronDown size={18} /></Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Content className={`overflow-hidden rounded-md shadow-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
-                      <Select.Viewport className="p-1">
-                        {[{ name: 'All' }, ...safePatientTypes].map((pt) => (
-                          <Select.Item
-                            key={pt.name}
-                            value={pt.name}
-                            className={`flex items-center h-8 px-3 py-2 text-sm cursor-pointer focus:outline-none ${isDarkMode ? 'text-gray-200 hover:bg-gray-600 focus:bg-gray-600' : 'text-gray-700 hover:bg-gray-100 focus:bg-gray-100'}`}
-                          >
-                            <Select.ItemText>
-                              {getPatientTypeDescription(pt.name)}
-                            </Select.ItemText>
-                          </Select.Item>
-                        ))}
-                      </Select.Viewport>
-                    </Select.Content>
-                  </Select.Portal>
-                </Select.Root>
-              </div>
-            </div>
-            {activePatientType !== 'All' && (
-              <div className={`mt-2 text-sm flex items-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                <Info size={14} className="mr-1" />
-                Showing specific recommendations for:
-                <span className="font-medium ml-1">
-                  {getPatientTypeDescription(activePatientType)}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {/* Treatment Phases Tabs */}
-          <Tabs.Root value={activeTab} onValueChange={handleTabChangeWithClear}>
-            <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
-              {selectedCondition.phases.map((phase, index) => {
-                // Different opacity levels of the selected condition color for each phase
-                const getPhaseColor = (phaseName, phaseIndex) => {
-                  const colors = [
-                    'bg-[#15396c]/40', // Prep - 40% opacity
-                    'bg-[#15396c]/60', // Acute - 60% opacity  
-                    'bg-[#15396c]/80'  // Maintenance - 80% opacity
-                  ];
-                  return colors[phaseIndex] || 'bg-[#15396c]/40';
-                };
-                
-                return (
-                  <Tabs.Trigger
-                    key={phase}
-                    value={phase}
-                    className={clsx(
-                      "flex-1 px-4 py-3 text-sm font-medium text-center focus:outline-none transition-all duration-200 text-white",
-                      getPhaseColor(phase, index),
-                      activeTab === phase 
-                        ? "shadow-[inset_0_0_0_4px_#15396c] animate-pulse-border"
-                        : "hover:shadow-[inset_0_0_0_2px_rgba(156,163,175,0.5)]"
-                    )}
-                    style={activeTab === phase ? {
-                      animation: 'pulse-border 2s infinite'
-                    } : {}}
-                  >
-                    {phase} Phase
-                    {hasProductsForPhase(phase) && selectedCondition.products && Array.isArray(selectedCondition.products[phase]) && (
-                      <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white text-[#15396c]">
-                        {selectedCondition.products[phase].length}
-                      </span>
-                    )}
-                  </Tabs.Trigger>
-                );
-              })}
-            </Tabs.List>
-            
-            {/* Phase-specific Usage Instructions - More prominently displayed */}
-            {selectedProduct && selectedProductDetails && selectedProductDetails.usage && filteredProducts.length > 0 && (
-              <div className={`bg-gradient-to-r border-l-6 border-[#15396c] p-4 mb-4 shadow-md rounded-r-md ${isDarkMode ? 'from-blue-900/30 to-blue-800/30' : 'from-blue-50 to-blue-100'}`}>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <Info className="h-5 w-5 text-[#15396c]" />
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <h4 className={`text-base font-semibold mb-2 ${isDarkMode ? 'text-blue-300' : 'text-[#15396c]'}`}>
-                      Usage Instructions for {selectedProduct} - {activeTab} Phase
-                    </h4>
-                    <div className={`p-3 rounded-md border shadow-sm ${isDarkMode ? 'bg-gray-700 border-blue-700/40 text-gray-200' : 'bg-white border-[#15396c]/20 text-gray-800'}`}>
-                      <div className="text-sm leading-relaxed">
-                        {typeof selectedProductDetails.usage === 'object'
-                          ? (selectedProductDetails.usage[activeTab]
-                              ? <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage[activeTab]}</div>
-                              : <div className={`italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>No specific instructions for {activeTab} phase. See general usage below.</div>)
-                          : <div className="whitespace-pre-line font-medium">{selectedProductDetails.usage}</div>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {selectedCondition.phases.map((phase) => (
-              <Tabs.Content key={phase} value={phase} className={`p-4 border border-t-0 rounded-b-lg ${isDarkMode ? 'bg-gray-750' : 'bg-white'}`}>
-                {filteredProducts.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredProducts.map((product) => {
-                      const cleanProductName = product.replace(' (Type 3/4 Only)', '');
-                      const isSelected = selectedProduct === cleanProductName;
-                      const isAvailable = getProductAvailability ? getProductAvailability(product) : true;
 
-                      return (
-                      <div
-                        key={product}
-                        className={clsx(
-                          "border-2 rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-200",
-                          isSelected
-                            ? "border-[#15396c] !bg-[#15396c]" // Force background with !important
-                            : isDarkMode
-                              ? "bg-gray-700 border-gray-600 hover:bg-gray-650 hover:border-gray-500"
-                              : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                        )}
-                        onClick={() => handleProductCardSelect(product)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className={clsx(
-                                "text-lg font-semibold",
-                                isSelected
-                                  ? "!text-white" // Force white text with !important
-                                  : isDarkMode
-                                    ? "text-white"
-                                    : "text-black"
-                              )}>
-                                {product}
-                              </h4>
-                              {!isAvailable && (
-                                <span className={clsx(
-                                  "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                                  isSelected
-                                    ? "bg-white text-amber-600"
-                                    : "bg-amber-100 text-amber-800"
-                                )}>
-                                  Not Available
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent triggering the parent onClick
-                              handleOpenResearch(product);
-                            }}
-                            className={clsx(
-                              "text-sm flex items-center transition-colors ml-4",
+          {/* Phase 3: Optional phase filter chips - only shown when multiple phases exist */}
+          {selectedCondition.phases.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {selectedCondition.phases.map((phase) => (
+                <button
+                  key={phase}
+                  onClick={() => handleTabChangeWithClear(phase)}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
+                    activeTab === phase
+                      ? isDarkMode
+                        ? "bg-prism-primary text-white"
+                        : "bg-prism-primary-light text-white"
+                      : isDarkMode
+                        ? "bg-prism-dark-bg-tertiary text-prism-dark-text-secondary hover:bg-prism-dark-bg-hover"
+                        : "bg-prism-light-bg-secondary text-prism-light-text-secondary hover:bg-prism-light-bg-tertiary"
+                  )}
+                >
+                  {phase}
+                  {hasProductsForPhase(phase) && selectedCondition.products && Array.isArray(selectedCondition.products[phase]) && (
+                    <span className={clsx(
+                      "ml-1.5 px-1.5 py-0.5 text-xs rounded-full",
+                      activeTab === phase
+                        ? "bg-white/20"
+                        : isDarkMode
+                          ? "bg-prism-dark-bg-secondary"
+                          : "bg-prism-light-bg-primary"
+                    )}>
+                      {selectedCondition.products[phase].length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Product list - simplified without tab panels */}
+          <div className={`p-4 border rounded-lg ${isDarkMode ? 'bg-prism-dark-bg-secondary border-prism-dark-border-elevated' : 'bg-prism-light-bg-primary border-prism-light-border-subtle'}`}>
+            {filteredProducts.length > 0 ? (
+              <div className="space-y-4">
+                {filteredProducts.map((product) => {
+                  const cleanProductName = product.replace(' (Type 3/4 Only)', '');
+                  const isSelected = selectedProduct === cleanProductName;
+                  const isAvailable = getProductAvailability ? getProductAvailability(product) : true;
+
+                  return (
+                    <div
+                      key={product}
+                      className={clsx(
+                        "border rounded-lg p-5 shadow-sm cursor-pointer transition-all duration-250",
+                        isSelected
+                          ? "border-prism-primary bg-prism-primary text-white"
+                          : isDarkMode
+                            ? "bg-prism-dark-bg-tertiary border-prism-dark-border-subtle hover:bg-prism-dark-bg-hover hover:border-prism-dark-border-elevated"
+                            : "bg-prism-light-bg-secondary border-prism-light-border-subtle hover:bg-prism-light-bg-tertiary hover:border-prism-light-border-elevated"
+                      )}
+                      onClick={() => handleProductCardSelect(product)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className={clsx(
+                              "text-lg font-semibold",
                               isSelected
-                                ? "!text-white hover:!text-gray-200" // Force white text with !important
-                                : "text-[#15396c] hover:text-[#15396c]/80"
-                            )}
-                          >
-                            <BookOpen size={14} className="mr-1" />
-                            <span>Research</span>
-                          </button>
-                        </div>
-                        {product.includes('(Type 3/4 Only)') && (
-                          <div className="mt-2">
-                            <span className={clsx(
-                              "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-                              isSelected
-                                ? "bg-white text-[#15396c]"
-                                : "bg-amber-100 text-amber-800"
+                                ? "text-white"
+                                : isDarkMode
+                                  ? "text-prism-dark-text-primary"
+                                  : "text-prism-light-text-primary"
                             )}>
-                              Recommended for Type 3/4 patients only
-                            </span>
+                              {product}
+                            </h4>
+                            {!isAvailable && (
+                              <span className={clsx(
+                                "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors duration-250",
+                                isSelected
+                                  ? "bg-white text-prism-primary"
+                                  : isDarkMode
+                                    ? "bg-prism-warning-bg-dark text-prism-warning"
+                                    : "bg-prism-warning-bg-light text-prism-warning"
+                              )}>
+                                Not Available
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenProductDrawer('research');
+                          }}
+                          className={clsx(
+                            "text-sm flex items-center transition-colors duration-250 ml-4",
+                            isSelected
+                              ? "text-white hover:text-gray-100"
+                              : isDarkMode
+                                ? "text-prism-primary hover:text-prism-primary-hover"
+                                : "text-prism-primary-light hover:text-prism-primary"
+                          )}
+                        >
+                          <BookOpen size={14} className="mr-1" />
+                          <span>Research</span>
+                        </button>
                       </div>
-                      );
-                    })}
-                  </div>
-                ) : activePatientType !== 'All' ? (
-                  <div className={`p-8 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <strong>No products recommended</strong> for {phase} phase with Treatment Modifier {activePatientType}.
-                  </div>
-                ) : (
-                  <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>No products recommended for this phase.</div>
-                )}
-              </Tabs.Content>
-            ))}
-          </Tabs.Root>
+                      {product.includes('(Type 3/4 Only)') && (
+                        <div className="mt-2">
+                          <span className={clsx(
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium transition-colors duration-250",
+                            isSelected
+                              ? "bg-white text-prism-primary"
+                              : isDarkMode
+                                ? "bg-prism-warning-bg-dark text-prism-warning"
+                                : "bg-prism-warning-bg-light text-prism-warning"
+                          )}>
+                            Recommended for Type 3/4 patients only
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`p-8 text-center ${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'}`}>
+                No products recommended{selectedCondition.phases.length > 1 ? ` for ${activeTab}` : ''}.
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Additional Information Section */}
         {showAdditionalInfo && selectedProduct && selectedProductDetails && (
           <div className="mt-6 space-y-2">
-            <h3 className={`text-lg font-medium mb-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+            <h3 className={`text-lg font-medium mb-3 ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>
               Additional Information: {selectedProduct}
             </h3>
 
@@ -398,115 +387,67 @@ function ConditionDetails({
 
             {/* Scientific Rationale */}
             <div
-              className={`p-3 rounded-md mb-2 border-2 cursor-pointer transition-colors ${isDarkMode ? 'bg-blue-900/30 border-blue-700/40 hover:bg-blue-900/40' : 'bg-[#15396c]/10 border-[#15396c]/20 hover:bg-[#15396c]/15'}`}
-              onClick={() => handleOpenProductDetailsModal('scientificRationale')}
+              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/15 border-prism-primary/30 hover:bg-prism-primary/25 hover:border-prism-primary/40' : 'bg-prism-primary-light/10 border-prism-primary-light/30 hover:bg-prism-primary-light/20 hover:border-prism-primary-light/40'}`}
+              onClick={() => handleOpenProductDrawer('scientific')}
             >
               <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-[#15396c]'}`}>
+                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
                   Scientific Rationale
                 </div>
-                <Microscope size={18} className={isDarkMode ? 'text-blue-400/70' : 'text-[#15396c]/70'} />
+                <Microscope size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
               </div>
             </div>
 
             {/* Clinical Evidence */}
             <div
-              className={`p-3 rounded-md mb-2 border-2 cursor-pointer transition-colors ${isDarkMode ? 'bg-blue-800/40 border-blue-600/50 hover:bg-blue-800/50' : 'bg-[#15396c]/25 border-[#15396c]/35 hover:bg-[#15396c]/30'}`}
-              onClick={() => handleOpenProductDetailsModal('clinicalEvidence')}
+              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/20 border-prism-primary/35 hover:bg-prism-primary/30 hover:border-prism-primary/45' : 'bg-prism-primary-light/15 border-prism-primary-light/35 hover:bg-prism-primary-light/25 hover:border-prism-primary-light/45'}`}
+              onClick={() => handleOpenProductDrawer('clinical')}
             >
               <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-blue-200' : 'text-[#15396c]'}`}>
+                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
                   Clinical Evidence
                 </div>
-                <FileText size={18} className={isDarkMode ? 'text-blue-300/70' : 'text-[#15396c]/70'} />
+                <FileText size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
               </div>
             </div>
 
             {/* Competitive Advantage */}
             <div
-              className={`p-3 rounded-md mb-2 border-2 cursor-pointer transition-colors ${isDarkMode ? 'bg-blue-700/50 border-blue-500/60 hover:bg-blue-700/60' : 'bg-[#15396c]/40 border-[#15396c]/50 hover:bg-[#15396c]/45'}`}
+              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/30 border-prism-primary/50 hover:bg-prism-primary/40 hover:border-prism-primary/60' : 'bg-prism-primary-light/20 border-prism-primary-light/40 hover:bg-prism-primary-light/30 hover:border-prism-primary-light/50'}`}
               onClick={handleOpenCompetitiveAdvantage}
             >
               <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-blue-100' : 'text-[#15396c]'}`}>
+                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
                   Competitive Advantage
                 </div>
-                <Target size={18} className={isDarkMode ? 'text-blue-200/70' : 'text-[#15396c]/70'} />
+                <Target size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
               </div>
             </div>
             
-            {/* Competitive Advantage Modal */}
-            <CompetitiveAdvantageModal
-              isOpen={competitiveAdvantageModalOpen}
-              onClose={() => setCompetitiveAdvantageModalOpen(false)}
-              selectedProduct={selectedProduct}
-              competitiveAdvantageData={competitiveAdvantageData}
-            />
-
-            {/* Product Details Modal */}
-            <ProductDetailsModal
-              isOpen={productDetailsModalOpen}
-              onClose={() => setProductDetailsModalOpen(false)}
-              selectedProduct={selectedProduct}
-              sectionType={currentModalSection}
-              content={currentModalSection && selectedProductDetails ? 
-                (() => {
-                  switch (currentModalSection) {
-                    case 'scientificRationale':
-                      return selectedProductDetails.rationale;
-                    case 'clinicalEvidence':
-                      return selectedProductDetails.clinicalEvidence;
-                    case 'handlingObjections':
-                      return selectedProductDetails.handlingObjections;
-                    case 'pitchPoints':
-                      return selectedProductDetails.pitchPoints;
-                    default:
-                      return null;
-                  }
-                })() : null
-              }
-              title={currentModalSection ? 
-                (() => {
-                  switch (currentModalSection) {
-                    case 'scientificRationale':
-                      return 'Scientific Rationale';
-                    case 'clinicalEvidence':
-                      return 'Clinical Evidence';
-                    case 'handlingObjections':
-                      return 'Handling Objections';
-                    case 'pitchPoints':
-                      return 'Key Pitch Points';
-                    default:
-                      return '';
-                  }
-                })() : ''
-              }
-            />
-            
             {/* Handling Objections */}
             <div
-              className={`p-3 rounded-md mb-2 border-2 cursor-pointer transition-colors ${isDarkMode ? 'bg-blue-600/60 border-blue-400/70 hover:bg-blue-600/70' : 'bg-[#15396c]/55 border-[#15396c]/65 hover:bg-[#15396c]/60'}`}
-              onClick={() => handleOpenProductDetailsModal('handlingObjections')}
+              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/40 border-prism-primary/60 hover:bg-prism-primary/50 hover:border-prism-primary/70' : 'bg-prism-primary-light/25 border-prism-primary-light/45 hover:bg-prism-primary-light/35 hover:border-prism-primary-light/55'}`}
+              onClick={() => handleOpenProductDrawer('objections')}
             >
               <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-blue-50' : 'text-[#15396c]'}`}>
+                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
                   Handling Objections
                 </div>
-                <MessageSquare size={18} className={isDarkMode ? 'text-blue-100/70' : 'text-[#15396c]/70'} />
+                <MessageSquare size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
               </div>
             </div>
 
             {/* Key Pitch Points */}
             {selectedProductDetails.pitchPoints && (
               <div
-                className={`p-3 rounded-md mb-2 border-2 cursor-pointer transition-colors ${isDarkMode ? 'bg-blue-500/70 border-blue-300/80 hover:bg-blue-500/80' : 'bg-[#15396c]/70 border-[#15396c]/80 hover:bg-[#15396c]/75'}`}
-                onClick={() => handleOpenProductDetailsModal('pitchPoints')}
+                className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/50 border-prism-primary/70 hover:bg-prism-primary/60 hover:border-prism-primary/80' : 'bg-prism-primary-light/30 border-prism-primary-light/50 hover:bg-prism-primary-light/40 hover:border-prism-primary-light/60'}`}
+                onClick={() => handleOpenProductDrawer('clinical')}
               >
                 <div className="flex justify-between items-center">
-                  <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-[#15396c]'}`}>
+                  <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
                     Key Pitch Points
                   </div>
-                  <Target size={18} className={isDarkMode ? 'text-white/70' : 'text-[#15396c]/70'} />
+                  <Target size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
                 </div>
               </div>
             )}
@@ -515,7 +456,7 @@ function ConditionDetails({
             <div className="mt-3 text-center">
               <button
                 onClick={() => setSelectedProduct(null)}
-                className={`px-3 py-1 text-sm underline ${isDarkMode ? 'text-blue-300 hover:text-blue-200' : 'text-[#15396c] hover:text-[#15396c]/80'}`}
+                className={`px-3 py-1 text-sm underline transition-colors duration-250 ${isDarkMode ? 'text-prism-primary hover:text-prism-primary-hover' : 'text-prism-primary-light hover:text-prism-primary'}`}
               >
                 View overall condition information
               </button>
@@ -523,6 +464,31 @@ function ConditionDetails({
           </div>
         )}
       </div>
+
+      {/* Product Drawer - rendered at root level to overlay entire page */}
+      <ProductDrawer
+        isOpen={productDrawerOpen}
+        onClose={() => {
+          setProductDrawerOpen(false);
+          setSelectedProduct(null);
+        }}
+        product={selectedProductDetails ? {
+          product_name: selectedProduct,
+          scientificRationale: selectedProductDetails.scientificRationale,
+          rationale: selectedProductDetails.rationale,
+          clinicalEvidence: selectedProductDetails.clinicalEvidence,
+          key_ingredients: selectedProductDetails.ingredients || [],
+          pitchPoints: selectedProductDetails.pitchPoints,
+          usage: selectedProductDetails.usage,
+          handlingObjections: selectedProductDetails.handlingObjections,
+          category: selectedCondition?.category
+        } : null}
+        research={selectedProductDetails?.researchArticles || []}
+        competitiveData={competitiveAdvantageData}
+        initialTab={drawerInitialTab}
+        activePhase={activeTab}
+        onLoadCompetitiveData={() => loadCompetitiveAdvantageData(selectedProduct)}
+      />
     </div>
   );
 }

@@ -3,6 +3,13 @@ import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
 
+// Valid user roles
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  SALES: 'sales',
+  CLINICIAN: 'clinician',
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -13,35 +20,81 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminUser, setAdminUser] = useState(null);
+  const [user, setUser] = useState(null); // General user info
+  const [userRole, setUserRole] = useState(null); // 'user' or 'admin'
   const [loading, setLoading] = useState(true);
   const [onAutoLogoutCallback, setOnAutoLogoutCallback] = useState(null);
+
+  // Fetch user profile and role from user_profiles table
+  const fetchUserProfile = async (authUser) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('id, email, role, approval_status, approved_by, approved_at, rejection_reason, created_at, updated_at')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      // Ensure approval_status exists (default to 'approved' for legacy users)
+      if (!profile.approval_status) {
+        profile.approval_status = 'approved';
+      }
+
+      return profile;
+    } catch (error) {
+      console.error('Profile fetch error:', error);
+      return null;
+    }
+  };
 
   // Check if user is already logged in on app start using Supabase session
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Get current session from Supabase (stored in httpOnly cookies)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Get current session from Supabase
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError || !session) {
           setLoading(false);
           return;
         }
 
-        // Verify user is an admin
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
+        // Check if session is expired or about to expire
+        const expiresAt = session.expires_at;
+        const now = Math.floor(Date.now() / 1000);
 
-        if (adminData && !adminError) {
+        // If session is expired or about to expire (within 1 minute), try to refresh
+        if (expiresAt && expiresAt - now < 60) {
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
+          // Get the refreshed session
+          const refreshResult = await supabase.auth.getSession();
+          if (!refreshResult.data.session) {
+            setLoading(false);
+            return;
+          }
+          // Update local reference
+          session = refreshResult.data.session;
+        }
+
+        // Fetch user profile with role
+        const profile = await fetchUserProfile(session.user);
+
+        if (profile) {
           setIsAuthenticated(true);
-          setAdminUser({
-            ...adminData,
-            auth_user: session.user
+          setUser({
+            ...session.user,
+            ...profile
           });
+          setUserRole(profile.role);
         }
       } catch (error) {
         console.error('Session check error:', error);
@@ -56,20 +109,47 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setIsAuthenticated(false);
-        setAdminUser(null);
+        setUser(null);
+        setUserRole(null);
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Verify admin status
-        const { data: adminData } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (adminData) {
+        // For TOKEN_REFRESHED, we can safely assume the user is already authenticated
+        // and skip the database query to prevent unnecessary re-renders
+        if (event === 'TOKEN_REFRESHED') {
+          // Update isAuthenticated state to keep it consistent
           setIsAuthenticated(true);
-          setAdminUser({
-            ...adminData,
-            auth_user: session.user
+          // Update user with new session data (keeping profile if it exists)
+          setUser(prevUser => ({
+            ...session.user,
+            ...prevUser // Keep existing profile data if available
+          }));
+          return;
+        }
+
+        // For SIGNED_IN events, check if this is just a re-auth of an existing session
+        // If user is already authenticated, skip the profile fetch to prevent unmounting
+        if (event === 'SIGNED_IN') {
+          // Use functional update to check current state
+          setIsAuthenticated(currentAuth => {
+            if (currentAuth) {
+              // Just update session, don't fetch profile
+              setUser(prevUser => ({
+                ...session.user,
+                ...prevUser
+              }));
+              return true; // Keep current auth state
+            } else {
+              // New login - need to fetch profile
+              fetchUserProfile(session.user).then(profile => {
+                if (profile) {
+                  setUser({
+                    ...session.user,
+                    ...profile
+                  });
+                  setUserRole(profile.role);
+                }
+              });
+              return true; // Set authenticated immediately
+            }
           });
         }
       }
@@ -80,11 +160,12 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Auto-logout after 10 minutes of inactivity
+  // Auto-logout after 30 minutes of inactivity (production setting)
   useEffect(() => {
     if (!isAuthenticated) return;
 
     let inactivityTimeout;
+    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
     // Function to perform logout
     const performLogout = async () => {
@@ -93,14 +174,15 @@ export const AuthProvider = ({ children }) => {
         onAutoLogoutCallback();
       }
 
-      // Clear localStorage session
-      localStorage.removeItem('supabase.auth.token');
-
-      // Try to sign out from Supabase (may hang, so don't await)
-      supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        // Silently handle sign out errors
+      }
 
       setIsAuthenticated(false);
-      setAdminUser(null);
+      setUser(null);
+      setUserRole(null);
     };
 
     // Reset the inactivity timer
@@ -110,7 +192,7 @@ export const AuthProvider = ({ children }) => {
       }
       inactivityTimeout = setTimeout(() => {
         performLogout();
-      }, 600000); // 10 minutes = 600,000 ms
+      }, INACTIVITY_TIMEOUT);
     };
 
     // Events that indicate user activity
@@ -135,89 +217,109 @@ export const AuthProvider = ({ children }) => {
     };
   }, [isAuthenticated, onAutoLogoutCallback]);
 
+  // Email/password login (for backward compatibility with admin login)
   const login = async (email, password) => {
     try {
-      console.log('🔐 Attempting login with raw fetch...');
-
-      // Use raw fetch to bypass broken Supabase client
-      const authUrl = `${process.env.REACT_APP_SUPABASE_URL}/auth/v1/token?grant_type=password`;
-      const authResponse = await fetch(authUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
+      // Sign in with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
 
-      if (!authResponse.ok) {
-        const errorData = await authResponse.json();
-        throw new Error(errorData.error_description || 'Invalid credentials');
+      if (authError) {
+        throw new Error(authError.message);
       }
-
-      const authData = await authResponse.json();
-      console.log('✅ Auth successful, checking admin status...');
 
       if (!authData.user) {
         throw new Error('Invalid credentials');
       }
 
-      // Now verify the user is in the admins table using raw fetch
-      const adminUrl = `${process.env.REACT_APP_SUPABASE_URL}/rest/v1/admins?select=*&user_id=eq.${authData.user.id}`;
-      const adminResponse = await fetch(adminUrl, {
-        headers: {
-          'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${authData.access_token}`
-        }
-      });
+      // Fetch user profile with role
+      const profile = await fetchUserProfile(authData.user);
 
-      const adminData = await adminResponse.json();
-      console.log('✅ Admin check response:', adminData);
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
 
-      if (!adminData || adminData.length === 0) {
+      // For admin login modal, verify admin role
+      if (profile.role !== 'admin') {
+        // Sign out if not admin
+        await supabase.auth.signOut();
         throw new Error('Access denied - admin privileges required');
       }
 
-      // Store the session manually in localStorage for persistence
-      const session = {
-        access_token: authData.access_token,
-        refresh_token: authData.refresh_token,
-        user: authData.user,
-        expires_at: authData.expires_at
-      };
-      localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+      // Set authentication state
+      setIsAuthenticated(true);
+      setUser({
+        ...authData.user,
+        ...profile
+      });
+      setUserRole(profile.role);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Social login handler (called after OAuth success)
+  const handleSocialLogin = async (authData) => {
+    try {
+      if (!authData.user) {
+        throw new Error('Authentication failed');
+      }
+
+      // Fetch user profile with role
+      const profile = await fetchUserProfile(authData.user);
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
 
       // Set authentication state
       setIsAuthenticated(true);
-      setAdminUser({
-        ...adminData[0],
-        auth_user: authData.user
+      setUser({
+        ...authData.user,
+        ...profile
       });
+      setUserRole(profile.role);
 
-      console.log('✅ Login successful!');
-      return { success: true };
+      return { success: true, role: profile.role };
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Social login handler error:', error);
       return { success: false, error: error.message };
     }
   };
 
   const logout = async () => {
-    console.log('🔓 Logging out...');
+    try {
+      await supabase.auth.signOut();
 
-    // Clear localStorage session
-    localStorage.removeItem('supabase.auth.token');
+      // Clean up any app-specific localStorage (but keep theme preference)
+      const theme = localStorage.getItem('prism-theme');
 
-    // Try to sign out from Supabase (may hang, so don't await)
-    supabase.auth.signOut().catch(err => console.warn('Sign out warning:', err));
+      // Clear everything except theme
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key !== 'prism-theme') {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Restore theme
+      if (theme) {
+        localStorage.setItem('prism-theme', theme);
+      }
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
 
     setIsAuthenticated(false);
-    setAdminUser(null);
-
-    console.log('✅ Logged out');
+    setUser(null);
+    setUserRole(null);
   };
 
   // Function to register auto-logout callback
@@ -225,13 +327,58 @@ export const AuthProvider = ({ children }) => {
     setOnAutoLogoutCallback(() => callback);
   }, []);
 
+  // Check if current user is admin
+  const isAdmin = () => {
+    return userRole === 'admin';
+  };
+
+  // Check if current user is sales
+  const isSales = () => {
+    return userRole === 'sales';
+  };
+
+  // Check if current user is clinician
+  const isClinician = () => {
+    return userRole === 'clinician';
+  };
+
+  // Check if current user is general user (legacy - maps to sales)
+  const isGeneralUser = () => {
+    return userRole === 'user' || userRole === 'sales';
+  };
+
+  // Check if user has any of the specified roles
+  const hasRole = (roles) => {
+    if (!userRole) return false;
+    if (typeof roles === 'string') return userRole === roles;
+    return roles.includes(userRole);
+  };
+
+  // Get approval status
+  const getApprovalStatus = () => {
+    if (!user) return null;
+    return user.approval_status || 'approved'; // Default to approved for legacy users
+  };
+
   const value = {
     isAuthenticated,
-    adminUser,
+    user, // Full user object with profile data
+    userRole, // 'admin', 'sales', or 'clinician'
     loading,
-    login,
+    login, // Email/password login (admin only)
+    handleSocialLogin, // Social login handler
     logout,
-    registerAutoLogoutCallback
+    signOut: logout, // Alias for compatibility
+    registerAutoLogoutCallback,
+    // Role check helpers
+    isAdmin,
+    isSales,
+    isClinician,
+    isGeneralUser, // Legacy - maps to sales
+    hasRole, // Check if user has any of the specified roles
+    getApprovalStatus,
+    // Legacy support for existing code
+    adminUser: userRole === 'admin' ? user : null,
   };
 
   return (
@@ -239,4 +386,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-}; 
+};

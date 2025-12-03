@@ -9,7 +9,7 @@
 - Supabase (PostgreSQL + Auth + RLS)
 - Currently refactoring for production readiness
 
-**Current State:** Mid-refactor (Phase 1-2). React Query partially integrated. Database materialized view needed but causing timeout issues.
+**Current State:** Phase 3 complete (Dec 2024). Role-based access control, simplified product ranking, custom phase labels implemented.
 
 ---
 
@@ -48,24 +48,37 @@ Do not run git commands unless user explicitly requests it.
 ## Quick Context
 
 ### What This Does
-Dental sales reps use this to:
+Dental sales reps and clinicians use this to:
 - Browse clinical conditions (procedures)
-- Get product recommendations by treatment phase (Prep/Acute/Maintenance)
-- Match products to patient risk types (Type 1-4)
-- Access competitive intelligence and research
+- Get ranked product recommendations by treatment phase (Prep/Acute/Maintenance)
+- Access competitive intelligence (sales only) and research
+- Role-based access: Admin sees all, Sales sees sales features, Clinician sees clinical only
 
-### Current Refactor Status
-- ✅ React Query installed (Step 2.1.1)
-- ⚠️ Materialized view created but timing out (RLS disabled, permissions granted)
-- ⚠️ App falls back to slow base table queries
-- 🎯 **Immediate goal**: Fix view timeout, complete Phase 1 database foundation
+### Phase 3 Features (Completed Dec 2024)
+- ✅ **Role System**: Admin, Sales, Clinician roles with feature visibility control
+- ✅ **Product Ranking**: Drag-and-drop ranking per phase (no more patient type grouping)
+- ✅ **Custom Phase Labels**: Rename "Prep/Acute/Maintenance" per procedure
+- ✅ **DynamicTextarea**: Expandable, draggable text editor with formatting
+- ✅ **Feature Visibility**: Central config for role-based UI filtering
 
 ### Key Files
 - **Main app**: `src/components/ClinicalChartMockup.js`
-- **Admin**: `src/components/AdminPanel/AdminPanelCore.js` (1168 lines - needs refactoring)
-- **Database**: `src/components/AdminPanel/AdminPanelSupabase.js` (1000+ lines)
+- **Admin**: `src/components/AdminPanel/AdminPanelCore.js`
+- **Database**: `src/components/AdminPanel/AdminPanelSupabase.js`
 - **Queries**: `src/services/database/queries/procedures.js`
+- **Transformer**: `src/services/database/transformers/procedureTransformer.js`
 - **Schema**: `staging-schema.sql`
+- **AI Chatbot**: `src/services/ai/agenticSearchService.js`
+- **Feature Visibility**: `src/config/featureVisibility.js` (role-based access)
+- **Auth Context**: `src/contexts/AuthContext.js` (role helpers)
+
+### Agentic Search (AI Chatbot)
+- ✅ **Replaced RAG system** (Jan 2025) - Removed complex 3-stage pipeline (15 files) in favor of simple GPT-4o agentic search (2 files)
+- **How it works**: GPT-4o with function calling → direct SQL queries → no embeddings needed
+- **9 SQL tools**: search_products, search_procedures, get_product_details, get_competitive_advantages, etc.
+- **Transparent**: Users see which queries ran
+- **Cost**: ~$0.005/query (~$5/month for 1000 queries)
+- **Docs**: See `AGENTIC_SEARCH.md` for full architecture details
 
 ---
 
@@ -109,38 +122,41 @@ FiltersSection → ConditionsList → ConditionDetails
 - **Server**: Supabase (source of truth)
 
 ### Database Schema (Core)
-- `procedures` - Clinical conditions
+- `procedures` - Clinical conditions (+ `custom_phase_labels` JSONB)
 - `products` - Product catalog
 - `categories` - Condition categories
-- `patient_types` - Risk profiles (Type 1-4)
 - `phases` - Treatment phases (3 phases)
-- `procedure_phase_products` - Junction table (procedure + phase + patient type → products)
+- `procedure_phase_products` - Junction table (procedure + phase + product + rank)
+- `user_profiles` - Users with role (admin/sales/clinician)
+- `product_details` - Clinical evidence, pitch points, objection handling
+
+### Role System
+- **Admin**: Full access to all features and admin panel
+- **Sales**: Sales features (competitive advantage, pitch points, objections) + clinical
+- **Clinician**: Clinical evidence only (no sales features)
+
+Use `hasFeatureAccess(feature, userRole)` from `src/config/featureVisibility.js`
 
 ---
 
 ## Current Issues (Priority Order)
 
-### 🔴 Critical
-1. **Materialized view timeout** - View exists, has data, query is fast (0.017ms), but app times out after 5s
-2. **No RLS blocking** - RLS disabled on procedures, permissions granted, still timing out
-3. **Fetch interceptor** - `supabaseClient.js:29` has fetch logger - check if requests even fire
-
 ### 🟡 High Priority
-1. **Zero test coverage** - No tests exist
-2. **Large functions** - AdminPanelCore.js needs refactoring
-3. **Dead code** - ~1600 lines of LLM code removed, more cleanup needed
+1. **Run materialized view fix** - Run `database/migrations/fix_product_details_in_view.sql` to include all product_details columns
+2. **Test coverage** - Unit tests added for featureVisibility and productRanking
+3. **Large functions** - AdminPanelCore.js could use refactoring
 
 ### 🟢 Medium Priority
-1. **Console.log everywhere** - Remove for production
-2. **No error boundaries** - App crashes completely on errors
-3. **Security issues** - Auth in localStorage (should be httpOnly cookies)
+1. **No error boundaries** - App crashes completely on errors
+2. **Security issues** - Auth in localStorage (should be httpOnly cookies)
+3. **Browser compatibility testing** - Needs testing across browsers
 
 ---
 
 ## What NOT to Do
 
 - ❌ Create new README/GUIDE files (we have too many)
-- ❌ Add more query services (we already have 3 competing ones)
+- ❌ Add more AI/RAG complexity (agentic search is simple on purpose - 2 files total)
 - ❌ Modify schema without checking dependencies
 - ❌ Add features without tests
 - ❌ Commit .env files
@@ -191,7 +207,8 @@ REACT_APP_OPENAI_API_KEY=sk-...
 **Started**: Early in developer's coding journey ("vibe coding" phase)
 **Goal**: Production-ready, secure, tested application
 
+- when performing git commit, NEVER put anything related to "written by claude" in the commit message.
 ---
 
-*Last Updated: 2025-01-06*
-*Version: 2.0 (Streamlined)*
+*Last Updated: 2024-12-02*
+*Version: 3.0 (Phase 3 Complete)*

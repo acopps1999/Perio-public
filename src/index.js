@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import ClinicalChartMockup from './components/ClinicalChartMockup';
+import { AppRouter } from './components/AppRouter';
 import { QueryProvider } from './providers/QueryProvider';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -14,7 +14,7 @@ root.render(
       <QueryProvider>
         <ThemeProvider>
           <AuthProvider>
-            <ClinicalChartMockup />
+            <AppRouter />
           </AuthProvider>
         </ThemeProvider>
       </QueryProvider>

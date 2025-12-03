@@ -29,7 +29,7 @@ export class SupabaseQueryService {
       return response;
 
     } catch (error) {
-      console.error('🗄️ SUPABASE: Error processing question:', error);
+      console.error('Database query failed:', error);
       throw new Error(`Database query failed: ${error.message}`);
     }
   }
@@ -361,11 +361,10 @@ export class SupabaseQueryService {
         .order('name');
 
       if (error) {
-        console.error('❌ AVAILABILITY: Query error:', error);
+        console.error('Availability query error:', error);
         return [];
       }
 
-      
       return (products || []).map(product => ({
         ...product,
         availability_status: this.getAvailabilityStatus(product),
@@ -373,7 +372,7 @@ export class SupabaseQueryService {
       }));
 
     } catch (error) {
-      console.error('❌ AVAILABILITY: Error finding products by availability:', error);
+      console.error('Error finding products by availability:', error);
       return [];
     }
   }

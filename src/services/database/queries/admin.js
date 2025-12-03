@@ -5,8 +5,6 @@
  * This includes CRUD operations for procedures, products, categories, and other entities.
  */
 
-import supabase from '../client';
-
 /**
  * Create a new procedure
  * @param {Object} procedureData - The procedure data

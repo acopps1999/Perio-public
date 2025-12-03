@@ -2,16 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom pulsing animation for selected phase border */
-@keyframes pulse-border {
-  0%, 100% {
-    box-shadow: inset 0 0 0 4px #15396c;
+/* ProductDrawer slide-in animation from right */
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
   }
-  50% {
-    box-shadow: inset 0 0 0 5px #15396c, inset 0 0 0 6px rgba(21, 57, 108, 0.15);
+  100% {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-.animate-pulse-border {
-  animation: pulse-border 2.5s ease-in-out infinite;
+/* Professional phase indicator animation - Dark Mode */
+@keyframes phase-glow-dark {
+  0%, 100% {
+    box-shadow:
+      inset 0 -3px 0 0 #6366f1,
+      0 0 20px rgba(99, 102, 241, 0.3),
+      0 0 40px rgba(99, 102, 241, 0.15);
+    transform: scaleY(1);
+  }
+  50% {
+    box-shadow:
+      inset 0 -3px 0 0 #818cf8,
+      0 0 30px rgba(129, 140, 248, 0.5),
+      0 0 60px rgba(129, 140, 248, 0.25);
+    transform: scaleY(1.02);
+  }
+}
+
+/* Professional phase indicator animation - Light Mode */
+@keyframes phase-glow-light {
+  0%, 100% {
+    box-shadow:
+      inset 0 -3px 0 0 #4f46e5,
+      0 0 15px rgba(79, 70, 229, 0.25),
+      0 0 30px rgba(79, 70, 229, 0.12);
+    transform: scaleY(1);
+  }
+  50% {
+    box-shadow: inset 0 -3px 0 0 #6366f1,
+      0 0 20px rgba(99, 102, 241, 0.35),
+      0 0 40px rgba(99, 102, 241, 0.18);
+    transform: scaleY(1.02);
+  }
+}
+
+/* Shimmer overlay effect for selected phase */
+@keyframes phase-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-phase-glow-dark {
+  position: relative;
+  animation: phase-glow-dark 2s ease-in-out infinite;
+}
+
+.animate-phase-glow-light {
+  position: relative;
+  animation: phase-glow-light 2s ease-in-out infinite;
+}
+
+/* Shimmer overlay (applied via pseudo-element in component) */
+.phase-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent
+  );
+  animation: phase-shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Gradient edge darkening for phase tabs - Dark Mode */
+.phase-gradient-dark-20 {
+  background: linear-gradient(90deg,
+    rgba(99, 102, 241, 0.3) 0%,
+    rgba(99, 102, 241, 0.2) 50%,
+    rgba(99, 102, 241, 0.3) 100%
+  ) !important;
+}
+
+.phase-gradient-dark-40 {
+  background: linear-gradient(90deg,
+    rgba(99, 102, 241, 0.5) 0%,
+    rgba(99, 102, 241, 0.4) 50%,
+    rgba(99, 102, 241, 0.5) 100%
+  ) !important;
+}
+
+.phase-gradient-dark-60 {
+  background: linear-gradient(90deg,
+    rgba(99, 102, 241, 0.7) 0%,
+    rgba(99, 102, 241, 0.6) 50%,
+    rgba(99, 102, 241, 0.7) 100%
+  ) !important;
+}
+
+/* Gradient edge darkening for phase tabs - Light Mode */
+.phase-gradient-light-20 {
+  background: linear-gradient(90deg,
+    rgba(79, 70, 229, 0.25) 0%,
+    rgba(79, 70, 229, 0.15) 50%,
+    rgba(79, 70, 229, 0.25) 100%
+  ) !important;
+}
+
+.phase-gradient-light-40 {
+  background: linear-gradient(90deg,
+    rgba(79, 70, 229, 0.45) 0%,
+    rgba(79, 70, 229, 0.35) 50%,
+    rgba(79, 70, 229, 0.45) 100%
+  ) !important;
+}
+
+.phase-gradient-light-60 {
+  background: linear-gradient(90deg,
+    rgba(79, 70, 229, 0.65) 0%,
+    rgba(79, 70, 229, 0.55) 50%,
+    rgba(79, 70, 229, 0.65) 100%
+  ) !important;
 }

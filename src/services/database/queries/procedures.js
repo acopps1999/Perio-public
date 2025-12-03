@@ -10,6 +10,11 @@
  * - Expected load time: 200-500ms (vs 2-5s with old 7-query pattern)
  * - 10x faster than previous implementation
  *
+ * DATA STRUCTURE (Phase 3):
+ * - Products are ranked per phase (no patient type grouping)
+ * - Custom phase labels supported via JSONB column
+ * - Products ordered by rank column in procedure_phase_products
+ *
  * @module procedures
  */
 
@@ -26,17 +31,21 @@ import { DatabaseError } from '../errors/DatabaseError';
  * all joins and stores data in JSONB format for optimal performance.
  *
  * The materialized view combines data from:
- * - procedures (base table)
+ * - procedures (base table + custom_phase_labels)
  * - categories (category names)
  * - procedure_phases + phases (phase relationships)
  * - procedure_dentists + dentists (dentist relationships)
- * - procedure_phase_products (product assignments by phase/patient type)
+ * - procedure_phase_products (ranked product assignments by phase)
  * - product_details (product details and rationale)
  * - phase_specific_usage (usage instructions by phase)
  * - condition_product_research_articles (research evidence)
  *
  * All related data is stored as JSONB arrays in the materialized view,
  * eliminating the need for joins and significantly improving query performance.
+ *
+ * Phase 3 changes:
+ * - Products are ordered by rank (not grouped by patient type)
+ * - Custom phase labels supported
  *
  * @returns {Promise<Array>} Array of transformed procedure objects
  * @throws {DatabaseError} If query fails or times out
@@ -47,51 +56,35 @@ import { DatabaseError } from '../errors/DatabaseError';
  */
 export const loadProcedures = async () => {
   try {
-    console.log('🚀 Loading procedures from materialized view...');
-
-    // Try to query the materialized view with a timeout
+    // Try to query the materialized view with a shorter timeout (1.5s instead of 5s)
+    // If it's not responding quickly, we want to fall back fast
     const { data, error } = await withTimeout(
       supabase
         .from('procedures_complete')
         .select('*')
         .order('name'),
-      5000 // 5 second timeout
+      1500 // 1.5 second timeout - fail fast to improve perceived load time
     );
-
-    console.log('📊 Query completed:', {
-      error: error ? error.message : null,
-      dataLength: data?.length || 0
-    });
 
     if (error) {
       // If the view doesn't exist or query fails, fall back to old pattern
-      console.warn('⚠️ Materialized view query failed, using fallback:', error.message);
       return await loadProceduresFallback();
     }
 
     if (!data || data.length === 0) {
-      console.warn('⚠️ No procedures found in materialized view');
       return [];
     }
-
-    console.log('✅ Loaded', data.length, 'procedures from materialized view');
 
     // Transform data from materialized view format to app format
     const transformed = data.map(transformProcedure).filter(Boolean);
 
-    console.log('✅ Transformed', transformed.length, 'procedures');
-
     return transformed;
 
   } catch (error) {
-    // If timeout or other error, fall back to old pattern
-    console.error('❌ Error loading from materialized view:', error);
-    console.log('🔄 Falling back to base tables query...');
-
+    // If timeout or other error, fall back to old pattern immediately
     try {
       return await loadProceduresFallback();
     } catch (fallbackError) {
-      console.error('❌ Fallback also failed:', fallbackError);
       throw new DatabaseError('Error loading procedures', {
         cause: fallbackError,
         operation: 'loadProcedures'
@@ -130,12 +123,10 @@ async function loadProceduresFallback() {
       .order('name');
 
     if (proceduresError) {
-      console.error('❌ Failed to load procedures from base table:', proceduresError);
       throw proceduresError;
     }
 
     if (!procedures || procedures.length === 0) {
-      console.warn('⚠️  No procedures found in database');
       return [];
     }
 
@@ -145,23 +136,21 @@ async function loadProceduresFallback() {
       db_id: proc.id,
       name: proc.name,
       pitchPoints: proc.pitch_points || '',
-      patientType: proc.patient_type || '',
+      patientType: proc.patient_type || '', // Deprecated field
       category: proc.categories?.name || null,
       phases: [], // Empty - need materialized view for full data
+      phasesWithIds: [], // Empty - need materialized view for full data
       dds: [], // Empty - need materialized view for full data
-      patientTypeNames: [],
-      patientSpecificConfig: {},
+      products: {}, // Phase 3: { phaseName: [productNames] }
+      patientSpecificConfig: {}, // Deprecated: for backward compatibility
       productDetails: {},
       conditionSpecificResearch: {},
-      phaseSpecificUsage: {},
-      competitiveAdvantage: {},
       // Add warning flag so UI can show migration message
       _isFallbackData: true,
       _migrationNeeded: true
     }));
 
   } catch (error) {
-    console.error('❌ Fallback query failed:', error);
     throw new DatabaseError('Failed to load procedures (fallback)', {
       cause: error,
       operation: 'loadProceduresFallback'
@@ -249,24 +238,18 @@ export const loadProcedureById = async (procedureId) => {
  */
 export const refreshProceduresView = async () => {
   try {
-    console.log('🔄 Refreshing procedures_complete materialized view...');
-
     // Use the Supabase RPC to call the refresh function
     const { error } = await supabaseDirectImport.rpc('refresh_procedures_complete');
 
     if (error) {
-      console.error('❌ Failed to refresh materialized view:', error);
       throw new DatabaseError('Failed to refresh materialized view', {
         cause: error,
         operation: 'refreshProceduresView'
       });
     }
 
-    console.log('✅ Materialized view refreshed successfully');
-
   } catch (error) {
-    // Non-critical error - log warning but don't throw
+    // Non-critical error - don't throw
     // The view will be refreshed on next scheduled refresh
-    console.warn('⚠️ Could not refresh materialized view:', error.message);
   }
 };

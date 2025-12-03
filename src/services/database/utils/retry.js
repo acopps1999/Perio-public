@@ -66,11 +66,6 @@ export const withRetry = async (
       // Calculate exponential backoff: 1s, 2s, 4s
       const delay = baseDelay * Math.pow(2, attempt);
 
-      console.warn(
-        `Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`,
-        { error: error.message }
-      );
-
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay));
     }

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, X, Send, Bug, Lightbulb, HelpCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { feedbackConfig, isEmailConfigured } from '../config/feedbackConfig';
+import { useDraggable } from '../hooks/useDraggable';
+import { isFeedbackWidgetEnabled } from '../services/featureFlagsService';
 
 function FeedbackWidget() {
   const { isDarkMode } = useTheme();
@@ -14,6 +16,27 @@ function FeedbackWidget() {
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [widgetEnabled, setWidgetEnabled] = useState(true); // Default to true
+
+  // Draggable functionality
+  const { position, isDragging, handleMouseDown, resetPosition } = useDraggable({
+    x: null, // null = use CSS positioning (bottom-6 right-6)
+    y: null,
+  });
+
+  // Check if feedback widget feature is enabled
+  useEffect(() => {
+    const checkFeatureFlag = async () => {
+      const enabled = await isFeedbackWidgetEnabled();
+      setWidgetEnabled(enabled);
+    };
+    checkFeatureFlag();
+  }, []);
+
+  // Hide widget if feature is disabled
+  if (!widgetEnabled) {
+    return null;
+  }
 
   // Only show the widget if user is authenticated
   if (loading || !isAuthenticated) {
@@ -99,6 +122,7 @@ function FeedbackWidget() {
     setLocation('');
     setDescription('');
     setFeedbackType('bug');
+    resetPosition(); // Reset to original position
   };
 
   const handleSubmit = async (e) => {
@@ -138,12 +162,7 @@ function FeedbackWidget() {
       }, 2000);
 
     } catch (error) {
-      console.error('❌ FEEDBACK: Error submitting feedback:', error);
-      console.error('❌ FEEDBACK: Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error: error
-      });
+      console.error('Error submitting feedback:', error);
       alert(`Error submitting feedback: ${error.message}. Please try again.`);
     } finally {
       setIsSubmitting(false);
@@ -190,7 +209,7 @@ function FeedbackWidget() {
         } catch (v4Error) {
           try {
             // Fallback to v3 syntax (with public key parameter)
-            response = await window.emailjs.send(
+            await window.emailjs.send(
               feedbackConfig.emailjs.serviceId,
               feedbackConfig.emailjs.templateId,
               emailData,
@@ -202,28 +221,17 @@ function FeedbackWidget() {
         }
         
       } else {
-        console.error('📧 EMAIL: ❌ EmailJS not available or send method not found');
-        console.error('📧 EMAIL: ❌ window.emailjs:', window.emailjs);
+        console.error('EmailJS not available or send method not found');
       }
 
     } catch (error) {
-      console.error('📧 EMAIL: ❌ Error sending email notification:', error);
-      console.error('📧 EMAIL: ❌ Error details:', {
-        message: error.message,
-        status: error.status,
-        text: error.text,
-        response: error
-      });
-      
+      console.error('Error sending email notification:', error);
+
       // Check for specific EmailJS errors
       if (error.status === 418) {
-        console.error('📧 EMAIL: ❌ HTTP 418 Error - This usually means:');
-        console.error('📧 EMAIL: ❌ 1. Rate limiting (too many requests)');
-        console.error('📧 EMAIL: ❌ 2. Invalid EmailJS credentials');
-        console.error('📧 EMAIL: ❌ 3. EmailJS service configuration issue');
-        console.error('📧 EMAIL: ❌ Check your EmailJS dashboard and credentials');
+        console.error('HTTP 418 Error - Rate limiting or invalid EmailJS credentials');
       }
-      
+
       // Don't throw error - feedback was already saved to database
     }
   };
@@ -239,7 +247,7 @@ function FeedbackWidget() {
           resolve();
           return;
         } catch (error) {
-          console.error('📧 EMAIL: ❌ Error initializing existing EmailJS:', error);
+          console.error('Error initializing existing EmailJS:', error);
         }
       }
 
@@ -255,7 +263,7 @@ function FeedbackWidget() {
       const tryLoadScript = () => {
         if (currentUrlIndex >= cdnUrls.length) {
           const error = new Error('All EmailJS CDN URLs failed to load');
-          console.error('📧 EMAIL: ❌ All CDN attempts failed');
+          console.error('All CDN attempts failed');
           reject(error);
           return;
         }
@@ -263,10 +271,8 @@ function FeedbackWidget() {
         const script = document.createElement('script');
         const currentUrl = cdnUrls[currentUrlIndex];
         script.src = currentUrl;
-        
 
         script.onload = () => {
-          
           // Check if emailjs is now available
           if (window.emailjs) {
             try {
@@ -276,25 +282,25 @@ function FeedbackWidget() {
               });
               resolve();
             } catch (initError) {
-              console.error('📧 EMAIL: ❌ Error initializing EmailJS:', initError);
+              console.error('Error initializing EmailJS:', initError);
               // Try the old initialization method as fallback
               try {
                 window.emailjs.init(feedbackConfig.emailjs.publicKey);
                 resolve();
               } catch (fallbackError) {
-                console.error('📧 EMAIL: ❌ Fallback initialization failed:', fallbackError);
+                console.error('Fallback initialization failed:', fallbackError);
                 reject(fallbackError);
               }
             }
           } else {
-            console.error('📧 EMAIL: ❌ EmailJS not available after script load');
+            console.error('EmailJS not available after script load');
             currentUrlIndex++;
             tryLoadScript();
           }
         };
 
         script.onerror = (error) => {
-          console.error(`📧 EMAIL: ❌ Failed to load from: ${currentUrl}`, error);
+          console.error(`Failed to load from: ${currentUrl}`, error);
           currentUrlIndex++;
           tryLoadScript();
         };
@@ -322,10 +328,10 @@ function FeedbackWidget() {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className={`fixed bottom-6 right-6 rounded-full p-4 shadow-lg z-50 transition-all duration-200 hover:scale-105 ${
-            isDarkMode 
-              ? 'bg-white hover:bg-gray-50 text-[#15396c] border border-gray-200' 
-              : 'bg-[#15396c] hover:bg-[#15396c]/90 text-white border border-[#15396c]'
+          className={`fixed bottom-6 right-6 rounded-full p-4 ${isDarkMode ? 'shadow-lg' : 'shadow-light-lg'} z-50 transition-all duration-250 hover:scale-105 ${
+            isDarkMode
+              ? 'bg-prism-light-bg-primary hover:bg-prism-light-bg-secondary text-prism-primary border border-prism-light-border-subtle'
+              : 'bg-prism-primary-light hover:bg-prism-primary-light-hover text-white border border-prism-primary-light'
           }`}
           title="Send Feedback"
         >
@@ -335,16 +341,29 @@ function FeedbackWidget() {
 
       {/* Feedback Panel */}
       {isOpen && (
-        <div className={`fixed bottom-6 right-6 w-96 rounded-lg shadow-2xl z-50 ${
-          isDarkMode 
-            ? 'bg-gray-800 border border-gray-700' 
-            : 'bg-white border border-gray-200'
-        }`}>
-          {/* Header */}
-          <div className={`flex justify-between items-center p-4 bg-[#15396c] text-white rounded-t-lg ${
-            isDarkMode ? 'border-b border-gray-700' : 'border-b border-gray-200'
-          }`}>
-            <h3 className="font-semibold flex items-center">
+        <div
+          data-draggable-container
+          className={`fixed w-96 rounded-lg ${isDarkMode ? 'shadow-2xl' : 'shadow-light-xl'} z-50 ${
+            isDarkMode
+              ? 'bg-prism-dark-bg-primary border border-prism-dark-border-subtle'
+              : 'bg-prism-light-bg-primary border border-prism-light-border-subtle'
+          }`}
+          style={{
+            right: position.x === null ? '1.5rem' : undefined,
+            left: position.x !== null ? `${position.x}px` : undefined,
+            top: position.y !== null ? `${position.y}px` : undefined,
+            bottom: position.y === null ? '1.5rem' : undefined,
+            transition: isDragging ? 'none' : 'all 0.3s ease',
+          }}
+        >
+          {/* Header - Draggable */}
+          <div
+            onMouseDown={handleMouseDown}
+            className={`flex justify-between items-center p-4 ${isDarkMode ? 'bg-prism-primary' : 'bg-prism-primary-light'} text-white rounded-t-lg ${
+              isDarkMode ? 'border-b border-prism-dark-border-subtle' : 'border-b border-prism-light-border-subtle'
+            } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            <h3 className="font-semibold flex items-center select-none">
               <MessageSquare size={20} className="mr-2" />
               Send Feedback
             </h3>
@@ -360,19 +379,19 @@ function FeedbackWidget() {
           <div className="p-4">
             {isSubmitted ? (
               <div className="text-center py-8">
-                <div className="text-green-600 mb-2">
+                <div className="text-prism-success mb-2">
                   <svg className="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <p className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Thank you for your feedback!</p>
-                <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>We'll review it and get back to you.</p>
+                <p className={`font-medium ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>Thank you for your feedback!</p>
+                <p className={`text-sm mt-1 ${isDarkMode ? 'text-prism-dark-text-secondary' : 'text-prism-light-text-secondary'}`}>We'll review it and get back to you.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Feedback Type */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>
                     Type of Feedback
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -383,16 +402,20 @@ function FeedbackWidget() {
                           key={type.value}
                           type="button"
                           onClick={() => setFeedbackType(type.value)}
-                          className={`p-2 rounded-md border text-xs font-medium transition-all ${
+                          className={`p-2 rounded-md border text-xs font-medium transition-all duration-250 ${
                             feedbackType === type.value
-                              ? 'border-[#15396c] bg-[#15396c]/5 text-[#15396c]'
-                              : isDarkMode 
-                                ? 'border-gray-600 text-gray-300 hover:border-gray-500' 
-                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              ? isDarkMode
+                                ? 'border-prism-primary bg-prism-primary/20 text-prism-primary'
+                                : 'border-prism-primary-light bg-prism-primary-light/10 text-prism-primary-light'
+                              : isDarkMode
+                                ? 'border-prism-dark-border-elevated text-prism-dark-text-primary hover:border-prism-dark-border-elevated hover:bg-prism-dark-bg-hover'
+                                : 'border-prism-light-border-elevated text-prism-light-text-primary hover:border-prism-light-border-elevated hover:bg-prism-light-bg-hover'
                           }`}
                         >
                           <IconComponent size={16} className={`mx-auto mb-1 ${
-                            feedbackType === type.value ? 'text-[#15396c]' : 'text-gray-400'
+                            feedbackType === type.value
+                              ? isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'
+                              : isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'
                           }`} />
                           {type.label}
                         </button>
@@ -403,43 +426,43 @@ function FeedbackWidget() {
 
                 {/* Location */}
                 <div>
-                  <label htmlFor="location" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Where did this happen? <span className="text-red-500">*</span>
+                  <label htmlFor="location" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>
+                    Where did this happen? <span className="text-prism-error">*</span>
                   </label>
                   <input
                     type="text"
                     id="location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${isDarkMode ? 'focus:ring-prism-primary focus:border-prism-primary' : 'focus:ring-prism-primary-light focus:border-prism-primary-light'} text-sm transition-all duration-250 ${
+                      isDarkMode
+                        ? 'bg-prism-dark-bg-secondary border-prism-dark-border-elevated text-prism-dark-text-primary placeholder-prism-dark-text-tertiary'
+                        : 'bg-prism-light-bg-primary border-prism-light-border-elevated text-prism-light-text-primary placeholder-prism-light-text-tertiary'
                     }`}
                     placeholder="e.g., Admin Panel - Products tab, Main App - Gingivitis condition"
                     required
                   />
-                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
                     We've pre-filled this based on your current location
                   </p>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label htmlFor="description" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {feedbackType === 'bug' ? 'Describe the bug or error' : 
-                     feedbackType === 'feature' ? 'Describe the feature request' : 
-                     'What do you need help with?'} <span className="text-red-500">*</span>
+                  <label htmlFor="description" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-prism-dark-text-primary' : 'text-prism-light-text-primary'}`}>
+                    {feedbackType === 'bug' ? 'Describe the bug or error' :
+                     feedbackType === 'feature' ? 'Describe the feature request' :
+                     'What do you need help with?'} <span className="text-prism-error">*</span>
                   </label>
                   <textarea
                     id="description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] text-sm resize-none ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${isDarkMode ? 'focus:ring-prism-primary focus:border-prism-primary' : 'focus:ring-prism-primary-light focus:border-prism-primary-light'} text-sm resize-none transition-all duration-250 ${
+                      isDarkMode
+                        ? 'bg-prism-dark-bg-secondary border-prism-dark-border-elevated text-prism-dark-text-primary placeholder-prism-dark-text-tertiary'
+                        : 'bg-prism-light-bg-primary border-prism-light-border-elevated text-prism-light-text-primary placeholder-prism-light-text-tertiary'
                     }`}
                     placeholder={
                       feedbackType === 'bug' ? 'What happened? What did you expect to happen? Steps to reproduce...' :
@@ -454,10 +477,10 @@ function FeedbackWidget() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !location.trim() || !description.trim()}
-                  className={`w-full py-2 px-4 rounded-md text-white font-medium text-sm transition-all flex items-center justify-center ${
+                  className={`w-full py-2 px-4 rounded-md text-white font-medium text-sm transition-all duration-250 flex items-center justify-center ${
                     isSubmitting || !location.trim() || !description.trim()
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-[#15396c] hover:bg-[#15396c]/90'
+                      ? isDarkMode ? 'bg-prism-dark-text-disabled cursor-not-allowed' : 'bg-prism-light-text-disabled cursor-not-allowed'
+                      : isDarkMode ? 'bg-prism-primary hover:bg-prism-primary-hover' : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
                   }`}
                 >
                   {isSubmitting ? (

@@ -4,8 +4,6 @@
  * Handles all database queries related to procedure categories.
  */
 
-import supabase from '../client';
-
 /**
  * Fetch all categories
  * @returns {Promise<Array>} Array of category objects

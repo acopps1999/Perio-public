@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, AlertTriangle, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { deleteProductRealtime } from './AdminPanelSupabase';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // AdminPanelProducts Component
 function AdminPanelProducts({
@@ -18,6 +19,7 @@ function AdminPanelProducts({
   executeUpdate,
   ToastContainer
 }) {
+  const { isDarkMode } = useTheme();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -89,19 +91,19 @@ function AdminPanelProducts({
   };
 
 return (
-  <div className="p-6" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
+  <div className="p-8" style={{ maxHeight: "calc(90vh - 160px)", overflowY: "auto" }}>
     <div className="flex justify-between items-center mb-6">
-      <h3 className="text-lg font-medium">Product Library</h3>
+      <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Product Library</h3>
       <button
         onClick={handleAddProduct}
-        className="px-3 py-1.5 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 text-sm flex items-center"
+        className="px-6 py-3 bg-[#9b9cfa] text-white rounded-lg hover:bg-[#b4b5ff] text-sm font-semibold flex items-center shadow-md transition-colors"
       >
-        <Plus size={16} className="mr-1" />
+        <Plus size={18} className="mr-2" />
         Add New Product
       </button>
     </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {allProducts.map((product) => {
         // Count how many conditions use this product in their patientSpecificConfig
         const conditionCount = conditions.filter(condition => {
@@ -117,52 +119,52 @@ return (
             )
           );
         }).length;
-        
+
         return (
-        <div key={product.id} className="border rounded-lg p-4 hover:bg-gray-50 group">
+        <div key={product.id} className={`rounded-xl p-5 group transition-all shadow-md ${isDarkMode ? 'border border-[#3f3f46] bg-[#1a1a1a] hover:bg-[#2a2a2a]' : 'border border-gray-200 bg-white hover:bg-gray-50'}`}>
           <div className="flex justify-between items-start mb-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <h4 className="font-medium text-md">{product.name}</h4>
+                <h4 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h4>
                 {!product.is_available && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold ${isDarkMode ? 'bg-[#78350f] text-[#f59e0b]' : 'bg-yellow-100 text-yellow-700'}`}>
                     Not Available
                   </span>
                 )}
               </div>
-              <div className="text-sm text-gray-600 mb-3">
-                <span className="font-medium">Used in: </span>
+              <div className={`text-sm mb-3 ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
+                <span className={`font-medium ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>Used in: </span>
                 {conditionCount} condition{conditionCount !== 1 ? 's' : ''}
               </div>
             </div>
             <div className="flex space-x-2 ml-4">
               <button
                 onClick={() => handleEditProduct(product.name)}
-                className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 p-1"
+                className={`opacity-0 group-hover:opacity-100 text-[#9b9cfa] hover:text-[#b4b5ff] p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-[#2a2a2a]' : 'hover:bg-gray-100'}`}
                 title="Edit product name"
               >
-                <Edit size={16} />
+                <Edit size={18} />
               </button>
               <button
                 onClick={() => handleDeleteClick(product.name)}
-                className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1"
+                className={`opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-[#78350f]' : 'hover:bg-red-50'}`}
                 title="Delete product"
               >
-                <Trash2 size={16} />
+                <Trash2 size={18} />
               </button>
             </div>
           </div>
-          
+
           {/* Availability Toggle */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-            <span className="text-sm font-medium text-gray-700 flex items-center">
+          <div className={`flex items-center justify-between pt-3 ${isDarkMode ? 'border-t border-[#3f3f46]' : 'border-t border-gray-200'}`}>
+            <span className={`text-sm font-medium flex items-center ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
               Available to clients:
               <SaveStatusIndicator status={saveStatus?.[`product-availability-${product.id}`]} />
             </span>
             <button
               onClick={() => handleProductAvailabilityToggle(product.id, !product.is_available)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                product.is_available ? 'bg-indigo-600' : 'bg-gray-200'
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] focus:ring-offset-2 ${isDarkMode ? 'focus:ring-offset-[#1a1a1a]' : 'focus:ring-offset-white'} ${
+                product.is_available ? 'bg-[#10b981]' : isDarkMode ? 'bg-[#3f3f46]' : 'bg-gray-300'
               }`}
             >
               <span
@@ -181,25 +183,25 @@ return (
     {/* Delete Confirmation Modal */}
     <Dialog.Root open={showDeleteModal} onOpenChange={setShowDeleteModal}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-white rounded-lg shadow-xl p-6 z-50">
-          <div className="flex items-start justify-between mb-4">
+        <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50" />
+        <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] rounded-2xl shadow-2xl p-8 z-50 ${isDarkMode ? 'bg-[#1a1a1a] border border-[#3f3f46]' : 'bg-white border border-gray-200'}`}>
+          <div className="flex items-start justify-between mb-6">
             <div className="flex items-start">
-              <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100 mr-3">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full mr-4 ${isDarkMode ? 'bg-[#78350f]' : 'bg-yellow-100'}`}>
+                <AlertTriangle className={`h-6 w-6 ${isDarkMode ? 'text-[#f59e0b]' : 'text-yellow-600'}`} />
               </div>
               <div>
-                <Dialog.Title className="text-lg font-semibold text-gray-900">
+                <Dialog.Title className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Delete Product
                 </Dialog.Title>
-                <Dialog.Description className="mt-2 text-sm text-gray-600">
-                  Are you sure you want to delete <span className="font-semibold">"{productToDelete}"</span>?
+                <Dialog.Description className={`mt-2 text-sm ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
+                  Are you sure you want to delete <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>"{productToDelete}"</span>?
                   This will remove it from all conditions and delete all associated competitive advantage data.
                   This action cannot be undone.
                 </Dialog.Description>
               </div>
             </div>
-            <Dialog.Close className="text-gray-400 hover:text-gray-600">
+            <Dialog.Close className={`transition-colors ${isDarkMode ? 'text-[#6b7280] hover:text-[#9ca3af]' : 'text-gray-400 hover:text-gray-600'}`}>
               <X size={20} />
             </Dialog.Close>
           </div>
@@ -207,7 +209,7 @@ return (
           <div className="mt-6 flex justify-end space-x-3">
             <Dialog.Close asChild>
               <button
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                className={`px-6 py-2 rounded-lg text-sm font-semibold transition-colors ${isDarkMode ? 'border border-[#3f3f46] bg-[#2a2a2a] text-white hover:bg-[#3f3f46]' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
                 disabled={isDeleting}
               >
                 Cancel
@@ -217,8 +219,8 @@ return (
             <button
               onClick={confirmDeleteProduct}
               disabled={isDeleting}
-              className={`px-4 py-2 rounded-md text-white text-sm font-medium ${
-                isDeleting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+              className={`px-6 py-2 rounded-lg text-white text-sm font-semibold transition-colors ${
+                isDeleting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'
               }`}
             >
               {isDeleting ? 'Deleting...' : 'Delete Product'}

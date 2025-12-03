@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, Trash2, X, Target, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import DynamicTextarea from './DynamicTextarea';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // AdminPanelModals Component
 function AdminPanelModals({
@@ -39,6 +40,8 @@ function AdminPanelModals({
   categories,
   allProducts
 }) {
+  const { isDarkMode } = useTheme();
+
   // State to track which competitive advantage fields are expanded
   const [expandedCompetitors, setExpandedCompetitors] = useState({});
   const [expandedActiveIngredients, setExpandedActiveIngredients] = useState({});
@@ -355,16 +358,16 @@ function AdminPanelModals({
       {/* Add New Item Modal */}
       <Dialog.Root open={showAddModal} onOpenChange={setShowAddModal}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-white rounded-lg shadow-xl p-6 z-50">
-            <Dialog.Title className="text-lg font-semibold mb-2">
+          <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50" />
+          <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white'} rounded-xl shadow-xl p-6 z-50 ${isDarkMode ? 'border border-[#3f3f46]' : ''}`}>
+            <Dialog.Title className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {modalType === 'condition' && 'Add New Condition'}
               {modalType === 'category' && 'Add New Category'}
               {modalType === 'ddsType' && 'Add New DDS Type'}
               {modalType === 'product' && (editingProductId ? `Edit Product: ${editingProductId}` : 'Add New Product')}
             </Dialog.Title>
-            
-            <Dialog.Description className="text-sm text-gray-600 mb-4">
+
+            <Dialog.Description className={`text-sm mb-4 ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
               {modalType === 'condition' && 'Create a new medical condition or procedure for the knowledge base.'}
               {modalType === 'category' && 'Add a new category to organize conditions and procedures.'}
               {modalType === 'ddsType' && 'Add a new dentist type classification for treatment recommendations.'}
@@ -375,25 +378,25 @@ function AdminPanelModals({
               {modalType === 'condition' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                       Condition Name
                     </label>
                     <input
                       type="text"
                       value={newItemData.name || ''}
                       onChange={(e) => setNewItemData({...newItemData, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                       placeholder="Enter condition name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                       Category
                     </label>
                     <select
                       value={newItemData.category || ''}
                       onChange={(e) => setNewItemData({...newItemData, category: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     >
                       <option value="">Select a category</option>
                       {categories.filter(cat => cat !== 'All').map((category) => (
@@ -403,71 +406,71 @@ function AdminPanelModals({
                       ))}
                     </select>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className={`text-sm ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-500'}`}>
                     All detailed configuration (phases, products, scientific rationale, etc.) can be configured after creating the condition in the Conditions tab.
                   </p>
                 </>
               )}
-              
+
               {modalType === 'category' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                     Category Name
                   </label>
                   <input
                     type="text"
                     value={newItemData.name || ''}
                     onChange={(e) => setNewItemData({...newItemData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                   />
                 </div>
               )}
-              
+
               {modalType === 'ddsType' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                     DDS Type Name
                   </label>
                   <input
                     type="text"
                     value={newItemData.name || ''}
                     onChange={(e) => setNewItemData({...newItemData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                   />
                 </div>
               )}
               
               {modalType === 'product' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                     Product Name
                   </label>
                   <input
                     type="text"
                     value={newItemData.name || ''}
                     onChange={(e) => setNewItemData({...newItemData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#15396c] focus:border-[#15396c]"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                     placeholder="Enter product name"
                   />
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className={`mt-2 text-sm ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-500'}`}>
                     Product details (usage, rationale, etc.) are configured per condition in the Conditions tab.
                   </p>
-                  
+
                   {/* Competitive Advantage Button - only show when editing existing product */}
                   {editingProductId && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-[#3f3f46]' : 'border-gray-200'}`}>
                       <button
                         onClick={() => {
                           // Use the current product name (either original or edited)
                           const productName = newItemData.name || editingProductId;
                           handleOpenCompetitiveAdvantage(productName);
                         }}
-                        className="w-full px-3 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 text-sm flex items-center justify-center"
+                        className="w-full px-3 py-2 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center justify-center transition-colors"
                       >
                         <Target size={16} className="mr-2" />
                         Manage Competitive Advantage
                       </button>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className={`mt-1 text-xs ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-500'}`}>
                         Configure competitive advantages against competitors and active ingredients.
                       </p>
                     </div>
@@ -475,19 +478,20 @@ function AdminPanelModals({
                 </div>
               )}
             </div>
-            
+
+
             <div className="mt-6 flex justify-end space-x-3">
               <Dialog.Close asChild>
-                <button className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm">
+                <button className={`px-3 py-1.5 border rounded-md text-sm transition-colors ${isDarkMode ? 'border-[#3f3f46] text-[#9ca3af] hover:bg-[#2a2a2a]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                   Cancel
                 </button>
               </Dialog.Close>
-              
+
               <button
                 onClick={handleSubmitNewItem}
                 disabled={!newItemData.name}
-                className={`px-3 py-1.5 rounded-md text-white text-sm ${
-                  newItemData.name ? 'bg-[#15396c] hover:bg-[#15396c]/90' : 'bg-[#15396c]/40 cursor-not-allowed'
+                className={`px-3 py-1.5 rounded-md text-white text-sm transition-colors ${
+                  newItemData.name ? 'bg-[#9b9cfa] hover:bg-[#b4b5ff]' : 'bg-[#9b9cfa]/40 cursor-not-allowed'
                 }`}
               >
                 {editingProductId ? 'Save Changes' : 'Add'}
@@ -500,32 +504,32 @@ function AdminPanelModals({
       {/* Delete Confirmation Modal */}
       <Dialog.Root open={showDeleteModal} onOpenChange={setShowDeleteModal}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-white rounded-lg shadow-xl p-6 z-50">
-            <Dialog.Title className="text-lg font-semibold mb-2 flex items-center text-red-600">
+          <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50" />
+          <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white'} rounded-xl shadow-xl p-6 z-50 ${isDarkMode ? 'border border-[#3f3f46]' : ''}`}>
+            <Dialog.Title className="text-lg font-semibold mb-2 flex items-center text-red-500">
               <AlertTriangle size={20} className="mr-2" />
               Confirm Deletion
             </Dialog.Title>
-            
-            <Dialog.Description className="text-gray-600 mb-4">
-              {itemToDelete?.type === 'condition' && 
+
+            <Dialog.Description className={`mb-4 ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
+              {itemToDelete?.type === 'condition' &&
                 `Are you sure you want to delete the condition "${itemToDelete.item.name}"? This action cannot be undone.`}
-              
-              {itemToDelete?.type === 'product' && 
+
+              {itemToDelete?.type === 'product' &&
                 `Are you sure you want to delete the product "${itemToDelete.item}"? This will remove it from all conditions where it's used. This action cannot be undone.`}
             </Dialog.Description>
-            
+
             <div className="mt-6 flex justify-end space-x-3">
               <Dialog.Close asChild>
-                <button className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm">
+                <button className={`px-3 py-1.5 border rounded-md text-sm transition-colors ${isDarkMode ? 'border-[#3f3f46] text-[#9ca3af] hover:bg-[#2a2a2a]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                   Cancel
                 </button>
               </Dialog.Close>
-              
+
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className={`px-3 py-1.5 rounded-md text-white text-sm ${
+                className={`px-3 py-1.5 rounded-md text-white text-sm transition-colors ${
                   isDeleting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
@@ -539,19 +543,19 @@ function AdminPanelModals({
       {/* Competitive Advantage Modal */}
       <Dialog.Root open={competitiveAdvantageModalOpen} onOpenChange={(open) => !open && resetCompetitiveAdvantageState()}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 z-50" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 bg-gray-50">
+          <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50" />
+          <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white'} rounded-xl shadow-lg z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto ${isDarkMode ? 'border border-[#3f3f46]' : ''}`}>
+            <div className={`p-6 ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-gray-50'}`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <Dialog.Title className="text-xl font-semibold text-gray-900">
+                  <Dialog.Title className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     Competitive Advantage - {selectedProductForAdvantage}
                   </Dialog.Title>
-                  <Dialog.Description className="text-sm text-gray-600 mt-1">
+                  <Dialog.Description className={`text-sm mt-1 ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
                     Configure competitive advantages against competitors and manage active ingredient benefits for this product.
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className="text-gray-400 hover:text-gray-600">
+                <Dialog.Close className={`transition-colors ${isDarkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
                   <X size={24} />
                 </Dialog.Close>
               </div>
@@ -560,10 +564,10 @@ function AdminPanelModals({
                 {/* Competitors Section */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Competitors</h3>
+                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Competitors</h3>
                     <button
                       onClick={addCompetitor}
-                      className="px-3 py-1.5 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 text-sm flex items-center"
+                      className="px-3 py-1.5 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center transition-colors"
                     >
                       <Plus size={16} className="mr-1" />
                       Add Competitor
@@ -571,12 +575,12 @@ function AdminPanelModals({
                   </div>
 
                   {competitiveAdvantageData.competitors.map((competitor, index) => (
-                    <div key={index} className="border-2 border-gray-200 rounded-lg mb-4 bg-white">
+                    <div key={index} className={`border rounded-lg mb-4 ${isDarkMode ? 'border-[#3f3f46] bg-[#1a1a1a]' : 'border-gray-200 bg-white'}`}>
                       <div className="flex justify-between items-center p-4">
                         <div className="flex items-center flex-1">
                           <button
                             onClick={() => toggleCompetitorExpansion(index)}
-                            className="mr-3 text-[#15396c] hover:text-[#15396c]/80 focus:outline-none"
+                            className={`mr-3 focus:outline-none transition-colors ${isDarkMode ? 'text-[#9b9cfa] hover:text-[#b4b5ff]' : 'text-[#9b9cfa] hover:text-[#7a7dfa]'}`}
                           >
                             {expandedCompetitors[index] ? (
                               <ChevronDown size={18} />
@@ -589,21 +593,21 @@ function AdminPanelModals({
                             placeholder="Competitor name"
                             value={competitor.name}
                             onChange={(e) => updateCompetitor(index, 'name', e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] hover:border-[#15396c]"
+                            className={`flex-1 px-3 py-2 border rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                           />
                         </div>
                         <button
                           onClick={() => removeCompetitor(index)}
-                          className="text-red-500 hover:text-red-700 p-1"
+                          className="text-red-500 hover:text-red-400 p-1 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
 
                       {expandedCompetitors[index] && (
-                        <div className="px-4 pb-4 border-t border-gray-100">
+                        <div className={`px-4 pb-4 border-t ${isDarkMode ? 'border-[#3f3f46]' : 'border-gray-100'}`}>
                           <div className="space-y-2 pt-3">
-                            <label className="block text-sm font-medium text-gray-700">
+                            <label className={`block text-sm font-medium ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                               {competitor.name || 'Competitor Information'}:
                             </label>
                             <DynamicTextarea
@@ -612,7 +616,7 @@ function AdminPanelModals({
                               placeholder="Enter competitive advantage information..."
                               value={competitor.advantages}
                               onChange={(e) => updateCompetitor(index, 'advantages', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] hover:border-[#15396c]"
+                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                             />
                           </div>
                         </div>
@@ -624,10 +628,10 @@ function AdminPanelModals({
                 {/* Active Ingredients Section */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Active Ingredients</h3>
+                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Active Ingredients</h3>
                     <button
                       onClick={addActiveIngredient}
-                      className="px-3 py-1.5 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90 text-sm flex items-center"
+                      className="px-3 py-1.5 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center transition-colors"
                     >
                       <Plus size={16} className="mr-1" />
                       Add Active Ingredient
@@ -635,12 +639,12 @@ function AdminPanelModals({
                   </div>
 
                   {competitiveAdvantageData.activeIngredients.map((ingredient, index) => (
-                    <div key={index} className="border-2 border-gray-200 rounded-lg mb-4 bg-white">
+                    <div key={index} className={`border rounded-lg mb-4 ${isDarkMode ? 'border-[#3f3f46] bg-[#1a1a1a]' : 'border-gray-200 bg-white'}`}>
                       <div className="flex justify-between items-center p-4">
                         <div className="flex items-center flex-1">
                           <button
                             onClick={() => toggleActiveIngredientExpansion(index)}
-                            className="mr-3 text-[#15396c] hover:text-[#15396c]/80 focus:outline-none"
+                            className={`mr-3 focus:outline-none transition-colors ${isDarkMode ? 'text-[#9b9cfa] hover:text-[#b4b5ff]' : 'text-[#9b9cfa] hover:text-[#7a7dfa]'}`}
                           >
                             {expandedActiveIngredients[index] ? (
                               <ChevronDown size={18} />
@@ -653,21 +657,21 @@ function AdminPanelModals({
                             placeholder="Active ingredient name"
                             value={ingredient.name}
                             onChange={(e) => updateActiveIngredient(index, 'name', e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] hover:border-[#15396c]"
+                            className={`flex-1 px-3 py-2 border rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                           />
                         </div>
                         <button
                           onClick={() => removeActiveIngredient(index)}
-                          className="text-red-500 hover:text-red-700 p-1"
+                          className="text-red-500 hover:text-red-400 p-1 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
 
                       {expandedActiveIngredients[index] && (
-                        <div className="px-4 pb-4 border-t border-gray-100">
+                        <div className={`px-4 pb-4 border-t ${isDarkMode ? 'border-[#3f3f46]' : 'border-gray-100'}`}>
                           <div className="space-y-2 pt-3">
-                            <label className="block text-sm font-medium text-gray-700">
+                            <label className={`block text-sm font-medium ${isDarkMode ? 'text-[#e5e7eb]' : 'text-gray-700'}`}>
                               {ingredient.name || 'Active Ingredient Information'}:
                             </label>
                             <DynamicTextarea
@@ -676,7 +680,7 @@ function AdminPanelModals({
                               placeholder="Enter competitive advantage information..."
                               value={ingredient.advantages}
                               onChange={(e) => updateActiveIngredient(index, 'advantages', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#15396c] focus:border-[#15396c] hover:border-[#15396c]"
+                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#9b9cfa] ${isDarkMode ? 'bg-[#0a0a0a] border-[#3f3f46] text-white placeholder-[#6b7280]' : 'bg-white border-gray-300 text-gray-900'}`}
                             />
                           </div>
                         </div>
@@ -686,16 +690,16 @@ function AdminPanelModals({
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
+              <div className={`flex justify-end space-x-3 mt-6 pt-6 border-t ${isDarkMode ? 'border-[#3f3f46]' : 'border-gray-200'}`}>
                 <button
                   onClick={resetCompetitiveAdvantageState}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className={`px-4 py-2 border rounded-md transition-colors ${isDarkMode ? 'border-[#3f3f46] text-[#9ca3af] hover:bg-[#2a2a2a]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveCompetitiveAdvantage}
-                  className="px-4 py-2 bg-[#15396c] text-white rounded-md hover:bg-[#15396c]/90"
+                  className="px-4 py-2 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] transition-colors"
                 >
                   Save Changes
                 </button>
