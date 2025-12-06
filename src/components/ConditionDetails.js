@@ -52,6 +52,12 @@ function ConditionDetails({
     );
   }
   
+  // Safely handle missing or empty phases array
+  const phases = selectedCondition.phases && Array.isArray(selectedCondition.phases) 
+    ? selectedCondition.phases 
+    : [];
+  const hasPhases = phases.length > 0;
+  
   // Handle clicking on a product card
   const handleProductCardSelect = (product) => {
     // Set the selected product to display its details
@@ -232,9 +238,10 @@ function ConditionDetails({
           </div>
           
           {/* Treatment Phases Tabs */}
+          {hasPhases ? (
           <Tabs.Root value={activeTab} onValueChange={handleTabChangeWithClear}>
             <Tabs.List className="flex bg-gray-100 rounded-t-lg overflow-hidden">
-              {selectedCondition.phases.map((phase, index) => {
+              {phases.map((phase, index) => {
                 // Different opacity levels of the selected condition color for each phase
                 const getPhaseColor = (phaseName, phaseIndex) => {
                   const colors = [
@@ -296,7 +303,7 @@ function ConditionDetails({
               </div>
             )}
             
-            {selectedCondition.phases.map((phase) => (
+            {phases.map((phase) => (
               <Tabs.Content key={phase} value={phase} className={`p-4 border border-t-0 rounded-b-lg ${isDarkMode ? 'bg-gray-750' : 'bg-white'}`}>
                 {filteredProducts.length > 0 ? (
                   <div className="space-y-4">
@@ -385,6 +392,16 @@ function ConditionDetails({
               </Tabs.Content>
             ))}
           </Tabs.Root>
+          ) : (
+            <div className={`p-6 text-center rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              <p className="mb-2">No treatment phases configured for this condition.</p>
+              {selectedCondition._isFallbackData && (
+                <p className={`text-sm ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                  ⚠️ Using fallback data - full features require database setup.
+                </p>
+              )}
+            </div>
+          )}
         </div>
         
         {/* Additional Information Section */}
@@ -457,7 +474,7 @@ function ConditionDetails({
                     case 'clinicalEvidence':
                       return selectedProductDetails.clinicalEvidence;
                     case 'handlingObjections':
-                      return selectedProductDetails.handlingObjections;
+                      return selectedProductDetails.objectionHandling;
                     case 'pitchPoints':
                       return selectedProductDetails.pitchPoints;
                     default:

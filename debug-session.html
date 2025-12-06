@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Session Debug Tool</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        pre {
+            background: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .key {
+            color: #9cdcfe;
+        }
+        .value {
+            color: #ce9178;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Session Storage Debug Tool</h1>
+    <p>This tool helps diagnose localStorage issues with Supabase authentication.</p>
+    
+    <div>
+        <button onclick="showAllKeys()">Show All localStorage Keys</button>
+        <button onclick="showSupabaseKeys()">Show Only Supabase Keys</button>
+        <button onclick="clearOldKeys()">Clear OLD Keys (Safe)</button>
+        <button onclick="clearAllKeys()">Clear ALL Keys (Nuclear)</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script>
+        function showAllKeys() {
+            const output = document.getElementById('output');
+            const keys = Object.keys(localStorage);
+            
+            let html = '<h3>All localStorage Keys (' + keys.length + ' total)</h3><pre>';
+            
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const preview = value.length > 100 ? value.substring(0, 100) + '...' : value;
+                html += `<span class="key">${key}</span>: <span class="value">${preview}</span>\n\n`;
+            });
+            
+            html += '</pre>';
+            output.innerHTML = html;
+        }
+
+        function showSupabaseKeys() {
+            const output = document.getElementById('output');
+            const keys = Object.keys(localStorage).filter(k => 
+                k.includes('supabase') || 
+                k.includes('sb-') || 
+                k.includes('auth')
+            );
+            
+            let html = '<h3>Supabase-related Keys (' + keys.length + ' total)</h3><pre>';
+            
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                let parsed;
+                try {
+                    parsed = JSON.parse(value);
+                    html += `<span class="key">${key}</span>:\n${JSON.stringify(parsed, null, 2)}\n\n`;
+                } catch (e) {
+                    const preview = value.length > 100 ? value.substring(0, 100) + '...' : value;
+                    html += `<span class="key">${key}</span>: <span class="value">${preview}</span>\n\n`;
+                }
+            });
+            
+            html += '</pre>';
+            output.innerHTML = html;
+        }
+
+        function clearOldKeys() {
+            const oldKeys = ['supabase.auth.token', 'admin_authenticated', 'admin_user'];
+            const removed = [];
+            
+            oldKeys.forEach(key => {
+                if (localStorage.getItem(key)) {
+                    localStorage.removeItem(key);
+                    removed.push(key);
+                }
+            });
+            
+            const output = document.getElementById('output');
+            if (removed.length > 0) {
+                output.innerHTML = '<h3>✅ Removed Old Keys</h3><pre>' + removed.join('\n') + '</pre>';
+            } else {
+                output.innerHTML = '<h3>ℹ️ No Old Keys Found</h3><p>All clean!</p>';
+            }
+        }
+
+        function clearAllKeys() {
+            if (confirm('⚠️ This will clear ALL localStorage data. Are you sure?')) {
+                const count = localStorage.length;
+                localStorage.clear();
+                const output = document.getElementById('output');
+                output.innerHTML = '<h3>🗑️ Cleared All Keys</h3><p>Removed ' + count + ' keys</p>';
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', showSupabaseKeys);
+    </script>
+</body>
+</html>
+
+

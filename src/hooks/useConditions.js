@@ -98,8 +98,49 @@ export const conditionKeys = {
 export const useConditions = () => {
   return useQuery({
     queryKey: conditionKeys.lists(),
-    queryFn: loadProcedures,
+    queryFn: async () => {
+      console.log('🔄 useConditions: Starting to fetch conditions...');
+      console.log('🔄 useConditions: Timestamp:', new Date().toISOString());
+      try {
+        const result = await loadProcedures();
+        console.log('✅ useConditions: Query returned. Result type:', typeof result);
+        console.log('✅ useConditions: Fetched', result?.length || 0, 'conditions');
+        
+        // Validate result to prevent issues with empty/null data
+        if (!result || !Array.isArray(result)) {
+          console.warn('⚠️ useConditions: Received invalid data, returning empty array');
+          console.warn('⚠️ useConditions: Result was:', result);
+          return [];
+        }
+        
+        // Log first condition for debugging
+        if (result.length > 0) {
+          console.log('📊 useConditions: First condition:', result[0]?.name || 'unnamed');
+          
+          // Check if we got fallback data (migrations needed)
+          if (result[0]._isFallbackData) {
+            console.warn('⚠️ useConditions: Using fallback data - materialized view not available');
+            console.warn('💡 Run database migrations to enable full functionality');
+          }
+        } else {
+          console.warn('⚠️ useConditions: No conditions returned - check database and RLS policies');
+        }
+        
+        return result;
+      } catch (error) {
+        console.error('❌ useConditions: Error fetching conditions:', error);
+        console.error('❌ useConditions: Error stack:', error.stack);
+        // Return empty array on error to prevent infinite loading
+        // The error is still tracked via isError
+        throw error;
+      }
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 2, // Retry failed requests 2 times
+    retryDelay: 1000, // Wait 1 second between retries
+    gcTime: 1000 * 60 * 10, // Cache for 10 minutes (renamed from cacheTime in v5)
+    // IMPORTANT: Return empty array as placeholder to prevent undefined issues
+    placeholderData: [],
   });
 };
 

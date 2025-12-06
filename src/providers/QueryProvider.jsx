@@ -23,11 +23,11 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Cache data for 5 minutes before marking as stale
-      staleTime: 5 * 60 * 1000,
+      // Cache data for 15 minutes before marking as stale (increased for cost optimization)
+      staleTime: 15 * 60 * 1000,
 
-      // Keep unused data in cache for 10 minutes
-      cacheTime: 10 * 60 * 1000,
+      // Keep unused data in cache for 30 minutes (increased to reduce database load)
+      cacheTime: 30 * 60 * 1000,
 
       // Don't refetch on window focus (clinical app, users may switch windows)
       refetchOnWindowFocus: false,
@@ -79,8 +79,8 @@ export function QueryProvider({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* Dev tools only in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* Dev tools disabled */}
+      {/* {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools
           initialIsOpen={false}
           position="bottom-right"
@@ -91,7 +91,7 @@ export function QueryProvider({ children }) {
             },
           }}
         />
-      )}
+      )} */}
     </QueryClientProvider>
   );
 }

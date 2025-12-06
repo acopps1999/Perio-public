@@ -858,7 +858,7 @@ function DiagnosisWizard({ conditions, onClose, patientTypes }) {
               case 'clinicalEvidence':
                 return selectedProductDetails.clinicalEvidence;
               case 'handlingObjections':
-                return selectedProductDetails.handlingObjections;
+                return selectedProductDetails.objectionHandling;
               case 'pitchPoints':
                 return selectedProductDetails.pitchPoints;
               default:
