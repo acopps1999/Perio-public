@@ -15,10 +15,12 @@ export const FEATURE_VISIBILITY = {
   research_articles: ['admin', 'sales', 'clinician'],
   therapeutic_wizard: ['admin', 'sales', 'clinician'],
 
-  // Sales-only features
-  competitive_advantage: ['admin', 'sales'],
+  // Sales-only features (hidden from clinicians)
   objection_handling: ['admin', 'sales'],
   pitch_points: ['admin', 'sales'],
+
+  // Available to all roles
+  competitive_advantage: ['admin', 'sales', 'clinician'],
 
   // Admin-only features
   admin_panel: ['admin'],
@@ -30,7 +32,7 @@ export const FEATURE_VISIBILITY = {
   drawer_usage_tab: ['admin', 'sales', 'clinician'],
   drawer_scientific_tab: ['admin', 'sales', 'clinician'],
   drawer_clinical_tab: ['admin', 'sales', 'clinician'],
-  drawer_competitive_tab: ['admin', 'sales'],
+  drawer_competitive_tab: ['admin', 'sales', 'clinician'],
   drawer_objection_tab: ['admin', 'sales'],
   drawer_pitch_tab: ['admin', 'sales'],
 };

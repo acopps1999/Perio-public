@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Award, FileText, TrendingUp } from 'lucide-react';
+import { X, ExternalLink, Award, FileText, TrendingUp, ClipboardList, FlaskConical, Target, ShieldCheck } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -106,12 +106,12 @@ const ProductDrawer = ({
 
   // Define all tabs with visibility rules
   const allTabs = [
-    { id: 'usage', label: 'Usage Instructions', icon: FileText, feature: 'drawer_usage_tab', requiresData: !!usageInstructions },
-    { id: 'scientific', label: 'Scientific Rationale', icon: FileText, feature: 'drawer_scientific_tab' },
+    { id: 'usage', label: 'Usage Instructions', icon: ClipboardList, feature: 'drawer_usage_tab', requiresData: !!usageInstructions },
+    { id: 'scientific', label: 'Scientific Rationale', icon: FlaskConical, feature: 'drawer_scientific_tab' },
     { id: 'clinical', label: 'Clinical Evidence', icon: Award, feature: 'drawer_clinical_tab' },
-    { id: 'pitch', label: 'Pitch Points', icon: FileText, feature: 'drawer_pitch_tab' },
+    { id: 'pitch', label: 'Pitch Points', icon: Target, feature: 'drawer_pitch_tab' },
     { id: 'competitive', label: 'Competitive Advantage', icon: TrendingUp, feature: 'drawer_competitive_tab' },
-    { id: 'objections', label: 'Handling Objections', icon: FileText, feature: 'drawer_objection_tab' },
+    { id: 'objections', label: 'Handling Objections', icon: ShieldCheck, feature: 'drawer_objection_tab' },
     { id: 'research', label: 'Research', icon: ExternalLink, feature: null, requiresData: research && research.length > 0 }
   ];
 
@@ -278,7 +278,7 @@ const UsageTab = ({ usageInstructions, activePhase, isDarkMode }) => (
       </section>
     ) : (
       <div className={`text-center py-12 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
-        <FileText size={48} className="mx-auto mb-4 opacity-50" />
+        <ClipboardList size={48} className="mx-auto mb-4 opacity-50" />
         <p>No usage instructions available for this product.</p>
       </div>
     )}
@@ -305,6 +305,7 @@ const ScientificTab = ({ product, isDarkMode }) => {
         </section>
       ) : (
         <div className={`text-center py-12 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
+          <FlaskConical size={48} className="mx-auto mb-4 opacity-50" />
           <p>No scientific rationale available for this product.</p>
         </div>
       )}
@@ -370,7 +371,7 @@ const PitchPointsTab = ({ product, isDarkMode }) => (
       </section>
     ) : (
       <div className={`text-center py-12 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
-        <FileText size={48} className="mx-auto mb-4 opacity-50" />
+        <Target size={48} className="mx-auto mb-4 opacity-50" />
         <p>No pitch points available for this product.</p>
       </div>
     )}
@@ -389,7 +390,7 @@ const ObjectionsTab = ({ product, isDarkMode }) => (
       </section>
     ) : (
       <div className={`text-center py-12 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
-        <FileText size={48} className="mx-auto mb-4 opacity-50" />
+        <ShieldCheck size={48} className="mx-auto mb-4 opacity-50" />
         <p>No objection handling information available for this product.</p>
       </div>
     )}
@@ -575,7 +576,7 @@ const ResearchTab = ({ research, expandedArticle, setExpandedArticle, isDarkMode
   if (!research || research.length === 0) {
     return (
       <div className={`text-center py-12 ${isDarkMode ? 'text-prism-dark-text-tertiary' : 'text-prism-light-text-tertiary'}`}>
-        <FileText size={48} className="mx-auto mb-4 opacity-50" />
+        <ExternalLink size={48} className="mx-auto mb-4 opacity-50" />
         <p>No research articles available for this product.</p>
       </div>
     );

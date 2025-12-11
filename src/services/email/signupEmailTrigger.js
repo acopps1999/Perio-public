@@ -4,15 +4,18 @@
  * This module provides a way to trigger admin notification emails when new users sign up.
  * It's designed to be called from the OAuth callback flow or AuthContext.
  *
- * NOTE: This is a temporary solution until the database trigger (Phase 1) is implemented.
- * Once the database trigger is in place, this file can be removed.
+ * NOTE: Database notifications are now handled by the `handle_new_user` trigger
+ * on auth.users table. This module only handles email notifications (if needed).
+ * The trigger approach is more reliable and doesn't create duplicates.
  */
 
-import { notifyAdminsOfNewUser } from '../approvalService';
+import { sendAdminNotificationEmail } from './approvalEmailService';
 
 /**
  * Trigger admin notifications for new user signup
  * This should be called after a new user successfully signs up via OAuth
+ *
+ * NOTE: Database notification is created by trigger - this only sends emails
  *
  * @param {Object} user - The authenticated user object from Supabase
  * @param {Object} profile - The user profile object from user_profiles table
@@ -20,24 +23,25 @@ import { notifyAdminsOfNewUser } from '../approvalService';
  */
 export const triggerNewUserNotifications = async (user, profile) => {
   try {
-    // Only trigger notifications for new pending users
+    // Only trigger for new pending users
     if (!profile || profile.approval_status !== 'pending') {
       return;
     }
 
-    // Prepare user data for notification
-    const newUserData = {
-      id: profile.id,
-      email: profile.email || user.email,
-      name: profile.full_name || user.user_metadata?.full_name || null,
-      created_at: profile.created_at || new Date().toISOString()
-    };
+    // Database notification is handled by trigger on auth.users
+    // This function now only sends email notifications (optional)
 
-    // Notify admins (creates database notification + sends emails)
-    await notifyAdminsOfNewUser(newUserData);
+    // Uncomment below if you want email notifications in addition to database notifications
+    // const newUserData = {
+    //   id: profile.id,
+    //   email: profile.email || user.email,
+    //   name: profile.full_name || user.user_metadata?.full_name || null,
+    //   created_at: profile.created_at || new Date().toISOString()
+    // };
+    // await sendAdminNotificationEmail(null, newUserData);
 
   } catch (error) {
-    console.error('[SignupEmailTrigger] Error triggering notifications:', error);
+    console.error('[SignupEmailTrigger] Error:', error);
     // Don't throw - we don't want signup to fail if notifications fail
   }
 };

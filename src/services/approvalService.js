@@ -290,36 +290,17 @@ export const getApprovalStats = async () => {
 
 /**
  * Notify admins about new user signup (called from signup flow)
- * This simulates the database trigger functionality
+ *
+ * NOTE: Database notification is now created by the `handle_new_user` trigger
+ * on auth.users table. This function only sends email notifications.
+ *
  * @param {Object} newUserData - New user data { id, email, created_at }
  * @returns {Promise<Object>} Notification result
  */
 export const notifyAdminsOfNewUser = async (newUserData) => {
   try {
-    // Create admin notification in database
-    const notificationData = {
-      type: 'user_approval_requested',
-      title: 'New User Signup',
-      message: `New user ${newUserData.email || 'Unknown'} has signed up and is awaiting approval.`,
-      user_profile_id: newUserData.id,
-      metadata: {
-        user_email: newUserData.email,
-        signup_method: 'google_oauth',
-        signup_timestamp: newUserData.created_at
-      },
-      action_url: '/admin?tab=user-approvals',
-      action_label: 'Review User'
-    };
-
-    const { data: notification, error: notifError } = await supabase
-      .from('admin_notifications')
-      .insert(notificationData)
-      .select()
-      .single();
-
-    if (notifError) {
-      // Don't fail if notification creation fails
-    }
+    // Database notification is created by trigger on auth.users
+    // This function only handles email notifications
 
     // Send email to all admins
     try {
@@ -329,8 +310,7 @@ export const notifyAdminsOfNewUser = async (newUserData) => {
     }
 
     return {
-      success: true,
-      notification
+      success: true
     };
 
   } catch (error) {

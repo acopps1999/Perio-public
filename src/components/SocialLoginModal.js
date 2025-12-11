@@ -160,9 +160,9 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
     <Dialog.Root open={isOpen} onOpenChange={handleClose}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-prism-light-bg-primary dark:bg-prism-dark-bg-secondary rounded-lg shadow-xl p-8 z-50">
-          <Dialog.Title className="text-lg font-semibold mb-2 flex items-center justify-center text-prism-light-text-primary dark:text-prism-dark-text-primary">
-            <Lock size={20} className="mr-2 text-prism-light-text-secondary dark:text-prism-dark-text-secondary" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-[90vw] bg-prism-light-bg-primary rounded-lg shadow-xl p-8 z-50">
+          <Dialog.Title className="text-lg font-semibold mb-2 flex items-center justify-center text-prism-light-text-primary">
+            <Lock size={20} className="mr-2 text-prism-light-text-secondary" />
             <span>
               {isSignUp ? 'Create Your Account for ' : 'Sign in to '}
               <span style={{
@@ -176,14 +176,14 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
             </span>
           </Dialog.Title>
 
-          <Dialog.Description className="text-sm text-center text-prism-light-text-secondary dark:text-prism-dark-text-secondary mb-6">
+          <Dialog.Description className="text-sm text-center text-prism-light-text-secondary mb-6">
             {isSignUp
               ? 'Create an account to access clinical decision support tools and product recommendations.'
               : 'Access clinical decision support tools and product recommendations.'}
           </Dialog.Description>
 
           {error && (
-            <div className="flex items-center p-3 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400 text-sm">
+            <div className="flex items-center p-3 mb-4 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
               <AlertCircle size={16} className="mr-2 flex-shrink-0" />
               {error}
             </div>
@@ -194,12 +194,12 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium mb-2 text-prism-light-text-primary dark:text-prism-dark-text-primary"
+                className="block text-sm font-medium mb-2 text-prism-light-text-primary"
               >
                 Email
               </label>
               <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary" />
+                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary" />
                 <input
                   id="email"
                   name="email"
@@ -208,7 +208,7 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
                   value={formData.email}
                   onChange={handleInputChange}
                   disabled={isLoading}
-                  className="w-full pl-10 pr-4 py-2.5 border border-prism-light-border-subtle dark:border-prism-dark-border-subtle rounded-md bg-prism-light-bg-primary dark:bg-prism-dark-bg-tertiary text-prism-light-text-primary dark:text-prism-dark-text-primary placeholder-prism-light-text-tertiary dark:placeholder-prism-dark-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary dark:focus:ring-prism-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full pl-10 pr-4 py-2.5 border border-prism-light-border-subtle rounded-md bg-prism-light-bg-primary text-prism-light-text-primary placeholder-prism-light-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="you@example.com"
                 />
               </div>
@@ -217,12 +217,12 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium mb-2 text-prism-light-text-primary dark:text-prism-dark-text-primary"
+                className="block text-sm font-medium mb-2 text-prism-light-text-primary"
               >
                 Password
               </label>
               <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary" />
+                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary" />
                 <input
                   id="password"
                   name="password"
@@ -231,13 +231,13 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
                   value={formData.password}
                   onChange={handleInputChange}
                   disabled={isLoading}
-                  className="w-full pl-10 pr-10 py-2.5 border border-prism-light-border-subtle dark:border-prism-dark-border-subtle rounded-md bg-prism-light-bg-primary dark:bg-prism-dark-bg-tertiary text-prism-light-text-primary dark:text-prism-dark-text-primary placeholder-prism-light-text-tertiary dark:placeholder-prism-dark-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary dark:focus:ring-prism-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full pl-10 pr-10 py-2.5 border border-prism-light-border-subtle rounded-md bg-prism-light-bg-primary text-prism-light-text-primary placeholder-prism-light-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary hover:text-prism-light-text-primary dark:hover:text-prism-dark-text-primary"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary hover:text-prism-light-text-primary"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -248,12 +248,12 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <label
                   htmlFor="confirmPassword"
-                  className="block text-sm font-medium mb-2 text-prism-light-text-primary dark:text-prism-dark-text-primary"
+                  className="block text-sm font-medium mb-2 text-prism-light-text-primary"
                 >
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary" />
+                  <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-prism-light-text-tertiary" />
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -262,7 +262,7 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-2.5 border border-prism-light-border-subtle dark:border-prism-dark-border-subtle rounded-md bg-prism-light-bg-primary dark:bg-prism-dark-bg-tertiary text-prism-light-text-primary dark:text-prism-dark-text-primary placeholder-prism-light-text-tertiary dark:placeholder-prism-dark-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary dark:focus:ring-prism-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full pl-10 pr-4 py-2.5 border border-prism-light-border-subtle rounded-md bg-prism-light-bg-primary text-prism-light-text-primary placeholder-prism-light-text-tertiary focus:outline-none focus:ring-2 focus:ring-prism-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="••••••••"
                   />
                 </div>
@@ -294,7 +294,7 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
                   setFormData({ email: '', password: '', confirmPassword: '' });
                 }}
                 disabled={isLoading}
-                className="text-sm text-prism-primary hover:text-prism-primary-dark dark:text-prism-primary-light dark:hover:text-prism-primary disabled:opacity-50"
+                className="text-sm text-prism-primary hover:text-prism-primary-dark disabled:opacity-50"
               >
                 {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
               </button>
@@ -305,10 +305,10 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
           <>
             <div className="relative mb-4">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-prism-light-border-subtle dark:border-prism-dark-border-subtle"></div>
+                <div className="w-full border-t border-prism-light-border-subtle"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-prism-light-bg-primary dark:bg-prism-dark-bg-secondary text-prism-light-text-tertiary dark:text-prism-dark-text-tertiary">
+                <span className="px-2 bg-prism-light-bg-primary text-prism-light-text-tertiary">
                   Or continue with
                 </span>
               </div>
@@ -319,7 +319,7 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
               <button
                 onClick={() => handleSocialLogin('google')}
                 disabled={isLoading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-prism-light-border-subtle dark:border-prism-dark-border-subtle rounded-md text-prism-light-text-primary dark:text-prism-dark-text-primary hover:bg-prism-light-bg-secondary dark:hover:bg-prism-dark-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-prism-light-border-subtle rounded-md text-prism-light-text-primary hover:bg-prism-light-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading && currentProvider === 'google' ? (
                   <Loader2 size={20} className="animate-spin" />
@@ -333,7 +333,7 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
               <button
                 onClick={() => handleSocialLogin('microsoft')}
                 disabled={isLoading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-prism-light-border-subtle dark:border-prism-dark-border-subtle rounded-md text-prism-light-text-primary dark:text-prism-dark-text-primary hover:bg-prism-light-bg-secondary dark:hover:bg-prism-dark-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-prism-light-border-subtle rounded-md text-prism-light-text-primary hover:bg-prism-light-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading && currentProvider === 'microsoft' ? (
                   <Loader2 size={20} className="animate-spin" />
@@ -345,8 +345,8 @@ function SocialLoginModal({ isOpen, onClose, onSuccess }) {
             </div>
           </>
 
-          <div className="mt-6 pt-6 border-t border-prism-light-border-subtle dark:border-prism-dark-border-subtle">
-            <p className="text-xs text-center text-prism-light-text-secondary dark:text-prism-dark-text-secondary">
+          <div className="mt-6 pt-6 border-t border-prism-light-border-subtle">
+            <p className="text-xs text-center text-prism-light-text-secondary">
               By {isSignUp ? 'creating an account' : 'signing in'}, you agree to our Terms of Service and Privacy Policy.
               Your data is protected and never shared without permission.
             </p>

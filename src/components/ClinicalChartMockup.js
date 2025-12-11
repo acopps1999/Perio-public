@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Stethoscope, Settings, LogOut, Menu, X } from 'lucide-react';
-import DiagnosisWizard from './DiagnosisWizard';
+import TherapeuticWizard from './TherapeuticWizard';
 import AdminDrawer from './AdminDrawer';
 import AdminLoginModal from './AdminLoginModal';
 import SocialLoginModal from './SocialLoginModal';
@@ -12,6 +12,7 @@ import FeedbackWidget from './FeedbackWidget';
 import DatabaseChatbot from './AgenticSearchWidget';
 import PrismTitleSection from './PrismTitleSection';
 import ThemeToggle from './ThemeToggle';
+import Prism from './Prism';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -395,144 +396,41 @@ function ClinicalChartMockup() {
   // Show login modal if not authenticated
   if (!isAuthenticated) {
     return (
-      <>
-        {/* Add the PRISM background styles */}
-        <style>
-          {`
-            @keyframes prismaticRotation1 {
-              0% { transform: rotate(0deg) scale(1); filter: hue-rotate(0deg) brightness(1); }
-              25% { transform: rotate(90deg) scale(1.1); filter: hue-rotate(90deg) brightness(1.3); }
-              50% { transform: rotate(180deg) scale(1.05); filter: hue-rotate(180deg) brightness(1.1); }
-              75% { transform: rotate(270deg) scale(1.15); filter: hue-rotate(270deg) brightness(1.4); }
-              100% { transform: rotate(360deg) scale(1); filter: hue-rotate(360deg) brightness(1); }
-            }
-
-            @keyframes prismaticRotation2 {
-              0% { transform: rotate(0deg) scale(1.1) skew(5deg); filter: hue-rotate(180deg) brightness(0.8); }
-              20% { transform: rotate(72deg) scale(0.9) skew(-2deg); filter: hue-rotate(144deg) brightness(1.2); }
-              40% { transform: rotate(144deg) scale(1.2) skew(3deg); filter: hue-rotate(108deg) brightness(0.9); }
-              60% { transform: rotate(216deg) scale(0.95) skew(-4deg); filter: hue-rotate(72deg) brightness(1.5); }
-              80% { transform: rotate(288deg) scale(1.1) skew(1deg); filter: hue-rotate(36deg) brightness(1.1); }
-              100% { transform: rotate(360deg) scale(1.1) skew(5deg); filter: hue-rotate(0deg) brightness(0.8); }
-            }
-
-            .prism-login-bg {
-              position: relative;
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background: ${isDarkMode ? '#18181b' : '#ffffff'};
-              overflow: hidden;
-            }
-
-            .prism-login-bg::before {
-              content: '';
-              position: fixed;
-              top: -100%;
-              left: -100%;
-              width: 300%;
-              height: 300%;
-              background:
-                conic-gradient(from 0deg at 30% 40%,
-                  transparent 0deg,
-                  rgba(99, 102, 241, 0.4) 15deg,
-                  transparent 30deg,
-                  rgba(129, 140, 248, 0.3) 45deg,
-                  transparent 60deg,
-                  rgba(99, 102, 241, 0.6) 75deg,
-                  transparent 90deg
-                ),
-                conic-gradient(from 120deg at 70% 60%,
-                  transparent 0deg,
-                  rgba(99, 102, 241, 0.5) 20deg,
-                  transparent 40deg,
-                  rgba(165, 180, 252, 0.3) 60deg,
-                  transparent 80deg,
-                  rgba(129, 140, 248, 0.4) 100deg,
-                  transparent 120deg
-                ),
-                conic-gradient(from 240deg at 20% 80%,
-                  transparent 0deg,
-                  rgba(99, 102, 241, 0.7) 25deg,
-                  transparent 50deg,
-                  rgba(79, 70, 229, 0.4) 75deg,
-                  transparent 100deg
-                ),
-                radial-gradient(ellipse at 60% 20%,
-                  rgba(129, 140, 248, 0.8) 0%,
-                  rgba(99, 102, 241, 0.3) 20%,
-                  transparent 40%
-                ),
-                radial-gradient(ellipse at 15% 70%,
-                  rgba(165, 180, 252, 0.6) 0%,
-                  rgba(99, 102, 241, 0.2) 25%,
-                  transparent 50%
-                );
-              animation: prismaticRotation1 12s linear infinite;
-              z-index: 0;
-              pointer-events: none;
-            }
-
-            .prism-login-bg::after {
-              content: '';
-              position: fixed;
-              top: -50%;
-              left: -50%;
-              width: 200%;
-              height: 200%;
-              background:
-                conic-gradient(from 60deg at 80% 30%,
-                  transparent 0deg,
-                  rgba(129, 140, 248, 0.5) 10deg,
-                  transparent 20deg,
-                  rgba(99, 102, 241, 0.4) 30deg,
-                  transparent 40deg,
-                  rgba(165, 180, 252, 0.3) 50deg,
-                  transparent 60deg
-                ),
-                conic-gradient(from 180deg at 25% 50%,
-                  transparent 0deg,
-                  rgba(129, 140, 248, 0.6) 30deg,
-                  transparent 60deg,
-                  rgba(99, 102, 241, 0.4) 90deg,
-                  transparent 120deg
-                ),
-                linear-gradient(45deg,
-                  transparent 0%,
-                  rgba(99, 102, 241, 0.2) 25%,
-                  transparent 50%,
-                  rgba(165, 180, 252, 0.3) 75%,
-                  transparent 100%
-                ),
-                linear-gradient(-30deg,
-                  transparent 0%,
-                  rgba(129, 140, 248, 0.4) 20%,
-                  transparent 40%,
-                  rgba(99, 102, 241, 0.2) 60%,
-                  transparent 80%
-                ),
-                radial-gradient(ellipse at 45% 85%,
-                  rgba(165, 180, 252, 0.5) 0%,
-                  rgba(99, 102, 241, 0.1) 30%,
-                  transparent 60%
-                );
-              animation: prismaticRotation2 16s linear infinite reverse;
-              z-index: 1;
-              pointer-events: none;
-            }
-          `}
-        </style>
-        <div className="prism-login-bg">
-          <div style={{ position: 'relative', zIndex: 10 }}>
-            <SocialLoginModal
-              isOpen={true}
-              onClose={() => {}} // Prevent closing - user must login
-              onSuccess={() => {}} // Auth state will update automatically
-            />
-          </div>
+      <div style={{
+        position: 'relative',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f8fafc',
+        overflow: 'hidden'
+      }}>
+        {/* WebGL Prism Background */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <Prism
+            height={3.5}
+            baseWidth={5.5}
+            animationType="rotate"
+            glow={1.2}
+            noise={0.1}
+            transparent={true}
+            scale={3.2}
+            hueShift={0}
+            colorFrequency={1}
+            bloom={1.2}
+            timeScale={0.3}
+          />
         </div>
-      </>
+
+        {/* Login Modal */}
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <SocialLoginModal
+            isOpen={true}
+            onClose={() => {}} // Prevent closing - user must login
+            onSuccess={() => {}} // Auth state will update automatically
+          />
+        </div>
+      </div>
     );
   }
 
@@ -754,9 +652,8 @@ function ClinicalChartMockup() {
         getProductResearch={getProductResearch}
       />
       {wizardOpen && (
-        <DiagnosisWizard
+        <TherapeuticWizard
           conditions={conditions}
-          // Phase 3: Removed patientTypes prop - no longer using treatment modifiers
           onClose={toggleWizard}
         />
       )}
