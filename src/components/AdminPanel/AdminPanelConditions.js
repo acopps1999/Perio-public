@@ -14,7 +14,8 @@ import {
   removePhaseFromConditionRealtime,
   addProductToPhaseRealtime,
   removeProductFromPhaseRealtime,
-  reorderProductsRealtime
+  reorderProductsRealtime,
+  copyProductDetailsRealtime
 } from './AdminPanelSupabase';
 
 /**
@@ -174,6 +175,101 @@ function AdminPanelConditions({
       },
       `Removed modifier "${modifierToRemove}"`,
       `Failed to remove modifier "${modifierToRemove}"`
+    );
+  };
+
+  // Handler for copying product details from another condition
+  const handleCopyProductDetails = async (sourceCondition, sourceDetails, copyOptions) => {
+    if (!selectedCondition?.db_id || !editingProduct) return;
+
+    const operationId = `copy-product-details-${selectedCondition.db_id}-${editingProduct}`;
+
+    // Get target condition's phases for proper usage mapping
+    const targetPhases = selectedCondition.phases || ['General'];
+
+    await executeUpdate(
+      operationId,
+      () => {
+        const oldConditions = [...conditions];
+        const oldSelected = { ...selectedCondition };
+
+        // Map source usage to target phases for optimistic update
+        let mappedUsage = {};
+        if (copyOptions.usage && sourceDetails.usage) {
+          const sourcePhaseNames = Object.keys(sourceDetails.usage).filter(k => sourceDetails.usage[k]?.trim());
+          const targetPhaseSet = new Set(targetPhases);
+          const matchingPhases = sourcePhaseNames.filter(p => targetPhaseSet.has(p));
+
+          if (matchingPhases.length === sourcePhaseNames.length) {
+            // All source phases exist in target - copy directly
+            mappedUsage = { ...sourceDetails.usage };
+          } else if (targetPhases.length === 1) {
+            // Target has only one phase - combine all source usage into it
+            const combinedUsage = sourcePhaseNames.map(phaseName => {
+              const usage = sourceDetails.usage[phaseName];
+              if (sourcePhaseNames.length > 1) {
+                return `**${phaseName}:**\n${usage}`;
+              }
+              return usage;
+            }).join('\n\n');
+            mappedUsage = { [targetPhases[0]]: combinedUsage };
+          } else {
+            // Copy only matching phases
+            matchingPhases.forEach(p => {
+              mappedUsage[p] = sourceDetails.usage[p];
+            });
+          }
+        }
+
+        // Optimistically update local state with copied values
+        const updatedProductDetails = {
+          ...(selectedCondition.productDetails || {}),
+          [editingProduct]: {
+            ...(selectedCondition.productDetails?.[editingProduct] || {}),
+            ...(copyOptions.rationale && sourceDetails.rationale ? { rationale: sourceDetails.rationale } : {}),
+            ...(copyOptions.clinicalEvidence && sourceDetails.clinicalEvidence ? { clinicalEvidence: sourceDetails.clinicalEvidence } : {}),
+            ...(copyOptions.handlingObjections && sourceDetails.handlingObjections ? { handlingObjections: sourceDetails.handlingObjections } : {}),
+            ...(copyOptions.pitchPoints && sourceDetails.pitchPoints ? { pitchPoints: sourceDetails.pitchPoints } : {}),
+            ...(Object.keys(mappedUsage).length > 0 ? { usage: { ...(selectedCondition.productDetails?.[editingProduct]?.usage || {}), ...mappedUsage } } : {})
+          }
+        };
+
+        // Update research articles if selected
+        let updatedResearch = selectedCondition.conditionSpecificResearch || {};
+        if (copyOptions.researchArticles && sourceDetails.researchArticles?.length > 0) {
+          updatedResearch = {
+            ...updatedResearch,
+            [editingProduct]: [...sourceDetails.researchArticles]
+          };
+        }
+
+        setConditions(prev => prev.map(c =>
+          c.db_id === selectedCondition.db_id
+            ? { ...c, productDetails: updatedProductDetails, conditionSpecificResearch: updatedResearch }
+            : c
+        ));
+        setSelectedCondition(prev => ({
+          ...prev,
+          productDetails: updatedProductDetails,
+          conditionSpecificResearch: updatedResearch
+        }));
+
+        return () => {
+          setConditions(oldConditions);
+          setSelectedCondition(oldSelected);
+        };
+      },
+      async () => {
+        return await copyProductDetailsRealtime(
+          selectedCondition.db_id,
+          editingProduct,
+          sourceDetails,
+          copyOptions,
+          targetPhases
+        );
+      },
+      `Copied details from "${sourceCondition.name}"`,
+      `Failed to copy details`
     );
   };
 
@@ -372,7 +468,11 @@ function AdminPanelConditions({
             </h3>
             <button
               onClick={handleAddCondition}
-              className="px-6 py-3 bg-[#9b9cfa] text-white rounded-lg hover:bg-[#b4b5ff] inline-flex items-center text-sm font-semibold transition-colors shadow-md"
+              className={`px-6 py-3 text-white rounded-lg inline-flex items-center text-sm font-semibold transition-colors shadow-md ${
+                isDarkMode
+                  ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                  : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+              }`}
             >
               <Plus size={18} className="mr-2" />
               Add New Condition
@@ -593,14 +693,18 @@ function AdminPanelConditions({
                     />
                     <button
                       onClick={handleAddModifier}
-                      className="px-5 py-2.5 bg-[#9b9cfa] text-white rounded-lg hover:bg-[#b4b5ff] font-semibold transition-colors"
+                      className={`px-5 py-2.5 text-white rounded-lg font-semibold transition-colors ${
+                        isDarkMode
+                          ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                          : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                      }`}
                     >
                       Add
                     </button>
                   </div>
                 </div>
 
-                {/* Products by Modifier - Always visible with tabs */}
+                {/* Products by Modifier */}
                 <div className={`rounded-xl overflow-hidden ${
                   isDarkMode ? 'bg-[#1a1a1a] border border-[#2a2a2a]' : 'bg-white border border-gray-200'
                 }`}>
@@ -618,41 +722,49 @@ function AdminPanelConditions({
                   </div>
 
                   {selectedCondition.phases && selectedCondition.phases.length > 0 ? (
-                    <Tabs.Root defaultValue={selectedCondition.phases[0]}>
-                      <Tabs.List className={`flex overflow-x-auto ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-gray-100'}`}>
-                        {selectedCondition.phases.map((modifier, index) => {
-                          const getModifierColor = (idx) => {
-                            const colors = ['bg-[#8b5cf6]', 'bg-[#9b9cfa]', 'bg-[#c4b5fd]', 'bg-[#6366f1]'];
-                            return colors[idx % colors.length];
-                          };
+                    selectedCondition.phases.length === 1 ? (
+                      // Single modifier - show products directly without tabs
+                      <div className="p-6">
+                        {renderModifierProducts(selectedCondition.phases[0])}
+                      </div>
+                    ) : (
+                      // Multiple modifiers - show tabs
+                      <Tabs.Root defaultValue={selectedCondition.phases[0]}>
+                        <Tabs.List className={`flex overflow-x-auto ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-gray-100'}`}>
+                          {selectedCondition.phases.map((modifier, index) => {
+                            const getModifierColor = (idx) => {
+                              const colors = ['bg-[#8b5cf6]', 'bg-[#9b9cfa]', 'bg-[#c4b5fd]', 'bg-[#6366f1]'];
+                              return colors[idx % colors.length];
+                            };
 
-                          return (
-                            <Tabs.Trigger
-                              key={modifier}
-                              value={modifier}
-                              className={clsx(
-                                "flex-1 min-w-[120px] px-6 py-3 text-sm text-center focus:outline-none transition-all duration-300 text-white relative",
-                                getModifierColor(index),
-                                "data-[state=active]:scale-105 data-[state=active]:font-bold data-[state=active]:brightness-110 data-[state=active]:border-b-4 data-[state=active]:border-white data-[state=active]:z-10",
-                                "data-[state=inactive]:opacity-70 data-[state=inactive]:font-semibold data-[state=inactive]:hover:opacity-90"
-                              )}
-                            >
-                              {modifier}
-                            </Tabs.Trigger>
-                          );
-                        })}
-                      </Tabs.List>
+                            return (
+                              <Tabs.Trigger
+                                key={modifier}
+                                value={modifier}
+                                className={clsx(
+                                  "flex-1 min-w-[120px] px-6 py-3 text-sm text-center focus:outline-none transition-all duration-300 text-white relative",
+                                  getModifierColor(index),
+                                  "data-[state=active]:scale-105 data-[state=active]:font-bold data-[state=active]:brightness-110 data-[state=active]:border-b-4 data-[state=active]:border-white data-[state=active]:z-10",
+                                  "data-[state=inactive]:opacity-70 data-[state=inactive]:font-semibold data-[state=inactive]:hover:opacity-90"
+                                )}
+                              >
+                                {modifier}
+                              </Tabs.Trigger>
+                            );
+                          })}
+                        </Tabs.List>
 
-                      {selectedCondition.phases.map((modifier) => (
-                        <Tabs.Content key={modifier} value={modifier} className="p-6">
-                          {renderModifierProducts(modifier)}
-                        </Tabs.Content>
-                      ))}
-                    </Tabs.Root>
+                        {selectedCondition.phases.map((modifier) => (
+                          <Tabs.Content key={modifier} value={modifier} className="p-6">
+                            {renderModifierProducts(modifier)}
+                          </Tabs.Content>
+                        ))}
+                      </Tabs.Root>
+                    )
                   ) : (
                     <div className={`p-8 text-center ${isDarkMode ? 'text-[#9ca3af]' : 'text-gray-600'}`}>
                       <p className="mb-2">No modifiers configured</p>
-                      <p className="text-sm">Add modifiers above to configure products</p>
+                      <p className="text-sm">Add a modifier above to configure products</p>
                     </div>
                   )}
                 </div>
@@ -730,12 +842,14 @@ function AdminPanelConditions({
         productName={editingProduct}
         productDetails={selectedCondition?.productDetails?.[editingProduct] || {}}
         condition={selectedCondition}
+        conditions={conditions}
         saveStatus={saveStatus}
         updateProductDetail={updateProductDetail}
         debouncedUpdateProductDetail={debouncedUpdateProductDetail}
         updateConditionField={updateConditionField}
         getPhasesForProduct={getPhasesForProduct}
         parentDrawerWidth={parentDrawerWidth}
+        onCopyProductDetails={handleCopyProductDetails}
       />
 
       <ToastContainer />

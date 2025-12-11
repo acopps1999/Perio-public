@@ -6,7 +6,7 @@ import AdminPanelConditions from './AdminPanel/AdminPanelConditions';
 import AdminPanelProducts from './AdminPanel/AdminPanelProducts';
 import AdminPanelCategories from './AdminPanel/AdminPanelCategories';
 import AdminPanelModals from './AdminPanel/AdminPanelModals';
-import AdminPanelUserApprovals from './AdminPanel/AdminPanelUserApprovals';
+import { AdminNotifications } from './AdminPanel/AdminNotifications';
 import AdminPanelCompetitiveAdvantage from './AdminPanel/AdminPanelCompetitiveAdvantage';
 import useResponsive from '../hooks/useResponsive';
 import { useTheme } from '../contexts/ThemeContext';
@@ -87,10 +87,10 @@ function AdminPanel({ onSaveChangesSuccess, onClose, drawerWidth }) {
             <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
               <Tabs.List className={`${isMobile ? 'grid grid-cols-2 gap-2 p-2' : 'flex gap-1'} ${isDarkMode ? 'bg-prism-dark-bg-secondary' : 'bg-prism-light-bg-secondary'} ${isMobile ? 'rounded-md' : ''} p-1`}>
                 <Tabs.Trigger
-                  value="userApprovals"
+                  value="users"
                   className={clsx(
                     `${isMobile ? 'col-span-2' : 'flex-1'} ${getResponsiveValue('px-3 py-2.5', 'px-4 py-3', 'px-6 py-3')} ${getResponsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold text-center focus:outline-none transition-all duration-250 rounded-md`,
-                    activeTab === "userApprovals"
+                    activeTab === "users"
                       ? isDarkMode
                         ? "bg-prism-primary text-white shadow-md"
                         : "bg-prism-primary-light text-white shadow-light-md"
@@ -99,7 +99,7 @@ function AdminPanel({ onSaveChangesSuccess, onClose, drawerWidth }) {
                         : "text-prism-light-text-secondary hover:text-prism-light-text-primary hover:bg-prism-light-bg-tertiary"
                   )}
                 >
-                  {isMobile ? 'User Approvals' : 'User Approvals'}
+                  Users
                 </Tabs.Trigger>
                 <Tabs.Trigger
                   value="conditions"
@@ -163,9 +163,9 @@ function AdminPanel({ onSaveChangesSuccess, onClose, drawerWidth }) {
                 </Tabs.Trigger>
               </Tabs.List>
 
-              {/* User Approvals Tab */}
-              <Tabs.Content value="userApprovals" className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-                <AdminPanelUserApprovals />
+              {/* Users Tab */}
+              <Tabs.Content value="users" className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                <AdminNotifications />
               </Tabs.Content>
 
               {/* Conditions Tab */}

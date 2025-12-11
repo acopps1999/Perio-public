@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { BookOpen, Target, ArrowLeft, Microscope, FileText, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { hasFeatureAccess } from '../config/featureVisibility';
 import ProductDrawer from './ProductDrawer';
 
 function ConditionDetails({
@@ -21,6 +23,7 @@ function ConditionDetails({
 }) {
 
   const { isDarkMode } = useTheme();
+  const { userRole } = useAuth();
 
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -411,37 +414,41 @@ function ConditionDetails({
               </div>
             </div>
 
-            {/* Competitive Advantage */}
-            <div
-              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/30 border-prism-primary/50 hover:bg-prism-primary/40 hover:border-prism-primary/60' : 'bg-prism-primary-light/20 border-prism-primary-light/40 hover:bg-prism-primary-light/30 hover:border-prism-primary-light/50'}`}
-              onClick={handleOpenCompetitiveAdvantage}
-            >
-              <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
-                  Competitive Advantage
+            {/* Competitive Advantage - Sales/Admin only */}
+            {hasFeatureAccess('competitive_advantage', userRole) && (
+              <div
+                className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/30 border-prism-primary/50 hover:bg-prism-primary/40 hover:border-prism-primary/60' : 'bg-prism-primary-light/20 border-prism-primary-light/40 hover:bg-prism-primary-light/30 hover:border-prism-primary-light/50'}`}
+                onClick={handleOpenCompetitiveAdvantage}
+              >
+                <div className="flex justify-between items-center">
+                  <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
+                    Competitive Advantage
+                  </div>
+                  <Target size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
                 </div>
-                <Target size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
               </div>
-            </div>
-            
-            {/* Handling Objections */}
-            <div
-              className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/40 border-prism-primary/60 hover:bg-prism-primary/50 hover:border-prism-primary/70' : 'bg-prism-primary-light/25 border-prism-primary-light/45 hover:bg-prism-primary-light/35 hover:border-prism-primary-light/55'}`}
-              onClick={() => handleOpenProductDrawer('objections')}
-            >
-              <div className="flex justify-between items-center">
-                <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
-                  Handling Objections
-                </div>
-                <MessageSquare size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
-              </div>
-            </div>
+            )}
 
-            {/* Key Pitch Points */}
-            {selectedProductDetails.pitchPoints && (
+            {/* Handling Objections - Sales/Admin only */}
+            {hasFeatureAccess('objection_handling', userRole) && (
+              <div
+                className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/40 border-prism-primary/60 hover:bg-prism-primary/50 hover:border-prism-primary/70' : 'bg-prism-primary-light/25 border-prism-primary-light/45 hover:bg-prism-primary-light/35 hover:border-prism-primary-light/55'}`}
+                onClick={() => handleOpenProductDrawer('objections')}
+              >
+                <div className="flex justify-between items-center">
+                  <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>
+                    Handling Objections
+                  </div>
+                  <MessageSquare size={18} className={isDarkMode ? 'text-prism-primary/70' : 'text-prism-primary-light/70'} />
+                </div>
+              </div>
+            )}
+
+            {/* Key Pitch Points - Sales/Admin only */}
+            {hasFeatureAccess('pitch_points', userRole) && selectedProductDetails.pitchPoints && (
               <div
                 className={`p-3 rounded-lg mb-2 border cursor-pointer transition-all duration-250 ${isDarkMode ? 'bg-prism-primary/50 border-prism-primary/70 hover:bg-prism-primary/60 hover:border-prism-primary/80' : 'bg-prism-primary-light/30 border-prism-primary-light/50 hover:bg-prism-primary-light/40 hover:border-prism-primary-light/60'}`}
-                onClick={() => handleOpenProductDrawer('clinical')}
+                onClick={() => handleOpenProductDrawer('pitch')}
               >
                 <div className="flex justify-between items-center">
                   <div className={`font-medium ${isDarkMode ? 'text-prism-primary' : 'text-prism-primary-light'}`}>

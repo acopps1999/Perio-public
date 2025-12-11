@@ -1639,15 +1639,33 @@ const deleteProductRealtime = async (productName) => {
  */
 const addProductToPhaseRealtime = async (conditionId, phaseName, productName) => {
   try {
-    // Get phase ID
-    const { data: phaseData } = await supabase
+    // Get phase ID - use maybeSingle to avoid 406 errors
+    const { data: phaseData, error: phaseError } = await supabase
       .from('phases')
       .select('id')
       .eq('name', phaseName)
-      .single();
+      .maybeSingle();
+
+    if (phaseError) {
+      return { success: false, error: phaseError };
+    }
+
+    let phaseId;
 
     if (!phaseData) {
-      return { success: false, error: 'Phase not found' };
+      // Phase doesn't exist in phases table, create it
+      const { data: newPhase, error: createError } = await supabase
+        .from('phases')
+        .insert([{ name: phaseName }])
+        .select()
+        .single();
+
+      if (createError) {
+        return { success: false, error: createError };
+      }
+      phaseId = newPhase.id;
+    } else {
+      phaseId = phaseData.id;
     }
 
     // Get product ID
@@ -1666,7 +1684,7 @@ const addProductToPhaseRealtime = async (conditionId, phaseName, productName) =>
       .from('procedure_phase_products')
       .select('rank')
       .eq('procedure_id', conditionId)
-      .eq('phase_id', phaseData.id)
+      .eq('phase_id', phaseId)
       .order('rank', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1678,7 +1696,7 @@ const addProductToPhaseRealtime = async (conditionId, phaseName, productName) =>
       .from('procedure_phase_products')
       .insert([{
         procedure_id: conditionId,
-        phase_id: phaseData.id,
+        phase_id: phaseId,
         product_id: productData.id,
         rank: newRank
       }]);
@@ -1852,6 +1870,246 @@ const updateCustomPhaseLabelsRealtime = async (conditionId, customLabels) => {
   }
 };
 
+/**
+ * Copy product details from one condition to another
+ * @param {number} targetConditionId - The condition to copy TO
+ * @param {string} productName - The product name
+ * @param {Object} sourceDetails - The details to copy (from local state)
+ * @param {Object} copyOptions - Which fields to copy
+ * @param {Array} targetPhases - The phases available in the target condition
+ */
+const copyProductDetailsRealtime = async (targetConditionId, productName, sourceDetails, copyOptions, targetPhases = []) => {
+  try {
+    // Get product ID
+    const { data: productData, error: productError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('name', productName)
+      .single();
+
+    if (productError || !productData) {
+      return { success: false, error: productError || new Error('Product not found') };
+    }
+
+    const productId = productData.id;
+
+    // Prepare product_details update object
+    const detailsUpdate = {};
+    if (copyOptions.rationale && sourceDetails.rationale) {
+      detailsUpdate.rationale = sourceDetails.rationale;
+    }
+    if (copyOptions.clinicalEvidence && sourceDetails.clinicalEvidence) {
+      detailsUpdate.clinical_evidence = sourceDetails.clinicalEvidence;
+    }
+    if (copyOptions.handlingObjections && sourceDetails.handlingObjections) {
+      detailsUpdate.objection_handling = sourceDetails.handlingObjections;
+    }
+    if (copyOptions.pitchPoints && sourceDetails.pitchPoints) {
+      detailsUpdate.pitch_points = sourceDetails.pitchPoints;
+    }
+
+    // Check if product_details entry exists
+    const { data: existingDetail } = await supabase
+      .from('product_details')
+      .select('id')
+      .eq('procedure_id', targetConditionId)
+      .eq('product_id', productId)
+      .maybeSingle();
+
+    // Only update product_details if we have fields to update
+    if (Object.keys(detailsUpdate).length > 0) {
+      if (existingDetail) {
+        // Update existing
+        const { error: updateError } = await supabase
+          .from('product_details')
+          .update(detailsUpdate)
+          .eq('id', existingDetail.id);
+
+        if (updateError) {
+          return { success: false, error: updateError };
+        }
+      } else {
+        // Create new
+        const { error: insertError } = await supabase
+          .from('product_details')
+          .insert([{
+            procedure_id: targetConditionId,
+            product_id: productId,
+            ...detailsUpdate
+          }]);
+
+        if (insertError) {
+          return { success: false, error: insertError };
+        }
+      }
+    }
+
+    // Copy usage instructions if selected
+    if (copyOptions.usage && sourceDetails.usage && typeof sourceDetails.usage === 'object') {
+      const sourcePhaseNames = Object.keys(sourceDetails.usage).filter(k => sourceDetails.usage[k]?.trim());
+
+      if (sourcePhaseNames.length > 0) {
+        // Determine how to map source phases to target phases
+        const targetPhaseSet = new Set(targetPhases);
+        const matchingPhases = sourcePhaseNames.filter(p => targetPhaseSet.has(p));
+
+        if (matchingPhases.length === sourcePhaseNames.length) {
+          // All source phases exist in target - copy directly
+          for (const phaseName of sourcePhaseNames) {
+            const { data: phaseData } = await supabase
+              .from('phases')
+              .select('id')
+              .eq('name', phaseName)
+              .maybeSingle();
+
+            if (phaseData) {
+              const { data: existingUsage } = await supabase
+                .from('phase_specific_usage')
+                .select('id')
+                .eq('procedure_id', targetConditionId)
+                .eq('product_id', productId)
+                .eq('phase_id', phaseData.id)
+                .maybeSingle();
+
+              if (existingUsage) {
+                await supabase
+                  .from('phase_specific_usage')
+                  .update({ instructions: sourceDetails.usage[phaseName] })
+                  .eq('id', existingUsage.id);
+              } else {
+                await supabase
+                  .from('phase_specific_usage')
+                  .insert([{
+                    procedure_id: targetConditionId,
+                    product_id: productId,
+                    phase_id: phaseData.id,
+                    instructions: sourceDetails.usage[phaseName]
+                  }]);
+              }
+            }
+          }
+        } else if (targetPhases.length === 1) {
+          // Target has only one phase (e.g., "General") - combine all source usage into it
+          const targetPhaseName = targetPhases[0];
+          const { data: phaseData } = await supabase
+            .from('phases')
+            .select('id')
+            .eq('name', targetPhaseName)
+            .maybeSingle();
+
+          if (phaseData) {
+            // Combine all source usage with phase labels
+            const combinedUsage = sourcePhaseNames.map(phaseName => {
+              const usage = sourceDetails.usage[phaseName];
+              if (sourcePhaseNames.length > 1) {
+                return `**${phaseName}:**\n${usage}`;
+              }
+              return usage;
+            }).join('\n\n');
+
+            const { data: existingUsage } = await supabase
+              .from('phase_specific_usage')
+              .select('id')
+              .eq('procedure_id', targetConditionId)
+              .eq('product_id', productId)
+              .eq('phase_id', phaseData.id)
+              .maybeSingle();
+
+            if (existingUsage) {
+              await supabase
+                .from('phase_specific_usage')
+                .update({ instructions: combinedUsage })
+                .eq('id', existingUsage.id);
+            } else {
+              await supabase
+                .from('phase_specific_usage')
+                .insert([{
+                  procedure_id: targetConditionId,
+                  product_id: productId,
+                  phase_id: phaseData.id,
+                  instructions: combinedUsage
+                }]);
+            }
+          }
+        } else {
+          // Target has multiple phases but they don't all match - copy only matching phases
+          for (const phaseName of matchingPhases) {
+            const { data: phaseData } = await supabase
+              .from('phases')
+              .select('id')
+              .eq('name', phaseName)
+              .maybeSingle();
+
+            if (phaseData) {
+              const { data: existingUsage } = await supabase
+                .from('phase_specific_usage')
+                .select('id')
+                .eq('procedure_id', targetConditionId)
+                .eq('product_id', productId)
+                .eq('phase_id', phaseData.id)
+                .maybeSingle();
+
+              if (existingUsage) {
+                await supabase
+                  .from('phase_specific_usage')
+                  .update({ instructions: sourceDetails.usage[phaseName] })
+                  .eq('id', existingUsage.id);
+              } else {
+                await supabase
+                  .from('phase_specific_usage')
+                  .insert([{
+                    procedure_id: targetConditionId,
+                    product_id: productId,
+                    phase_id: phaseData.id,
+                    instructions: sourceDetails.usage[phaseName]
+                  }]);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Copy research articles if selected
+    if (copyOptions.researchArticles && sourceDetails.researchArticles && sourceDetails.researchArticles.length > 0) {
+      // Delete existing research articles for this product/condition combo (to replace with copied ones)
+      await supabase
+        .from('condition_product_research_articles')
+        .delete()
+        .eq('procedure_id', targetConditionId)
+        .eq('product_id', productId);
+
+      // Insert copied research articles
+      const articlesToInsert = sourceDetails.researchArticles.map(article => ({
+        procedure_id: targetConditionId,
+        product_id: productId,
+        title: article.title || '',
+        author: article.author || '',
+        abstract: article.abstract || '',
+        url: article.url || ''
+      }));
+
+      if (articlesToInsert.length > 0) {
+        const { error: insertArticlesError } = await supabase
+          .from('condition_product_research_articles')
+          .insert(articlesToInsert);
+
+        if (insertArticlesError) {
+          // Log but don't fail the whole operation
+          console.error('Error inserting research articles:', insertArticlesError);
+        }
+      }
+    }
+
+    await refreshProceduresView();
+    invalidateConditionsCache();
+    return { success: true };
+  } catch (error) {
+    console.error('Error in copyProductDetailsRealtime:', error);
+    return { success: false, error };
+  }
+};
+
 // Export all functions
 export {
   // Legacy batch operations
@@ -1894,5 +2152,7 @@ export {
   addProductToPhaseRealtime,
   removeProductFromPhaseRealtime,
   reorderProductsRealtime,
-  updateCustomPhaseLabelsRealtime
+  updateCustomPhaseLabelsRealtime,
+  // Copy product details between conditions
+  copyProductDetailsRealtime
 }; 

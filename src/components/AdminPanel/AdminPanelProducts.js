@@ -30,15 +30,20 @@ function AdminPanelProducts({
     setShowDeleteModal(true);
   };
 
-  // Handle real-time product deletion
+  // Handle real-time product deletion - close modal immediately, delete in background
   const confirmDeleteProduct = async () => {
     if (!productToDelete) return;
 
-    setIsDeleting(true);
     const productName = productToDelete;
+
+    // Close modal immediately for better UX
+    setShowDeleteModal(false);
+    setProductToDelete(null);
+
     const operationId = `product-delete-${productName}`;
 
-    await executeUpdate(
+    // Run delete in background - executeUpdate handles optimistic updates
+    executeUpdate(
       operationId,
       // Optimistic update
       () => {
@@ -84,10 +89,6 @@ function AdminPanelProducts({
       `Deleted product "${productName}"`,
       `Failed to delete product "${productName}"`
     );
-
-    setIsDeleting(false);
-    setShowDeleteModal(false);
-    setProductToDelete(null);
   };
 
 return (
@@ -96,7 +97,11 @@ return (
       <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Product Library</h3>
       <button
         onClick={handleAddProduct}
-        className="px-6 py-3 bg-[#9b9cfa] text-white rounded-lg hover:bg-[#b4b5ff] text-sm font-semibold flex items-center shadow-md transition-colors"
+        className={`px-6 py-3 text-white rounded-lg text-sm font-semibold flex items-center shadow-md transition-colors ${
+          isDarkMode
+            ? 'bg-prism-primary hover:bg-prism-primary-hover'
+            : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+        }`}
       >
         <Plus size={18} className="mr-2" />
         Add New Product

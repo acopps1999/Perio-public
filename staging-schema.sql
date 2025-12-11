@@ -15,17 +15,8 @@ CREATE TABLE public.admin_notifications (
   action_label text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_notifications_pkey PRIMARY KEY (id),
-  CONSTRAINT admin_notifications_read_by_fkey FOREIGN KEY (read_by) REFERENCES auth.users(id),
-  CONSTRAINT admin_notifications_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id)
-);
-CREATE TABLE public.admins (
-  id integer NOT NULL DEFAULT nextval('admins_id_seq'::regclass),
-  user_id uuid NOT NULL,
-  email text NOT NULL UNIQUE,
-  created_at timestamp with time zone DEFAULT now(),
-  Password text,
-  CONSTRAINT admins_pkey PRIMARY KEY (id),
-  CONSTRAINT admins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT admin_notifications_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT admin_notifications_read_by_fkey FOREIGN KEY (read_by) REFERENCES auth.users(id)
 );
 CREATE TABLE public.approval_audit_log (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -38,8 +29,8 @@ CREATE TABLE public.approval_audit_log (
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT approval_audit_log_pkey PRIMARY KEY (id),
-  CONSTRAINT approval_audit_log_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id),
-  CONSTRAINT approval_audit_log_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id)
+  CONSTRAINT approval_audit_log_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT approval_audit_log_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.categories (
   id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
@@ -176,9 +167,8 @@ CREATE TABLE public.procedure_phase_products (
   product_id bigint,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  patient_type_id bigint,
+  rank integer NOT NULL DEFAULT 1,
   CONSTRAINT procedure_phase_products_pkey PRIMARY KEY (id),
-  CONSTRAINT procedure_phase_products_patient_type_id_fkey FOREIGN KEY (patient_type_id) REFERENCES public.patient_types(id),
   CONSTRAINT procedure_phase_products_phase_id_fkey FOREIGN KEY (phase_id) REFERENCES public.phases(id),
   CONSTRAINT procedure_phase_products_procedure_id_fkey FOREIGN KEY (procedure_id) REFERENCES public.procedures(id),
   CONSTRAINT procedure_phase_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
@@ -191,8 +181,8 @@ CREATE TABLE public.procedure_phases (
   updated_at timestamp with time zone DEFAULT now(),
   phase_name text,
   CONSTRAINT procedure_phases_pkey PRIMARY KEY (id),
-  CONSTRAINT procedure_phases_phase_id_fkey FOREIGN KEY (phase_id) REFERENCES public.phases(id),
-  CONSTRAINT procedure_phases_procedure_id_fkey FOREIGN KEY (procedure_id) REFERENCES public.procedures(id)
+  CONSTRAINT procedure_phases_procedure_id_fkey FOREIGN KEY (procedure_id) REFERENCES public.procedures(id),
+  CONSTRAINT procedure_phases_phase_id_fkey FOREIGN KEY (phase_id) REFERENCES public.phases(id)
 );
 CREATE TABLE public.procedures (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -203,6 +193,7 @@ CREATE TABLE public.procedures (
   updated_at timestamp with time zone DEFAULT now(),
   category_id integer,
   patient_type text,
+  custom_phase_labels jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT procedures_pkey PRIMARY KEY (id),
   CONSTRAINT procedures_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
@@ -215,8 +206,6 @@ CREATE TABLE public.product_details (
   clinical_evidence text,
   pitch_points text,
   rationale_2 text,
-  procedure_name text,
-  product_name text,
   rationale text DEFAULT ''::text,
   procedure_id integer,
   CONSTRAINT product_details_pkey PRIMARY KEY (id),
@@ -229,19 +218,6 @@ CREATE TABLE public.products (
   updated_at timestamp with time zone DEFAULT now(),
   is_available boolean DEFAULT true,
   CONSTRAINT products_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.research_articles (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL,
-  procedure_name text,
-  product_name text,
-  title text,
-  author text,
-  abstract text,
-  url text,
-  is_condition_specific boolean,
-  updated_at timestamp with time zone,
-  CONSTRAINT research_articles_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.user_profiles (
   id uuid NOT NULL,
@@ -256,7 +232,10 @@ CREATE TABLE public.user_profiles (
   approved_by uuid,
   approved_at timestamp with time zone,
   rejection_reason text,
+  role_assigned_by uuid,
+  role_assigned_at timestamp with time zone,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT user_profiles_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT user_profiles_role_assigned_by_fkey FOREIGN KEY (role_assigned_by) REFERENCES auth.users(id),
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT user_profiles_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id)
 );

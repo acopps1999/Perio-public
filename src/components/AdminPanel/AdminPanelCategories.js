@@ -92,7 +92,13 @@ function AdminPanelCategories({
             <button
               onClick={handleAddCategory}
               disabled={!newCategoryInput.trim()}
-              className={`px-6 py-3 rounded-lg text-white text-sm font-semibold flex items-center transition-colors shadow-md ${!newCategoryInput.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#9b9cfa] hover:bg-[#b4b5ff]'}`}
+              className={`px-6 py-3 rounded-lg text-white text-sm font-semibold flex items-center transition-colors shadow-md ${
+                !newCategoryInput.trim()
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : isDarkMode
+                    ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                    : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+              }`}
             >
               <Plus size={18} className="mr-2" />
               Add Category

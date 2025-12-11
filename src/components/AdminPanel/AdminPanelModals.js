@@ -465,7 +465,11 @@ function AdminPanelModals({
                           const productName = newItemData.name || editingProductId;
                           handleOpenCompetitiveAdvantage(productName);
                         }}
-                        className="w-full px-3 py-2 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center justify-center transition-colors"
+                        className={`w-full px-3 py-2 text-white rounded-md text-sm flex items-center justify-center transition-colors ${
+                          isDarkMode
+                            ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                            : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                        }`}
                       >
                         <Target size={16} className="mr-2" />
                         Manage Competitive Advantage
@@ -491,7 +495,11 @@ function AdminPanelModals({
                 onClick={handleSubmitNewItem}
                 disabled={!newItemData.name}
                 className={`px-3 py-1.5 rounded-md text-white text-sm transition-colors ${
-                  newItemData.name ? 'bg-[#9b9cfa] hover:bg-[#b4b5ff]' : 'bg-[#9b9cfa]/40 cursor-not-allowed'
+                  newItemData.name
+                    ? isDarkMode
+                      ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                      : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                    : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
                 {editingProductId ? 'Save Changes' : 'Add'}
@@ -567,7 +575,11 @@ function AdminPanelModals({
                     <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Competitors</h3>
                     <button
                       onClick={addCompetitor}
-                      className="px-3 py-1.5 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center transition-colors"
+                      className={`px-3 py-1.5 text-white rounded-md text-sm flex items-center transition-colors ${
+                        isDarkMode
+                          ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                          : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                      }`}
                     >
                       <Plus size={16} className="mr-1" />
                       Add Competitor
@@ -631,7 +643,11 @@ function AdminPanelModals({
                     <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Active Ingredients</h3>
                     <button
                       onClick={addActiveIngredient}
-                      className="px-3 py-1.5 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] text-sm flex items-center transition-colors"
+                      className={`px-3 py-1.5 text-white rounded-md text-sm flex items-center transition-colors ${
+                        isDarkMode
+                          ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                          : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                      }`}
                     >
                       <Plus size={16} className="mr-1" />
                       Add Active Ingredient
@@ -699,7 +715,11 @@ function AdminPanelModals({
                 </button>
                 <button
                   onClick={saveCompetitiveAdvantage}
-                  className="px-4 py-2 bg-[#9b9cfa] text-white rounded-md hover:bg-[#b4b5ff] transition-colors"
+                  className={`px-4 py-2 text-white rounded-md transition-colors ${
+                    isDarkMode
+                      ? 'bg-prism-primary hover:bg-prism-primary-hover'
+                      : 'bg-prism-primary-light hover:bg-prism-primary-light-hover'
+                  }`}
                 >
                   Save Changes
                 </button>

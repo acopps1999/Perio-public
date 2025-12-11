@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowLeft, Plus, X, ExternalLink, FileText, Beaker, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, X, ExternalLink, FileText, Beaker, BookOpen, Copy } from 'lucide-react';
 import DynamicTextarea from './DynamicTextarea';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { useTheme } from '../../contexts/ThemeContext';
+import CopyProductDetailsModal from './CopyProductDetailsModal';
 
 /**
  * ProductEditDrawer - Full-page drawer for editing product details
@@ -19,18 +20,21 @@ function ProductEditDrawer({
   productName,
   productDetails,
   condition,
+  conditions,
   saveStatus,
   updateProductDetail,
   debouncedUpdateProductDetail,
   updateConditionField,
   getPhasesForProduct,
-  parentDrawerWidth
+  parentDrawerWidth,
+  onCopyProductDetails
 }) {
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('usage');
   // Use parent drawer width if provided, otherwise default to 900px
   const [drawerWidth, setDrawerWidth] = useState(parentDrawerWidth || 900);
   const [isResizing, setIsResizing] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
 
   // Sync with parent drawer width when it changes
   useEffect(() => {
@@ -162,16 +166,30 @@ function ProductEditDrawer({
                   </Dialog.Description>
                 </div>
               </div>
-              <Dialog.Close
-                className={`p-2 rounded-lg transition-all duration-250 ${
-                  isDarkMode
-                    ? 'hover:bg-[#2a2a2a] text-[#9ca3af] hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
-                }`}
-                aria-label="Close"
-              >
-                <X size={24} />
-              </Dialog.Close>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCopyModal(true)}
+                  className={`p-2 rounded-lg transition-all duration-250 flex items-center gap-2 ${
+                    isDarkMode
+                      ? 'hover:bg-[#9b9cfa]/20 text-[#9b9cfa] hover:text-[#b4b5ff]'
+                      : 'hover:bg-[#9b9cfa]/10 text-[#7c7ddb] hover:text-[#9b9cfa]'
+                  }`}
+                  title="Copy details from another condition"
+                >
+                  <Copy size={18} />
+                  <span className="text-sm font-medium hidden sm:inline">Copy from...</span>
+                </button>
+                <Dialog.Close
+                  className={`p-2 rounded-lg transition-all duration-250 ${
+                    isDarkMode
+                      ? 'hover:bg-[#2a2a2a] text-[#9ca3af] hover:text-white'
+                      : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
+                  }`}
+                  aria-label="Close"
+                >
+                  <X size={24} />
+                </Dialog.Close>
+              </div>
             </div>
           </div>
 
@@ -247,6 +265,21 @@ function ProductEditDrawer({
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {/* Copy Product Details Modal */}
+      <CopyProductDetailsModal
+        isOpen={showCopyModal}
+        onClose={() => setShowCopyModal(false)}
+        productName={productName}
+        currentConditionId={condition?.db_id}
+        currentConditionName={condition?.name}
+        conditions={conditions}
+        onCopyDetails={async (sourceCondition, sourceDetails, copyOptions) => {
+          if (onCopyProductDetails) {
+            await onCopyProductDetails(sourceCondition, sourceDetails, copyOptions);
+          }
+        }}
+      />
     </Dialog.Root>
   );
 }

@@ -19,6 +19,9 @@ export function useDraggable(defaultPosition = { x: null, y: null }) {
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
+  // Store element ref for size calculations
+  const elementRef = useRef(null);
+
   // Handle mouse down on draggable element (start drag)
   const handleMouseDown = useCallback((e) => {
     // Only start drag if clicking on the header (not on buttons)
@@ -26,14 +29,26 @@ export function useDraggable(defaultPosition = { x: null, y: null }) {
       return;
     }
 
-    setIsDragging(true);
+    const container = e.currentTarget.closest('[data-draggable-container]');
+    elementRef.current = container;
 
-    // Calculate offset between mouse position and element position
-    const rect = e.currentTarget.closest('[data-draggable-container]').getBoundingClientRect();
+    // Get the current position of the element
+    const rect = container.getBoundingClientRect();
+
+    // Calculate offset between mouse position and element's top-left corner
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
+
+    // If position is null (using CSS positioning), initialize to current pixel position
+    // This prevents the "jump" on first drag
+    setPosition({
+      x: rect.left,
+      y: rect.top,
+    });
+
+    setIsDragging(true);
 
     e.preventDefault(); // Prevent text selection while dragging
   }, []);
@@ -46,9 +61,13 @@ export function useDraggable(defaultPosition = { x: null, y: null }) {
     const newX = e.clientX - dragOffset.current.x;
     const newY = e.clientY - dragOffset.current.y;
 
-    // Constrain to viewport bounds
-    const maxX = window.innerWidth - 500; // Modal width
-    const maxY = window.innerHeight - 600; // Modal height
+    // Get actual element dimensions for proper boundary constraints
+    const elementWidth = elementRef.current?.offsetWidth || 384;
+    const elementHeight = elementRef.current?.offsetHeight || 400;
+
+    // Constrain to viewport bounds (allow dragging to edges minus element size)
+    const maxX = window.innerWidth - elementWidth;
+    const maxY = window.innerHeight - elementHeight;
 
     setPosition({
       x: Math.max(0, Math.min(newX, maxX)),

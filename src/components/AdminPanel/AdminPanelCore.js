@@ -17,7 +17,9 @@ import {
   renameProductRealtime,
   addConditionToSupabase,
   deleteConditionFromSupabase,
-  getEntityIdMaps
+  getEntityIdMaps,
+  addCategoryRealtime,
+  addDdsTypeRealtime
 } from './AdminPanelSupabase';
 
 function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
@@ -366,17 +368,15 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   // Add new condition
   const handleAddCondition = () => {
     setModalType('condition');
-    // Phase 3: Default to single "General Recommendation" phase
-    const defaultPhases = ['General Recommendation'];
-    const defaultProducts = {};
-    defaultPhases.forEach(phase => defaultProducts[phase] = []);
+    // Every new condition starts with a "General" modifier
+    const defaultPhases = ['General'];
+    const defaultProducts = { 'General': [] };
 
     setNewItemData({
       name: '',
       category: categories[0] || '',
       phases: defaultPhases,
       dds: ['General Dentist'], // Default DDS to prevent validation errors
-      // Phase 3: Removed patientType and patientSpecificConfig
       products: defaultProducts,
       productDetails: {},
       conditionSpecificResearch: {}
@@ -409,6 +409,7 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
   };
   
   // Submit new item from modal
+  // Handle submit - optimistic approach: close modal immediately, save in background
   const handleSubmitNewItem = async () => {
     const itemName = newItemData.name ? newItemData.name.trim() : '';
 
@@ -419,35 +420,38 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
       return;
     }
 
-    let success = false;
+    // Close modal immediately for better UX
+    setShowAddModal(false);
+    const savedModalType = modalType;
+    const savedEditingProductId = editingProductId;
+    const savedNewItemData = { ...newItemData };
+    setNewItemData({});
+    setEditingProductId(null);
 
-    if (modalType === 'product') {
+    if (savedModalType === 'product') {
       const productName = itemName;
-      if (editingProductId) { // Editing existing product (rename)
-        if (editingProductId !== productName) {
-          // Call real-time rename function
-          await renameProductRealtime(editingProductId, productName);
-          // Update allProducts list locally for immediate UI feedback
-          setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: productName } : p).sort((a, b) => a.name.localeCompare(b.name)));
-          // Update conditions to reflect the rename
+      if (savedEditingProductId) { // Editing existing product (rename)
+        if (savedEditingProductId !== productName) {
+          // Update local state immediately
+          setAllProducts(prev => prev.map(p => p.name === savedEditingProductId ? { ...p, name: productName } : p).sort((a, b) => a.name.localeCompare(b.name)));
           setConditions(prevConditions =>
             prevConditions.map(condition => {
                 const updatedProductsInPhases = { ...condition.products };
                 Object.keys(updatedProductsInPhases).forEach(phase => {
                     updatedProductsInPhases[phase] = updatedProductsInPhases[phase].map(p =>
-                        p === editingProductId ? productName :
-                        p === `${editingProductId} (Type 3/4 Only)` ? `${productName} (Type 3/4 Only)` : p
+                        p === savedEditingProductId ? productName :
+                        p === `${savedEditingProductId} (Type 3/4 Only)` ? `${productName} (Type 3/4 Only)` : p
                     );
                 });
                 const updatedProductDetails = { ...condition.productDetails };
-                if (updatedProductDetails[editingProductId]) {
-                    updatedProductDetails[productName] = updatedProductDetails[editingProductId];
-                    delete updatedProductDetails[editingProductId];
+                if (updatedProductDetails[savedEditingProductId]) {
+                    updatedProductDetails[productName] = updatedProductDetails[savedEditingProductId];
+                    delete updatedProductDetails[savedEditingProductId];
                 }
                 const updatedPatientSpecificConfig = JSON.parse(JSON.stringify(condition.patientSpecificConfig || {}));
                 Object.keys(updatedPatientSpecificConfig).forEach(phase => {
                     Object.keys(updatedPatientSpecificConfig[phase]).forEach(type => {
-                        updatedPatientSpecificConfig[phase][type] = (updatedPatientSpecificConfig[phase][type] || []).map(p => p === editingProductId ? productName : p);
+                        updatedPatientSpecificConfig[phase][type] = (updatedPatientSpecificConfig[phase][type] || []).map(p => p === savedEditingProductId ? productName : p);
                     });
                 });
 
@@ -459,120 +463,100 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
                 };
             })
           );
-          success = true;
-        } else { // Name didn't change
-          success = true; 
+          showToast('Product renamed', 'success');
+
+          // Rename in database in background
+          renameProductRealtime(savedEditingProductId, productName).then(result => {
+            if (!result.success) {
+              showToast('Failed to save rename - refresh to see current state', 'error');
+            }
+          });
         }
       } else { // Adding new product
-        // Add product to database
-        const result = await addProductRealtime(productName);
-        if (result.success && result.data) {
-          // Add to local state with id from database
-          if (!allProducts.some(p => p.name === productName)) {
-            setAllProducts(prev => [...prev, { id: result.data.id, name: productName, is_available: true }].sort((a, b) => a.name.localeCompare(b.name)));
-          }
-          showToast('Product added successfully', 'success');
-          success = true;
-        } else {
-          const errorMsg = result.error?.message || 'Failed to add product';
-          showToast(errorMsg, 'error');
-          success = false;
+        // Add to local state immediately with temporary id
+        const tempId = `temp-${Date.now()}`;
+        if (!allProducts.some(p => p.name === productName)) {
+          setAllProducts(prev => [...prev, { id: tempId, name: productName, is_available: true }].sort((a, b) => a.name.localeCompare(b.name)));
         }
+        showToast('Product added', 'success');
+
+        // Add to database in background
+        addProductRealtime(productName).then(result => {
+          if (result.success && result.data) {
+            // Update with real ID from database
+            setAllProducts(prev => prev.map(p =>
+              p.id === tempId ? { ...p, id: result.data.id } : p
+            ));
+          } else {
+            showToast('Failed to save product - refresh to see current state', 'error');
+          }
+        });
       }
 
-  } else if (modalType === 'condition') {
-    // Add new condition to database
+  } else if (savedModalType === 'condition') {
+    // Every new condition starts with a "General" modifier
+    const defaultPhase = 'General';
     const newConditionObject = {
         name: itemName,
-        category: newItemData.category || (categories.length > 0 ? categories[0] : ''),
-        phases: newItemData.phases || ['Prep', 'Acute', 'Maintenance'],
-        dds: newItemData.dds || [],
-        patientType: newItemData.patientType || 'Types 1 to 4',
-        products: newItemData.products || { Prep: [], Acute: [], Maintenance: [] },
-        productDetails: newItemData.productDetails || {},
-        patientSpecificConfig: newItemData.patientSpecificConfig || {},
-        conditionSpecificResearch: newItemData.conditionSpecificResearch || {},
-        pitchPoints: newItemData.pitchPoints || '',
-        scientificRationale: newItemData.scientificRationale || '',
-        clinicalEvidence: newItemData.clinicalEvidence || '',
-        handlingObjections: newItemData.handlingObjections || '',
+        category: savedNewItemData.category || (categories.length > 0 ? categories[0] : ''),
+        phases: savedNewItemData.phases || [defaultPhase],
+        dds: savedNewItemData.dds || [],
+        patientType: savedNewItemData.patientType || 'Types 1 to 4',
+        products: savedNewItemData.products || { [defaultPhase]: [] },
+        productDetails: savedNewItemData.productDetails || {},
+        patientSpecificConfig: savedNewItemData.patientSpecificConfig || {},
+        conditionSpecificResearch: savedNewItemData.conditionSpecificResearch || {},
+        pitchPoints: savedNewItemData.pitchPoints || '',
+        scientificRationale: savedNewItemData.scientificRationale || '',
+        clinicalEvidence: savedNewItemData.clinicalEvidence || '',
+        handlingObjections: savedNewItemData.handlingObjections || '',
       };
 
-    // Get entity ID mappings and save to database
-    const entityIdMaps = await getEntityIdMaps();
-    const result = await addConditionToSupabase(newConditionObject, entityIdMaps);
-    if (result.success && result.data) {
-      // Add to local state with db_id from database
-      const savedCondition = { ...newConditionObject, db_id: result.data.db_id };
-      setConditions(prev => [...prev, savedCondition]);
-      invalidateConditionsCache();
-      showToast('Condition added successfully', 'success');
-      success = true;
-    } else {
-      const errorMsg = result.error?.message || 'Failed to add condition';
-      showToast(errorMsg, 'error');
-      success = false;
-    }
+    // Add to local state immediately with temporary ID
+    const tempId = `temp-${Date.now()}`;
+    const tempCondition = { ...newConditionObject, db_id: tempId };
+    setConditions(prev => [...prev, tempCondition]);
+    showToast('Condition added', 'success');
 
-  } else if (modalType === 'category') {
+    // Save to database in background
+    getEntityIdMaps().then(entityIdMaps => {
+      addConditionToSupabase(newConditionObject, entityIdMaps).then(result => {
+        if (result.success && result.data) {
+          // Update with real db_id from database
+          setConditions(prev => prev.map(c =>
+            c.db_id === tempId ? { ...c, db_id: result.data.db_id } : c
+          ));
+          invalidateConditionsCache();
+        } else {
+          showToast('Failed to save condition - refresh to see current state', 'error');
+        }
+      });
+    });
+
+  } else if (savedModalType === 'category') {
     if (!categories.includes(itemName)) {
       setCategories(prev => [...prev, itemName].sort());
+      showToast('Category added', 'success');
+
+      // Save to database in background
+      addCategoryRealtime(itemName).then(result => {
+        if (!result.success) {
+          showToast('Failed to save category - refresh to see current state', 'error');
+        }
+      });
     }
-    success = true;
-  } else if (modalType === 'ddsType') {
+  } else if (savedModalType === 'ddsType') {
     if (!ddsTypes.includes(itemName)) {
       setDdsTypes(prev => [...prev, itemName].sort());
+      showToast('DDS Type added', 'success');
+
+      // Save to database in background
+      addDdsTypeRealtime(itemName).then(result => {
+        if (!result.success) {
+          showToast('Failed to save DDS type - refresh to see current state', 'error');
+        }
+      });
     }
-        success = true;
-  }
-  
-  if (success) {
-    // For product edits, ensure local UI reflects change before full reload if needed
-    // For adds, the reload will bring in the new item.
-     if (modalType === 'product' && editingProductId && editingProductId !== itemName) {
-        // If a product was renamed, update allProducts list locally for immediate UI feedback
-        // The full reload from loadInitialData will solidify this.
-        setAllProducts(prev => prev.map(p => p.name === editingProductId ? { ...p, name: itemName } : p).sort((a, b) => a.name.localeCompare(b.name)));
-        // Also update conditions to reflect the rename in product lists and details
-        setConditions(prevConditions =>
-            prevConditions.map(condition => {
-              const updatedProductsInPhases = { ...condition.products };
-              Object.keys(updatedProductsInPhases).forEach(phase => {
-                updatedProductsInPhases[phase] = updatedProductsInPhases[phase].map(p =>
-                p === editingProductId ? itemName : 
-                p === `${editingProductId} (Type 3/4 Only)` ? `${itemName} (Type 3/4 Only)` : p
-              );
-            });
-            const updatedProductDetails = { ...condition.productDetails };
-            if (updatedProductDetails[editingProductId]) {
-                updatedProductDetails[itemName] = updatedProductDetails[editingProductId];
-              delete updatedProductDetails[editingProductId];
-            }
-            // Update patientSpecificConfig if it contains the product name
-            const updatedPatientSpecificConfig = JSON.parse(JSON.stringify(condition.patientSpecificConfig || {}));
-            Object.keys(updatedPatientSpecificConfig).forEach(phase => {
-                Object.keys(updatedPatientSpecificConfig[phase]).forEach(type => {
-                    updatedPatientSpecificConfig[phase][type] = (updatedPatientSpecificConfig[phase][type] || []).map(p => p === editingProductId ? itemName : p);
-                });
-            });
-
-            return { 
-              ...condition, 
-                products: updatedProductsInPhases,
-                productDetails: updatedProductDetails,
-                patientSpecificConfig: updatedPatientSpecificConfig,
-            };
-          })
-        );
-     }
-
-
-    setShowAddModal(false);
-    setNewItemData({});
-    setEditingProductId(null);
-  } else {
-    // Handle failure (e.g., show error message to user)
-    // Modal remains open for correction or explicit close
   }
 };
   
@@ -582,92 +566,76 @@ function AdminPanelCore({ onSaveChangesSuccess, onClose, children }) {
     setShowDeleteModal(true);
   };
   
-  // Handle delete
+  // Handle delete - optimistic approach: close modal immediately, delete in background
   const handleDelete = async () => {
     if (isDeleting) return;
 
-    try {
-      setIsDeleting(true);
-      const { type, item } = itemToDelete;
-      let success = false;
+    const { type, item } = itemToDelete;
 
-      if (type === 'condition') {
-        // Delete condition from database
-        const conditionId = item.db_id;
-        if (!conditionId) {
-          showToast('Cannot delete condition without ID', 'error');
-          success = false;
-        } else {
-          const result = await deleteConditionFromSupabase(conditionId);
-          if (result.success) {
-            // Remove from local state
-            setConditions(prev => prev.filter(c => c.db_id !== conditionId));
-            if (selectedCondition && selectedCondition.db_id === conditionId) {
-              const remainingConditions = conditions.filter(c => c.db_id !== conditionId);
-              setSelectedCondition(remainingConditions.length > 0 ? remainingConditions[0] : null);
-            }
-            invalidateConditionsCache();
-            showToast('Condition deleted successfully', 'success');
-            success = true;
-          } else {
-            const errorMsg = result.error?.message || 'Failed to delete condition';
-            showToast(errorMsg, 'error');
-            success = false;
-          }
-        }
-      } else if (type === 'product') {
-        // Remove from local lists
-        setAllProducts(prev => prev.filter(p => p.name !== item));
-        success = true;
-      } else if (type === 'category') {
-        if (item === 'All') { // 'All' category should not be deleted
-          setShowDeleteModal(false);
-          setItemToDelete(null);
-          setIsDeleting(false);
-          return;
-        }
+    // Close modal immediately for better UX
+    setShowDeleteModal(false);
+    setItemToDelete(null);
 
-        // Delete from database
-        const result = await deleteCategoryFromSupabase(item);
-        if (result.success) {
-          setCategories(prev => prev.filter(c => c !== item));
-          // When a category is deleted, conditions using it should be updated to have no category.
-          setConditions(prev => prev.map(cond => {
-            if (cond.category === item) {
-              return { ...cond, category: null };
-            }
-            return cond;
-          }));
-          invalidateConditionsCache();
-          showToast('Category deleted successfully', 'success');
-          success = true;
-        } else {
-          const errorMsg = result.error?.message || 'Failed to delete category';
-          showToast(errorMsg, 'error');
-          success = false;
-        }
-      } else if (type === 'ddsType') {
-        if (item === 'All') { // 'All' DDS type should not be deleted
-          setShowDeleteModal(false);
-          setItemToDelete(null);
-          setIsDeleting(false);
-          return;
-        }
-        setDdsTypes(prev => prev.filter(d => d !== item));
-        // When a DDS Type is deleted, remove it from any conditions that use it.
-        setConditions(prev => prev.map(cond => {
-          if (cond.dds.includes(item)) {
-            return { ...cond, dds: cond.dds.filter(d => d !== item) };
-          }
-          return cond;
-        }));
+    // Handle special cases that shouldn't be deleted
+    if ((type === 'category' || type === 'ddsType') && item === 'All') {
+      return;
+    }
+
+    // Optimistically update local state immediately
+    if (type === 'condition') {
+      const conditionId = item.db_id;
+      if (!conditionId) {
+        showToast('Cannot delete condition without ID', 'error');
+        return;
       }
-    } catch (error) {
-      showToast(`Error deleting: ${error.message}`, 'error');
-    } finally {
-      setShowDeleteModal(false);
-      setItemToDelete(null);
-      setIsDeleting(false);
+      // Remove from local state immediately
+      setConditions(prev => prev.filter(c => c.db_id !== conditionId));
+      // If deleting the currently viewed condition, go back to the list view
+      if (selectedCondition && selectedCondition.db_id === conditionId) {
+        setSelectedCondition(null);
+      }
+      showToast('Condition deleted', 'success');
+
+      // Delete from database in background
+      deleteConditionFromSupabase(conditionId).then(result => {
+        if (!result.success) {
+          showToast('Failed to delete from database - refresh to see current state', 'error');
+        }
+        invalidateConditionsCache();
+      });
+
+    } else if (type === 'product') {
+      setAllProducts(prev => prev.filter(p => p.name !== item));
+      showToast('Product deleted', 'success');
+
+    } else if (type === 'category') {
+      // Update local state immediately
+      setCategories(prev => prev.filter(c => c !== item));
+      setConditions(prev => prev.map(cond => {
+        if (cond.category === item) {
+          return { ...cond, category: null };
+        }
+        return cond;
+      }));
+      showToast('Category deleted', 'success');
+
+      // Delete from database in background
+      deleteCategoryFromSupabase(item).then(result => {
+        if (!result.success) {
+          showToast('Failed to delete from database - refresh to see current state', 'error');
+        }
+        invalidateConditionsCache();
+      });
+
+    } else if (type === 'ddsType') {
+      setDdsTypes(prev => prev.filter(d => d !== item));
+      setConditions(prev => prev.map(cond => {
+        if (cond.dds.includes(item)) {
+          return { ...cond, dds: cond.dds.filter(d => d !== item) };
+        }
+        return cond;
+      }));
+      showToast('DDS Type deleted', 'success');
     }
   };
   
