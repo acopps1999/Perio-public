@@ -414,7 +414,24 @@ async function loadProceduresFallback() {
             clinicalEvidence: pd.clinical_evidence || '',
             pitchPoints: pd.pitch_points || '',
             objectionHandling: pd.objection_handling || '',
-            factSheetUrl: pd.fact_sheet_url || ''
+            factSheetUrl: pd.fact_sheet_url || '',
+            // Add usage instructions from phaseSpecificUsage
+            usage: procPhaseUsage[prodName] || null
+          };
+        }
+      });
+
+      // Also add any products from phaseSpecificUsage that don't have productDetails entries
+      Object.keys(procPhaseUsage).forEach(productName => {
+        if (!productDetailsObj[productName]) {
+          productDetailsObj[productName] = {
+            rationale: '',
+            rationale_2: '',
+            clinicalEvidence: '',
+            pitchPoints: '',
+            objectionHandling: '',
+            factSheetUrl: '',
+            usage: procPhaseUsage[productName]
           };
         }
       });
